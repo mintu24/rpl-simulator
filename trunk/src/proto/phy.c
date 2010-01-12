@@ -45,3 +45,13 @@ bool phy_init_node(node_t *node, phy_node_info_t *node_info)
 
     return TRUE;
 }
+
+void phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu)
+{
+    // todo
+}
+
+void phy_event_after_pdu_received(node_t *node, phy_pdu_t *pdu)
+{
+    // todo
+}

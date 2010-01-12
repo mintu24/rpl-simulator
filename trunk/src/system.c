@@ -100,5 +100,4 @@ percent_t rs_system_get_link_quality(rs_system_t *system, node_t *node1, node_t 
 
 bool rs_system_send_message(rs_system_t *system, node_t *src_node, node_t *dst_node, phy_pdu_t *message)
 {
-    // TODO: implement this
 }

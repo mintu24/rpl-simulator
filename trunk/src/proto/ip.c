@@ -108,3 +108,23 @@ bool ip_init_node(node_t *node, ip_node_info_t *node_info)
 
     return TRUE;
 }
+
+void ip_event_before_pdu_sent(node_t *node, ip_pdu_t *pdu)
+{
+    // todo
+}
+
+void ip_event_after_pdu_received(node_t *node, ip_pdu_t *pdu)
+{
+    // todo
+}
+
+void icmp_event_before_pdu_sent(node_t *node, icmp_pdu_t *pdu)
+{
+    // todo
+}
+
+void icmp_event_after_pdu_received(node_t *node, icmp_pdu_t *pdu)
+{
+    // todo
+}
