@@ -14,6 +14,16 @@
 #define DIO_SUBOPTION_TYPE_DAG_CONFIG   0x04
 
 
+typedef struct rpl_node_info_t {
+
+    node_t *parent_list;
+    uint16 parent_count;
+
+    node_t *sibling_list;
+    uint16 sibling_count;
+
+} rpl_node_info_t;
+
 typedef struct {
 
     int8 interval_doublings;
@@ -72,7 +82,7 @@ dao_pdu_t *         dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 ran
 bool                dao_pdu_destroy(dao_pdu_t *pdu);
 bool                dao_pdu_add_rr(dao_pdu_t *pdu, char *ip_address);
 
-bool                rpl_init_node(node_t *node);
+bool                rpl_init_node(node_t *node, rpl_node_info_t *node_info);
 
 
 #endif /* RPL_H_ */

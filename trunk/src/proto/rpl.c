@@ -164,7 +164,12 @@ bool dao_pdu_add_rr(dao_pdu_t *pdu, char *ip_address)
     return TRUE;
 }
 
-bool rpl_init_node(node_t *node)
+bool rpl_init_node(node_t *node, rpl_node_info_t *node_info)
 {
+    if (node == NULL || node_info == NULL) {
+        rs_error("invalid argument");
+        return FALSE;
+    }
+
     return TRUE;
 }
