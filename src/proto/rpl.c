@@ -173,3 +173,33 @@ bool rpl_init_node(node_t *node, rpl_node_info_t *node_info)
 
     return TRUE;
 }
+
+void rpl_event_before_dis_pdu_sent(node_t *node, void *data)
+{
+
+}
+
+void rpl_event_after_dis_pdu_received(node_t *node, void *data)
+{
+
+}
+
+void rpl_event_before_dio_pdu_sent(node_t *node, dio_pdu_t *pdu)
+{
+
+}
+
+void rpl_event_after_dio_pdu_received(node_t *node, dio_pdu_t *pdu)
+{
+
+}
+
+void rpl_event_before_dao_pdu_sent(node_t *node, dao_pdu_t *pdu)
+{
+
+}
+
+void rpl_event_after_dao_pdu_received(node_t *node, dao_pdu_t *pdu)
+{
+
+}

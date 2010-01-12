@@ -9,12 +9,14 @@
 #define IP_NEXT_HEADER_ICMP         0x0058
 
 
+    /* info that a node supporting IP should store */
 typedef struct ip_node_info_t {
 
     char *address;
 
 } ip_node_info_t;
 
+    /* fields contained in a IP packet */
 typedef struct {
 
     char *dst_address;
@@ -25,6 +27,7 @@ typedef struct {
 
 } ip_pdu_t;
 
+    /* fields contained in a ICMP message */
 typedef struct {
 
     uint8 type;
@@ -43,6 +46,13 @@ bool                icmp_pdu_destroy(icmp_pdu_t *pdu);
 bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu);
 
 bool                ip_init_node(node_t *node, ip_node_info_t *node_info);
+
+    /* IP events */
+void                ip_event_before_pdu_sent(node_t *node, ip_pdu_t *pdu);
+void                ip_event_after_pdu_received(node_t *node, ip_pdu_t *pdu);
+
+void                icmp_event_before_pdu_sent(node_t *node, icmp_pdu_t *pdu);
+void                icmp_event_after_pdu_received(node_t *node, icmp_pdu_t *pdu);
 
 
 #endif /* IP_H_ */

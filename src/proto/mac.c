@@ -63,3 +63,13 @@ bool mac_init_node(node_t *node, mac_node_info_t *node_info)
 
     return TRUE;
 }
+
+void mac_event_before_pdu_sent(node_t *node, mac_pdu_t *pdu)
+{
+    // todo
+}
+
+void mac_event_after_pdu_received(node_t *node, mac_pdu_t *pdu)
+{
+    // todo
+}
