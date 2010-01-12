@@ -1,5 +1,6 @@
 
 #include <gtk/gtk.h>
+#include <math.h>
 
 #include "gui/mainwin.h"
 
@@ -7,6 +8,10 @@
 void rs_print(FILE *stream, char *sym, const char *fname, const char *fmt, ...)
 {
     char string[256];
+
+    if (fmt == NULL) {
+        fmt = "";
+    }
 
     va_list ap;
     va_start(ap, fmt);
@@ -25,7 +30,6 @@ void rs_quit()
 {
     gtk_main_quit();
 }
-
 
 int main(int argc, char *argv[]) {
 	rs_info("hello");

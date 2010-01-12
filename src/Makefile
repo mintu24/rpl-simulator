@@ -1,6 +1,6 @@
 
 EXE = rpl-simulator
-OBJS = main.o node.o system.o gui/mainwin.o gui/simfield.o proto/mac.o proto/ip.o proto/rpl.o
+OBJS = main.o node.o system.o gui/mainwin.o gui/simfield.o proto/phy.o proto/mac.o proto/ip.o proto/rpl.o
 CFLAGS = -Wall -g3 `pkg-config --cflags gtk+-2.0`
 LDFLAGS = -Wall `pkg-config --libs gtk+-2.0`
 
@@ -27,6 +27,8 @@ system.o: system.c system.h base.h node.h
 gui/mainwin.o: gui/mainwin.c gui/mainwin.h base.h gui/simfield.h
 
 gui/simfield.o: gui/simfield.c gui/simfield.h base.h
+
+proto/phy.o: proto/phy.c proto/phy.h base.h node.h proto/mac.h
 
 proto/mac.o: proto/mac.c proto/mac.h base.h node.h proto/ip.h
 

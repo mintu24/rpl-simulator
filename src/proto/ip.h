@@ -9,6 +9,12 @@
 #define IP_NEXT_HEADER_ICMP         0x0058
 
 
+typedef struct ip_node_info_t {
+
+    char *address;
+
+} ip_node_info_t;
+
 typedef struct {
 
     char *dst_address;
@@ -36,7 +42,7 @@ icmp_pdu_t *        icmp_pdu_create();
 bool                icmp_pdu_destroy(icmp_pdu_t *pdu);
 bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu);
 
-bool                ip_init_node(node_t *node, char *ip_address);
+bool                ip_init_node(node_t *node, ip_node_info_t *node_info);
 
 
 #endif /* IP_H_ */
