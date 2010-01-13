@@ -1,8 +1,8 @@
 
 EXE = rpl-simulator
 OBJS = main.o node.o system.o gui/mainwin.o gui/simfield.o proto/phy.o proto/mac.o proto/ip.o proto/rpl.o
-CFLAGS = -Wall -g3 `pkg-config --cflags gtk+-2.0`
-LDFLAGS = -Wall `pkg-config --libs gtk+-2.0`
+CFLAGS = -Wall -g3 -pthread `pkg-config --cflags gtk+-2.0 gthread-2.0`
+LDFLAGS = -Wall -pthread `pkg-config --libs gtk+-2.0 gthread-2.0`
 
 CC = gcc
 RM = rm -f

@@ -10,9 +10,6 @@
 #include "proto/ip.h"
 #include "proto/rpl.h"
 
-typedef void (* event_handler_t) (node_t *node, void *data);
-#define EVENT_HANDLER(x)    (event_handler_t) (x)
-
 
 typedef struct {
 

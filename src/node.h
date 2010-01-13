@@ -2,9 +2,14 @@
 #ifndef NODE_H_
 #define NODE_H_
 
+#include <glib.h>
+
 #include "base.h"
 
+#define NODE_LIFE_CORE_SLEEP    10
 
+
+    /* a node in the simulated network */
 typedef struct {
 
     char *name;
@@ -15,10 +20,40 @@ typedef struct {
     struct ip_node_info_t *ip_info;
     struct rpl_node_info_t *rpl_info;
 
+    GThread *life;
+    bool alive;
+
+    GHashTable *schedules;
+    GTimer *schedule_timer;
+
+    GMutex *life_mutex;
+    GMutex *schedule_mutex;
+
 } node_t;
 
+    /* a callback type representing a node's scheduled action */
+typedef void (* node_schedule_func_t) (node_t *node, void *data);
 
-node_t                  *rs_node_create(char *name);
+    /* structure used for scheduling actions to be executed at a certain moment */
+typedef struct {
+
+    char *name;
+    node_schedule_func_t func;
+    void *data;
+    uint32 usecs;
+    uint32 remaining_usecs;
+    bool recurrent;
+
+} node_schedule_t;
+
+
+node_t *                    node_create(char *name, coord_t cx, coord_t cy);
+bool                        node_destroy(node_t* node);
+
+bool                        node_start(node_t* node);
+bool                        node_kill(node_t* node);
+
+bool                        node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);
 
 
 #endif /* NODE_H_ */
