@@ -10,6 +10,9 @@ rs_system_t *rs_system_create()
     system->node_list = NULL;
     system->node_count = 0;
 
+    system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
+    system->phy_transmit_mode = DEFAULT_PHY_TRANSMIT_MODE;
+
     return system;
 }
 
@@ -81,23 +84,33 @@ node_t *rs_system_find_node_by_name(rs_system_t *system, char *name)
     return NULL;
 }
 
-percent_t rs_system_get_link_quality(rs_system_t *system, node_t *node1, node_t *node2)
+percent_t rs_system_get_link_quality(rs_system_t *system, node_t *src_node, node_t *dst_node)
 {
     rs_assert(system != NULL);
-    rs_assert(node1 != NULL);
-    rs_assert(node2 != NULL);
+    rs_assert(src_node != NULL);
+    rs_assert(dst_node != NULL);
 
-    coord_t distance = sqrt(pow(node1->cx - node2->cx, 2) + pow(node1->cy - node2->cy, 2));
+    coord_t distance = sqrt(pow(src_node->cx - dst_node->cx, 2) + pow(src_node->cy - dst_node->cy, 2));
     if (distance > system->no_link_dist_thresh) {
         distance = system->no_link_dist_thresh;
     }
 
     percent_t dist_factor = (percent_t) (system->no_link_dist_thresh - distance) / system->no_link_dist_thresh;
-    percent_t quality = node1->phy_info->power_level * node2->phy_info->power_level * dist_factor;
+    percent_t quality = src_node->phy_info->power_level * dist_factor;
 
     return quality;
 }
 
 bool rs_system_send_message(rs_system_t *system, node_t *src_node, node_t *dst_node, phy_pdu_t *message)
 {
+    rs_assert(system != NULL);
+    rs_assert(src_node != NULL);
+    rs_assert(dst_node != NULL);
+    rs_assert(message != NULL);
+
+    // todo node_execute(event...)
+    //phy_event_before_pdu_sent(src_node, message);
+    bool all_ok = node_receive_pdu(dst_node, message, system->phy_transmit_mode);
+
+    return all_ok;
 }

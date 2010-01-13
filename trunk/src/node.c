@@ -2,12 +2,24 @@
 #include <unistd.h>
 
 #include "node.h"
+#include "proto/phy.h"
+
+
+typedef struct {
+
+    node_schedule_func_t func;
+    void *data;
+    bool executed;
+
+} execute_wrapper_data_t;
 
 
 static void *                   node_life_core(node_t *node);
 
 static node_schedule_t *        node_schedule_create(char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);
 static bool                     node_schedule_destroy(node_schedule_t *schedule);
+
+static void                     execute_wrapper(node_t *node, void *data);
 
 
 node_t *node_create(char *name, coord_t cx, coord_t cy)
@@ -26,12 +38,17 @@ node_t *node_create(char *name, coord_t cx, coord_t cy)
     node->rpl_info = NULL;
 
     node->life = NULL;
-    node->life_mutex = NULL;
     node->alive = FALSE;
 
-    node->schedules = NULL;
-    node->schedule_mutex = NULL;
-    node->schedule_timer = NULL;
+    node->schedules = g_hash_table_new(g_str_hash, g_str_equal);
+    node->schedule_timer = g_timer_new();
+
+    node->pdu_queue = g_queue_new();
+    node->pdu_cond = g_cond_new();
+
+    node->life_mutex = g_mutex_new();
+    node->schedule_mutex = g_mutex_new();
+    node->pdu_mutex = g_mutex_new();
 
     return node;
 }
@@ -42,6 +59,24 @@ bool node_destroy(node_t *node)
 
     if (node->alive)
         node_kill(node);
+
+    if (node->schedules != NULL)
+        g_hash_table_destroy(node->schedules);
+    if (node->schedule_timer != NULL)
+        g_timer_destroy(node->schedule_timer);
+
+    if (node->pdu_queue != NULL)
+        g_queue_free(node->pdu_queue);
+
+    if (node->pdu_cond)
+        g_cond_free(node->pdu_cond);
+
+    if (node->life_mutex)
+        g_mutex_free(node->life_mutex);
+    if (node->schedule_mutex)
+        g_mutex_free(node->schedule_mutex);
+    if (node->pdu_mutex)
+        g_mutex_free(node->pdu_mutex);
 
     if (node->name != NULL)
         free(node->name);
@@ -55,6 +90,8 @@ bool node_destroy(node_t *node)
     if (node->rpl_info != NULL)
         free(node->rpl_info);
 
+    free(node);
+
     return TRUE;
 }
 
@@ -63,27 +100,24 @@ bool node_start(node_t* node)
     rs_assert(!node->alive);
     rs_assert(node->life == NULL);
 
-    node->life_mutex = g_mutex_new();
-    node->schedule_mutex = g_mutex_new();
-
     g_mutex_lock(node->life_mutex);
+    g_mutex_lock(node->schedule_mutex);
+    g_mutex_lock(node->pdu_mutex);
 
-    node->schedules = g_hash_table_new(g_str_hash, g_str_equal);
-    node->schedule_timer = g_timer_new();
+    bool all_ok = TRUE;
 
     GError *error;
     node->life = g_thread_create((void *(*) (void *)) node_life_core, node, TRUE, &error);
     if (node->life == NULL) {
         rs_error("g_thread_create() failed: %s", error->message);
-
-        g_mutex_unlock(node->life_mutex);
-
-        return FALSE;
+        all_ok = FALSE;
     }
 
+    g_mutex_unlock(node->pdu_mutex);
+    g_mutex_unlock(node->schedule_mutex);
     g_mutex_unlock(node->life_mutex);
 
-    return TRUE;
+    return all_ok;
 }
 
 bool node_kill(node_t* node)
@@ -92,11 +126,11 @@ bool node_kill(node_t* node)
     rs_assert(node->alive);
 
     g_mutex_lock(node->life_mutex);
+    g_mutex_lock(node->schedule_mutex);
+    g_mutex_lock(node->pdu_mutex);
 
     node->alive = FALSE;
     node->life = NULL;
-
-    g_mutex_lock(node->schedule_mutex);
 
     GList *schedule_list = g_hash_table_get_values(node->schedules);
     GList *schedule_element = g_list_first(schedule_list);
@@ -105,35 +139,33 @@ bool node_kill(node_t* node)
         schedule_element = g_list_next(schedule_element);
     }
     g_list_free(schedule_list);
-    g_hash_table_destroy(node->schedules);
-    node->schedules = NULL;
 
-    g_timer_destroy(node->schedule_timer);
-    node->schedule_timer = NULL;
+    while (!g_queue_is_empty(node->pdu_queue)) {
+        phy_pdu_t *pdu = g_queue_pop_head(node->pdu_queue);
+        phy_pdu_destroy(pdu);
+    }
 
+    g_mutex_unlock(node->pdu_mutex);
     g_mutex_unlock(node->schedule_mutex);
-
     g_mutex_unlock(node->life_mutex);
-
-    g_mutex_free(node->life_mutex);
-    node->life_mutex = NULL;
-    g_mutex_free(node->schedule_mutex);
-    node->schedule_mutex = NULL;
 
     return TRUE;
 }
 
 bool node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent)
 {
+    rs_assert(node != NULL);
+    rs_assert(name != NULL);
+    rs_assert(node->life != NULL);
+
+    /* a non-NULL "life" field assures a previous call to node_start(),
+    while a true "alive" field assures that the core entered its main loop */
+
     while (!node->alive) {
         usleep(10);
     }
 
     g_mutex_lock(node->schedule_mutex);
-
-    rs_assert(node != NULL);
-    rs_assert(name != NULL);
-    rs_assert(node->alive);
 
     node_schedule_t *new_schedule = NULL;
     if (func != NULL) {
@@ -168,6 +200,86 @@ bool node_schedule(node_t *node, char *name, node_schedule_func_t func, void *da
     return TRUE;
 }
 
+bool node_execute(node_t *node, char *name, node_schedule_func_t func, void *data, bool blocking)
+{
+    execute_wrapper_data_t *execute_data = (execute_wrapper_data_t *) malloc(sizeof(execute_wrapper_data_t));
+
+    execute_data->func = func;
+    execute_data->data = data;
+    execute_data->executed = FALSE;
+
+    node_schedule(node, name, execute_wrapper, execute_data, 0, FALSE);
+
+    if (blocking) {
+        while (!execute_data->executed) {
+            usleep(NODE_LIFE_CORE_SLEEP);
+        }
+    }
+
+    return TRUE;
+}
+
+bool node_receive_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode)
+{
+    rs_debug("node '%s'", node->name);
+    rs_assert(pdu != NULL);
+    rs_assert(node != NULL);
+
+    g_mutex_lock(node->pdu_mutex);
+
+    bool all_ok = TRUE;
+
+    switch (phy_transmit_mode) {
+
+        case PHY_TRANSMIT_MODE_BLOCK:
+            while (!g_queue_is_empty(node->pdu_queue)) {
+                g_cond_wait(node->pdu_cond, node->pdu_mutex);
+            }
+
+            g_queue_push_tail(node->pdu_queue, pdu);
+
+            break;
+
+        case PHY_TRANSMIT_MODE_REJECT:
+            if (g_queue_is_empty(node->pdu_queue)) {
+                g_queue_push_tail(node->pdu_queue, pdu);
+            }
+            else {
+                all_ok = FALSE;
+            }
+
+            break;
+
+        case PHY_TRANSMIT_MODE_QUEUE:
+            g_queue_push_tail(node->pdu_queue, pdu);
+
+            break;
+
+        default:
+            rs_error("invalid phy transmit mode: %d", phy_transmit_mode);
+            all_ok = FALSE;
+    }
+
+    g_mutex_unlock(node->pdu_mutex);
+
+    return all_ok;
+}
+
+void *node_process_pdu(node_t *node)
+{
+    rs_debug("node '%s'", node->name);
+    rs_assert(node != NULL);
+
+    g_mutex_lock(node->pdu_mutex);
+
+    void *pdu = g_queue_pop_head(node->pdu_queue);
+    g_cond_signal(node->pdu_cond);
+
+    g_mutex_unlock(node->pdu_mutex);
+
+    return pdu;
+}
+
 
 static void *node_life_core(node_t *node)
 {
@@ -187,9 +299,14 @@ static void *node_life_core(node_t *node)
 
         usleep(NODE_LIFE_CORE_SLEEP);
 
-        uint32 elapsed_usecs = 1000000 * g_timer_elapsed(node->schedule_timer, NULL);
-
         g_mutex_lock(node->schedule_mutex);
+
+        /* what if the node was killed while usleep()-ing? */
+        if (!node->alive) {
+            break;
+        }
+
+        uint32 elapsed_usecs = 1000000 * g_timer_elapsed(node->schedule_timer, NULL);
 
         /* update all the schedules' remaining time, and execute if necessary */
         GList *schedule_list = g_hash_table_get_values(node->schedules);
@@ -203,7 +320,7 @@ static void *node_life_core(node_t *node)
             }
             else {
                 schedule->remaining_usecs = 0;
-                schedule->func(node, schedule->data);   // todo: synchronize this call?
+                schedule->func(node, schedule->data);
 
                 /* remove the finished and non-recurrent schedules */
                 if (schedule->recurrent) {
@@ -231,6 +348,7 @@ static void *node_life_core(node_t *node)
     return NULL;
 }
 
+
 static node_schedule_t *node_schedule_create(char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent)
 {
     node_schedule_t *schedule = (node_schedule_t *) malloc(sizeof(node_schedule_t));
@@ -245,6 +363,7 @@ static node_schedule_t *node_schedule_create(char *name, node_schedule_func_t fu
     return schedule;
 }
 
+
 static bool node_schedule_destroy(node_schedule_t *schedule)
 {
     rs_assert(schedule != NULL);
@@ -255,4 +374,16 @@ static bool node_schedule_destroy(node_schedule_t *schedule)
     free(schedule);
 
     return TRUE;
+}
+
+static void execute_wrapper(node_t *node, void *data)
+{
+    rs_assert(node != NULL);
+
+    execute_wrapper_data_t *execute_data = data;
+
+    execute_data->func(node, execute_data->data);
+    execute_data->executed = TRUE;
+
+    free(execute_data);
 }

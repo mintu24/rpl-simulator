@@ -10,6 +10,9 @@
 #include "proto/ip.h"
 #include "proto/rpl.h"
 
+#define DEFAULT_NO_LINK_DIST_THRESH     10
+#define DEFAULT_PHY_TRANSMIT_MODE       PHY_TRANSMIT_MODE_BLOCK
+
 
 typedef struct {
 
@@ -17,15 +20,17 @@ typedef struct {
     uint16 node_count;
 
     coord_t no_link_dist_thresh;
+    uint8 phy_transmit_mode;
 
 } rs_system_t;
+
 
 rs_system_t *               rs_system_create();
 bool                        rs_system_destroy(rs_system_t *system);
 bool                        rs_system_add_node(rs_system_t *system, node_t *node);
 bool                        rs_system_remove_node(rs_system_t *system, node_t *node);
 node_t *                    rs_system_find_node_by_name(rs_system_t *system, char *name);
-percent_t                   rs_system_get_link_quality(rs_system_t *system, node_t *node1, node_t *node2);
+percent_t                   rs_system_get_link_quality(rs_system_t *system, node_t *src_node, node_t *dst_node);
 bool                        rs_system_send_message(rs_system_t *system, node_t *src_node, node_t *dst_node, phy_pdu_t *message);
 
 
