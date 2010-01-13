@@ -6,7 +6,11 @@
 
 #include "base.h"
 
-#define NODE_LIFE_CORE_SLEEP    10
+#define NODE_LIFE_CORE_SLEEP            10
+
+#define PHY_TRANSMIT_MODE_BLOCK         0
+#define PHY_TRANSMIT_MODE_REJECT        1
+#define PHY_TRANSMIT_MODE_QUEUE         2
 
 
     /* a node in the simulated network */
@@ -28,6 +32,10 @@ typedef struct {
 
     GMutex *life_mutex;
     GMutex *schedule_mutex;
+    GMutex *pdu_mutex;
+
+    GQueue *pdu_queue;
+    GCond *pdu_cond;
 
 } node_t;
 
@@ -54,6 +62,10 @@ bool                        node_start(node_t* node);
 bool                        node_kill(node_t* node);
 
 bool                        node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);
+bool                        node_execute(node_t *node, char *name, node_schedule_func_t func, void *data, bool blocking);
+
+bool                        node_receive_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode);
+void *                      node_process_pdu(node_t *node);
 
 
 #endif /* NODE_H_ */

@@ -2,7 +2,7 @@
 #include <gtk/gtk.h>
 #include <math.h>
 
-#include "node.h"
+#include "system.h"
 #include "gui/mainwin.h"
 
 
@@ -34,7 +34,10 @@ void rs_quit()
 
 void do_every_second(node_t *node, void *data)
 {
-    rs_info("node '%s', event '%s'", node->name, (char *) data);
+    rs_info("    enter: node '%s'", node->name);
+    sleep(1);
+    rs_debug("dequeued a pdu: 0x%X", node_process_pdu(node));
+    rs_info("    exit: node '%s'", node->name);
 }
 
 int main(int argc, char *argv[]) {
@@ -43,19 +46,19 @@ int main(int argc, char *argv[]) {
 	g_thread_init(NULL);
 
 	node_t *node1 = node_create("one", 10, 15);
-
 	node_start(node1);
-	int i;
-	for (i = 1; i <= 100; i++) {
-	    char name[256];
-	    sprintf(name, "event%d", i);
-	    node_schedule(node1, name, do_every_second, strdup(name), 2000000, TRUE);
-	}
-//	node_schedule(node1, "event1", NULL, NULL, 0, FALSE);
-//	node_schedule(node1, "event2", NULL, NULL, 0, FALSE);
+	node_schedule(node1, "later", do_every_second, NULL, 1000000, FALSE);
 
-//	node_born(node2);
-//	node_schedule(node2, "event2", do_every_second, "event2", 2000000, TRUE);
+	phy_pdu_t *phy_pdu = phy_pdu_create();
+	node_receive_pdu(node1, phy_pdu, PHY_TRANSMIT_MODE_BLOCK);
+	node_receive_pdu(node1, phy_pdu, PHY_TRANSMIT_MODE_BLOCK);
+
+	rs_debug("process = 0x%X", node_process_pdu(node1));
+	rs_debug("process = 0x%X", node_process_pdu(node1));
+	rs_debug("process = 0x%X", node_process_pdu(node1));
+
+//    node_execute(node1, "blocking test", do_every_second, "executed blocking", FALSE);
+//    rs_debug("---------------");
 
 //	gtk_init(&argc, &argv);
 //	GtkWidget *main_window = main_window_create();
