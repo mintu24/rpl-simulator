@@ -16,9 +16,6 @@
     /* a node in the simulated network */
 typedef struct {
 
-    char *name;
-    coord_t cx, cy;
-
     struct phy_node_info_t *phy_info;
     struct mac_node_info_t *mac_info;
     struct ip_node_info_t *ip_info;
@@ -55,7 +52,7 @@ typedef struct {
 } node_schedule_t;
 
 
-node_t *                    node_create(char *name, coord_t cx, coord_t cy);
+node_t *                    node_create();
 bool                        node_destroy(node_t* node);
 
 bool                        node_start(node_t* node);
@@ -64,8 +61,7 @@ bool                        node_kill(node_t* node);
 bool                        node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);
 bool                        node_execute(node_t *node, char *name, node_schedule_func_t func, void *data, bool blocking);
 
-bool                        node_receive_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode);
-void *                      node_process_pdu(node_t *node);
+bool                        node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode);
 
 
 #endif /* NODE_H_ */

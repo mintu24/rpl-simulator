@@ -1,14 +1,15 @@
 
-#include <gtk/gtk.h>
+#include <unistd.h>
 #include <math.h>
+#include <gtk/gtk.h>
 
 #include "system.h"
 #include "gui/mainwin.h"
 
 
-void rs_print(FILE *stream, char *sym, const char *fname, const char *fmt, ...)
+void rs_print(FILE *stream, char *sym, const char *file, int line, const char *function, const char *fmt, ...)
 {
-    char string[256];
+    char string[1024];
 
     if (fmt == NULL) {
         fmt = "";
@@ -20,10 +21,17 @@ void rs_print(FILE *stream, char *sym, const char *fname, const char *fmt, ...)
     va_end(ap);
 
     if (strlen(string) > 0) {
-        fprintf(stream, "%s%s(): %s\n", sym, fname, string);
+        if (file != NULL && strlen(file) > 0) {
+            //fprintf(stream, "%s[in %s() at %s:%d] %s\n", sym, function, file, line, string);
+            fprintf(stream, "%s[in %s() at %s:%d]\n", sym, function, file, line);
+            fprintf(stream, "    %s\n", string);
+        }
+        else {
+            fprintf(stream, "%s%s\n", sym, string);
+        }
     }
     else {
-        fprintf(stream, "%s%s()\n", sym, fname);
+        fprintf(stream, "%s[in %s() at %s:%d]\n", sym, function, file, line);
     }
 }
 
@@ -32,12 +40,26 @@ void rs_quit()
     gtk_main_quit();
 }
 
-void do_every_second(node_t *node, void *data)
+node_t *create_node(char *name, char *mac, char *ip, coord_t cx, coord_t cy)
 {
-    rs_info("    enter: node '%s'", node->name);
-    sleep(1);
-    rs_debug("dequeued a pdu: 0x%X", node_process_pdu(node));
-    rs_info("    exit: node '%s'", node->name);
+    node_t *node = node_create(name, 0, 0);
+
+    phy_node_info_t *phy_node_info = phy_node_info_create(name, cx, cy);
+    phy_node_info->battery_level = 0.5;
+    phy_node_info->mains_powered = FALSE;
+    phy_node_info->power_level = 0.5;
+    phy_init_node(node, phy_node_info);
+
+    mac_node_info_t *mac_node_info = mac_node_info_create(mac);
+    mac_init_node(node, mac_node_info);
+
+    ip_node_info_t *ip_node_info = ip_node_info_create(ip);
+    ip_init_node(node, ip_node_info);
+
+    rpl_node_info_t *rpl_node_info = rpl_node_info_create();
+    rpl_init_node(node, rpl_node_info);
+
+    return node;
 }
 
 int main(int argc, char *argv[]) {
@@ -45,25 +67,26 @@ int main(int argc, char *argv[]) {
 
 	g_thread_init(NULL);
 
-	node_t *node1 = node_create("one", 10, 15);
-	node_start(node1);
-	node_schedule(node1, "later", do_every_second, NULL, 1000000, FALSE);
+	rs_system_create();
 
-	phy_pdu_t *phy_pdu = phy_pdu_create();
-	node_receive_pdu(node1, phy_pdu, PHY_TRANSMIT_MODE_BLOCK);
-	node_receive_pdu(node1, phy_pdu, PHY_TRANSMIT_MODE_BLOCK);
+	/****************************************/
 
-	rs_debug("process = 0x%X", node_process_pdu(node1));
-	rs_debug("process = 0x%X", node_process_pdu(node1));
-	rs_debug("process = 0x%X", node_process_pdu(node1));
+	node_t *node_a = create_node("A", "AA:AA:AA:AA:AA:AA", "10.0.0.1", 10, 20);
+	node_t *node_b = create_node("B", "BB:BB:BB:BB:BB:BB", "10.0.0.2", 30, 40);
 
-//    node_execute(node1, "blocking test", do_every_second, "executed blocking", FALSE);
-//    rs_debug("---------------");
+	node_start(node_a);
+	node_start(node_b);
 
-//	gtk_init(&argc, &argv);
-//	GtkWidget *main_window = main_window_create();
-//	gtk_widget_show_all(main_window);
+	rs_system_send_rpl_dis(node_a, node_b);
+
+    /****************************************/
+
+//    gtk_init(&argc, &argv);
+//    GtkWidget *main_window = main_window_create();
+//    gtk_widget_show_all(main_window);
 	gtk_main();
+
+	rs_system_destroy();
 
 	rs_info("bye!");
 

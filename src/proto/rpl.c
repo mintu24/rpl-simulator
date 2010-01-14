@@ -2,14 +2,11 @@
 #include "rpl.h"
 
 
-dio_pdu_t *dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id)
+rpl_dio_pdu_t *dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id)
 {
-    if (dag_id == NULL) {
-        rs_error("invalid argument");
-        return NULL;
-    }
+    rs_assert(dag_id != NULL);
 
-    dio_pdu_t *pdu = (dio_pdu_t *) malloc(sizeof(dio_pdu_t));
+    rpl_dio_pdu_t *pdu = (rpl_dio_pdu_t *) malloc(sizeof(rpl_dio_pdu_t));
 
     pdu->grounded = grounded;
     pdu->da_trigger = da_trigger;
@@ -24,12 +21,9 @@ dio_pdu_t *dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 
     return pdu;
 }
 
-bool dio_pdu_destroy(dio_pdu_t *pdu)
+bool dio_pdu_destroy(rpl_dio_pdu_t *pdu)
 {
-    if (pdu == NULL) {
-        rs_error("invalid argument");
-        return FALSE;
-    }
+    rs_assert(pdu != NULL);
 
     if (pdu->dag_id != NULL)
         free(pdu->dag_id);
@@ -62,10 +56,7 @@ dio_suboption_t *dio_suboption_dag_config_create(int8 interval_doublings, int8 i
 
 bool dio_suboption_destroy(dio_suboption_t *suboption)
 {
-    if (suboption == NULL) {
-        rs_error("invalid argument");
-        return FALSE;
-    }
+    rs_assert(suboption != NULL);
 
     bool all_ok = TRUE;
 
@@ -90,12 +81,9 @@ bool dio_suboption_destroy(dio_suboption_t *suboption)
     return all_ok;
 }
 
-bool dio_pdu_add_suboption(dio_pdu_t *pdu, dio_suboption_t *suboption)
+bool dio_pdu_add_suboption(rpl_dio_pdu_t *pdu, dio_suboption_t *suboption)
 {
-    if (pdu == NULL) {
-        rs_error("invalid argument");
-        return FALSE;
-    }
+    rs_assert(pdu != NULL);
 
     if (pdu->suboptions == NULL) {
         pdu->suboptions = suboption;
@@ -112,14 +100,11 @@ bool dio_pdu_add_suboption(dio_pdu_t *pdu, dio_suboption_t *suboption)
     return TRUE;
 }
 
-dao_pdu_t *dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32 dao_lifetime, char *prefix, uint8 prefix_len)
+rpl_dao_pdu_t *dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32 dao_lifetime, char *prefix, uint8 prefix_len)
 {
-    if (prefix == NULL) {
-        rs_error("invalid argument");
-        return NULL;
-    }
+    rs_assert(prefix != NULL);
 
-    dao_pdu_t *pdu = (dao_pdu_t *) malloc(sizeof(dao_pdu_t));
+    rpl_dao_pdu_t *pdu = (rpl_dao_pdu_t *) malloc(sizeof(rpl_dao_pdu_t));
 
     pdu->sequence = sequence;
     pdu->instance_id = instance_id;
@@ -133,12 +118,9 @@ dao_pdu_t *dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32
     return pdu;
 }
 
-bool dao_pdu_destroy(dao_pdu_t *pdu)
+bool dao_pdu_destroy(rpl_dao_pdu_t *pdu)
 {
-    if (pdu == NULL) {
-        rs_error("invalid argument");
-        return FALSE;
-    }
+    rs_assert(pdu != NULL);
 
     while (pdu->rr_count > 0) {
         free(pdu->rr_stack[--pdu->rr_count]);
@@ -151,12 +133,10 @@ bool dao_pdu_destroy(dao_pdu_t *pdu)
     return TRUE;
 }
 
-bool dao_pdu_add_rr(dao_pdu_t *pdu, char *ip_address)
+bool dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address)
 {
-    if (pdu == NULL || ip_address == NULL) {
-        rs_error("invalid argument");
-        return FALSE;
-    }
+    rs_assert(pdu != NULL);
+    rs_assert(ip_address != NULL);
 
     pdu->rr_stack = (char **) realloc(pdu->rr_stack, (++pdu->rr_count) * sizeof(char *));
     pdu->rr_stack[pdu->rr_count - 1] = strdup(ip_address);
@@ -164,42 +144,64 @@ bool dao_pdu_add_rr(dao_pdu_t *pdu, char *ip_address)
     return TRUE;
 }
 
+rpl_node_info_t *rpl_node_info_create()
+{
+    rpl_node_info_t *node_info = (rpl_node_info_t *) malloc(sizeof(rpl_node_info_t));
+
+    node_info->parent_list = NULL;
+    node_info->parent_count = 0;
+    node_info->sibling_list = NULL;
+    node_info->sibling_count = 0;
+
+    return node_info;
+}
+
+bool rpl_node_info_destroy(rpl_node_info_t *node_info)
+{
+    rs_assert(node_info != NULL);
+
+    // todo: free the parent list & the sibling list
+    free(node_info);
+
+    return TRUE;
+}
+
 bool rpl_init_node(node_t *node, rpl_node_info_t *node_info)
 {
-    if (node == NULL || node_info == NULL) {
-        rs_error("invalid argument");
-        return FALSE;
-    }
+    rs_assert(node != NULL);
+    rs_assert(node_info != NULL);
+
+    node->rpl_info = node_info;
 
     return TRUE;
 }
 
 void rpl_event_before_dis_pdu_sent(node_t *node, void *data)
 {
-
+    rs_debug(NULL);
 }
 
 void rpl_event_after_dis_pdu_received(node_t *node, void *data)
 {
-
+    rs_debug(NULL);
 }
 
-void rpl_event_before_dio_pdu_sent(node_t *node, dio_pdu_t *pdu)
+void rpl_event_before_dio_pdu_sent(node_t *node, rpl_dio_pdu_t *pdu)
 {
-
+    rs_debug(NULL);
 }
 
-void rpl_event_after_dio_pdu_received(node_t *node, dio_pdu_t *pdu)
+void rpl_event_after_dio_pdu_received(node_t *node, rpl_dio_pdu_t *pdu)
 {
-
+    rs_debug(NULL);
 }
 
-void rpl_event_before_dao_pdu_sent(node_t *node, dao_pdu_t *pdu)
+void rpl_event_before_dao_pdu_sent(node_t *node, rpl_dao_pdu_t *pdu)
 {
-
+    rs_debug(NULL);
 }
 
-void rpl_event_after_dao_pdu_received(node_t *node, dao_pdu_t *pdu)
+void rpl_event_after_dao_pdu_received(node_t *node, rpl_dao_pdu_t *pdu)
 {
-
+    rs_debug(NULL);
 }

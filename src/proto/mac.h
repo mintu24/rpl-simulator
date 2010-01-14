@@ -29,6 +29,9 @@ mac_pdu_t *             mac_pdu_create(char *dst_address, char *src_address);
 bool                    mac_pdu_destroy(mac_pdu_t *pdu);
 bool                    mac_pdu_set_sdu(mac_pdu_t *pdu, uint16 type, void *sdu);
 
+mac_node_info_t *       mac_node_info_create(char *address);
+bool                    mac_node_info_destroy(mac_node_info_t *node_info);
+
 bool                    mac_init_node(node_t *node, mac_node_info_t *node_info);
 
     /* MAC events */
