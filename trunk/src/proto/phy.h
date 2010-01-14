@@ -9,6 +9,10 @@
     /* info that a node supporting PHY layer should store */
 typedef struct phy_node_info_t {
 
+    char *name;
+    coord_t cx;
+    coord_t cy;
+
     percent_t battery_level;
     percent_t power_level;
     bool mains_powered;
@@ -26,6 +30,9 @@ typedef struct {
 phy_pdu_t *             phy_pdu_create();
 bool                    phy_pdu_destroy(phy_pdu_t *pdu);
 bool                    phy_pdu_set_sdu(phy_pdu_t *pdu, void *sdu);
+
+phy_node_info_t *       phy_node_info_create(char *name, coord_t cx, coord_t cy);
+bool                    phy_node_info_destroy(phy_node_info_t *node_info);
 
 bool                    phy_init_node(node_t *node, phy_node_info_t *node_info);
 

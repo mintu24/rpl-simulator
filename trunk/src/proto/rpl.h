@@ -60,7 +60,7 @@ typedef struct {
 
     dio_suboption_t *suboptions;
 
-} dio_pdu_t;
+} rpl_dio_pdu_t;
 
     /* fields contained in a RPL DAO message */
 typedef struct {
@@ -74,19 +74,22 @@ typedef struct {
     char **rr_stack;
     int rr_count;
 
-} dao_pdu_t;
+} rpl_dao_pdu_t;
 
 
-dio_pdu_t *         dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id);
-bool                dio_pdu_destroy(dio_pdu_t *pdu);
+rpl_dio_pdu_t *     dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id);
+bool                dio_pdu_destroy(rpl_dio_pdu_t *pdu);
 
 dio_suboption_t *   dio_suboption_dag_config_create(int8 interval_doublings, int8 interval_min, int8 redundancy_constant, int8 max_rank_increase);
 bool                dio_suboption_destroy(dio_suboption_t *suboption);
-bool                dio_pdu_add_suboption(dio_pdu_t *pdu, dio_suboption_t *suboption);
+bool                dio_pdu_add_suboption(rpl_dio_pdu_t *pdu, dio_suboption_t *suboption);
 
-dao_pdu_t *         dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32 dao_lifetime, char *prefix, uint8 prefix_len);
-bool                dao_pdu_destroy(dao_pdu_t *pdu);
-bool                dao_pdu_add_rr(dao_pdu_t *pdu, char *ip_address);
+rpl_dao_pdu_t *     dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32 dao_lifetime, char *prefix, uint8 prefix_len);
+bool                dao_pdu_destroy(rpl_dao_pdu_t *pdu);
+bool                dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address);
+
+rpl_node_info_t *   rpl_node_info_create();
+bool                rpl_node_info_destroy(rpl_node_info_t *node_info);
 
 bool                rpl_init_node(node_t *node, rpl_node_info_t *node_info);
 
@@ -94,11 +97,11 @@ bool                rpl_init_node(node_t *node, rpl_node_info_t *node_info);
 void                rpl_event_before_dis_pdu_sent(node_t *node, void *data);
 void                rpl_event_after_dis_pdu_received(node_t *node, void *data);
 
-void                rpl_event_before_dio_pdu_sent(node_t *node, dio_pdu_t *pdu);
-void                rpl_event_after_dio_pdu_received(node_t *node, dio_pdu_t *pdu);
+void                rpl_event_before_dio_pdu_sent(node_t *node, rpl_dio_pdu_t *pdu);
+void                rpl_event_after_dio_pdu_received(node_t *node, rpl_dio_pdu_t *pdu);
 
-void                rpl_event_before_dao_pdu_sent(node_t *node, dao_pdu_t *pdu);
-void                rpl_event_after_dao_pdu_received(node_t *node, dao_pdu_t *pdu);
+void                rpl_event_before_dao_pdu_sent(node_t *node, rpl_dao_pdu_t *pdu);
+void                rpl_event_after_dao_pdu_received(node_t *node, rpl_dao_pdu_t *pdu);
 
 
 #endif /* RPL_H_ */

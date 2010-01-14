@@ -34,24 +34,51 @@ bool phy_pdu_set_sdu(phy_pdu_t *pdu, void *sdu)
     return TRUE;
 }
 
+phy_node_info_t *phy_node_info_create(char *name, coord_t cx, coord_t cy)
+{
+    rs_assert(name != NULL);
+
+    phy_node_info_t *node_info = (phy_node_info_t *) malloc(sizeof(phy_node_info_t));
+
+    node_info->name = strdup(name);
+    node_info->cx = cx;
+    node_info->cy = cy;
+
+    node_info->mains_powered = FALSE;
+    node_info->power_level = 0;
+    node_info->battery_level = 0;
+
+    return node_info;
+}
+
+bool phy_node_info_destroy(phy_node_info_t *node_info)
+{
+    rs_assert(node_info != NULL);
+
+    if (node_info->name != NULL)
+        free(node_info->name);
+
+    free(node_info);
+
+    return TRUE;
+}
+
 bool phy_init_node(node_t *node, phy_node_info_t *node_info)
 {
     rs_assert(node != NULL);
     rs_assert(node_info != NULL);
-    rs_assert(node->phy_info == NULL);
 
-    node->phy_info = (phy_node_info_t *) malloc(sizeof(phy_node_info_t));
-    memcpy(node->phy_info, node_info, sizeof(phy_node_info_t));
+    node->phy_info = node_info;
 
     return TRUE;
 }
 
 void phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu)
 {
-    // todo
+    rs_debug(NULL);
 }
 
 void phy_event_after_pdu_received(node_t *node, phy_pdu_t *pdu)
 {
-    // todo
+    rs_debug(NULL);
 }

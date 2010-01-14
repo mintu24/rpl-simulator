@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include "node.h"
+#include "system.h"
 #include "proto/phy.h"
 
 
@@ -14,6 +15,8 @@ typedef struct {
 } execute_wrapper_data_t;
 
 
+static void *                   node_dequeue_pdu(node_t *node);
+
 static void *                   node_life_core(node_t *node);
 
 static node_schedule_t *        node_schedule_create(char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);
@@ -22,15 +25,9 @@ static bool                     node_schedule_destroy(node_schedule_t *schedule)
 static void                     execute_wrapper(node_t *node, void *data);
 
 
-node_t *node_create(char *name, coord_t cx, coord_t cy)
+node_t *node_create()
 {
-    rs_assert(name != NULL);
-
     node_t *node = (node_t *) malloc(sizeof(node_t));
-
-    node->name = strdup(name);
-    node->cx = cx;
-    node->cy = cy;
 
     node->phy_info = NULL;
     node->mac_info = NULL;
@@ -78,17 +75,21 @@ bool node_destroy(node_t *node)
     if (node->pdu_mutex)
         g_mutex_free(node->pdu_mutex);
 
-    if (node->name != NULL)
-        free(node->name);
+    if (node->phy_info != NULL) {
+        phy_node_info_destroy(node->phy_info);
+    }
 
-    if (node->phy_info != NULL)
-        free(node->phy_info);
-    if (node->mac_info != NULL)
-        free(node->mac_info);
-    if (node->ip_info != NULL)
-        free(node->ip_info);
-    if (node->rpl_info != NULL)
-        free(node->rpl_info);
+    if (node->mac_info != NULL) {
+        mac_node_info_destroy(node->mac_info);
+    }
+
+    if (node->ip_info != NULL) {
+        ip_node_info_destroy(node->ip_info);
+    }
+
+    if (node->rpl_info != NULL) {
+        rpl_node_info_destroy(node->rpl_info);
+    }
 
     free(node);
 
@@ -176,7 +177,11 @@ bool node_schedule(node_t *node, char *name, node_schedule_func_t func, void *da
     if (old_schedule == NULL) { /* the schedule does not exist yet */
         if (new_schedule != NULL) {
             g_hash_table_insert(node->schedules, new_schedule->name, new_schedule);
-            rs_debug("scheduled action '%s' for node '%s' in %d milliseconds", new_schedule->name, node->name, usecs);
+
+            if (new_schedule->usecs > 0)
+                rs_debug("scheduled action '%s' for node '%s' in %d milliseconds", new_schedule->name, node->phy_info->name, usecs);
+//            else  <- annoying
+//                rs_debug("scheduled action '%s' for node '%s'", new_schedule->name, node->phy_info->name, usecs);
         }
         else {
             rs_warn("no schedule '%s' to cancel", name);
@@ -185,11 +190,12 @@ bool node_schedule(node_t *node, char *name, node_schedule_func_t func, void *da
     else { /* the schedule already exist */
         if (new_schedule != NULL) {
             g_hash_table_insert(node->schedules, new_schedule->name, new_schedule);
-            rs_debug("rescheduled action '%s' for node '%s' in %d milliseconds", new_schedule->name, node->name, usecs);
+
+            rs_debug("rescheduled action '%s' for node '%s' in %d milliseconds", new_schedule->name, node->phy_info->name, usecs);
         }
         else {
             g_hash_table_remove(node->schedules, name);
-            rs_debug("canceled scheduled action '%s' for node '%s' in %d milliseconds", name, node->name, usecs);
+            rs_debug("canceled scheduled action '%s' for node '%s' in %d milliseconds", name, node->phy_info->name, usecs);
         }
 
         node_schedule_destroy(old_schedule);
@@ -202,26 +208,47 @@ bool node_schedule(node_t *node, char *name, node_schedule_func_t func, void *da
 
 bool node_execute(node_t *node, char *name, node_schedule_func_t func, void *data, bool blocking)
 {
-    execute_wrapper_data_t *execute_data = (execute_wrapper_data_t *) malloc(sizeof(execute_wrapper_data_t));
-
-    execute_data->func = func;
-    execute_data->data = data;
-    execute_data->executed = FALSE;
-
-    node_schedule(node, name, execute_wrapper, execute_data, 0, FALSE);
+    rs_assert(node != NULL);
+    rs_assert(func != NULL);
 
     if (blocking) {
-        while (!execute_data->executed) {
-            usleep(NODE_LIFE_CORE_SLEEP);
+
+        if (g_thread_self() == node->life) { /* the call is being made from the node's thread */
+            // rs_debug("executing action '%s' for node '%s'", name, node->phy_info->name); <- annoying
+            func(node, data);
         }
+        else {
+            execute_wrapper_data_t *execute_data = (execute_wrapper_data_t *) malloc(sizeof(execute_wrapper_data_t));
+
+            execute_data->func = func;
+            execute_data->data = data;
+            execute_data->executed = FALSE;
+
+            node_schedule(node, name, execute_wrapper, execute_data, 0, FALSE);
+
+            while (!execute_data->executed) {
+                usleep(NODE_LIFE_CORE_SLEEP);
+            }
+        }
+
+    }
+    else { /* no blocking */
+
+        execute_wrapper_data_t *execute_data = (execute_wrapper_data_t *) malloc(sizeof(execute_wrapper_data_t));
+
+        execute_data->func = func;
+        execute_data->data = data;
+        execute_data->executed = FALSE;
+
+        node_schedule(node, name, execute_wrapper, execute_data, 0, FALSE);
+
     }
 
     return TRUE;
 }
 
-bool node_receive_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode)
+bool node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode)
 {
-    rs_debug("node '%s'", node->name);
     rs_assert(pdu != NULL);
     rs_assert(node != NULL);
 
@@ -262,24 +289,29 @@ bool node_receive_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode)
 
     g_mutex_unlock(node->pdu_mutex);
 
+    rs_debug("enqueued message for node '%s'", node->phy_info->name);
+
     return all_ok;
 }
 
-void *node_process_pdu(node_t *node)
+
+static void *node_dequeue_pdu(node_t *node)
 {
-    rs_debug("node '%s'", node->name);
     rs_assert(node != NULL);
 
     g_mutex_lock(node->pdu_mutex);
 
     void *pdu = g_queue_pop_head(node->pdu_queue);
+    if (pdu != NULL) {
+        rs_debug("dequeued message by node '%s'", node->phy_info->name);
+    }
+
     g_cond_signal(node->pdu_cond);
 
     g_mutex_unlock(node->pdu_mutex);
 
     return pdu;
 }
-
 
 static void *node_life_core(node_t *node)
 {
@@ -290,7 +322,7 @@ static void *node_life_core(node_t *node)
     rs_assert(node != NULL);
     rs_assert(node->alive == FALSE);
 
-    rs_debug("node '%s' life started", node->name);
+    rs_debug("node '%s' life started", node->phy_info->name);
 
     node->alive = TRUE;
 
@@ -339,9 +371,17 @@ static void *node_life_core(node_t *node)
         g_list_free(schedule_list);
 
         g_mutex_unlock(node->schedule_mutex);
+
+
+        /* process a possibly received message */
+
+        phy_pdu_t *message = node_dequeue_pdu(node);
+        if (message != NULL) {
+            rs_system_process_message(node, message);
+        }
     }
 
-    rs_debug("node '%s' life stopped", node->name);
+    rs_debug("node '%s' life stopped", node->phy_info->name);
 
     g_thread_exit(NULL);
 

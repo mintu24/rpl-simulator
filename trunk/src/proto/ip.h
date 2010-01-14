@@ -37,13 +37,16 @@ typedef struct {
 } icmp_pdu_t;
 
 
-ip_pdu_t *          ip_pdu_create(char *dst_address, char *src_address, void *sdu);
+ip_pdu_t *          ip_pdu_create(char *dst_address, char *src_address);
 bool                ip_pdu_destroy(ip_pdu_t *pdu);
 bool                ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu);
 
 icmp_pdu_t *        icmp_pdu_create();
 bool                icmp_pdu_destroy(icmp_pdu_t *pdu);
 bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu);
+
+ip_node_info_t *    ip_node_info_create(char *address);
+bool                ip_node_info_destroy(ip_node_info_t *node_info);
 
 bool                ip_init_node(node_t *node, ip_node_info_t *node_info);
 

@@ -3,7 +3,7 @@
 #include "rpl.h"
 
 
-ip_pdu_t *ip_pdu_create(char *dst_address, char *src_address, void *sdu)
+ip_pdu_t *ip_pdu_create(char *dst_address, char *src_address)
 {
     rs_assert(dst_address != NULL);
     rs_assert(src_address != NULL);
@@ -48,6 +48,29 @@ bool ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu)
 
     pdu->next_header = next_header;
     pdu->sdu = sdu;
+
+    return TRUE;
+}
+
+ip_node_info_t *ip_node_info_create(char *address)
+{
+    rs_assert(address != NULL);
+
+    ip_node_info_t *node_info = (ip_node_info_t *) malloc(sizeof(ip_node_info_t));
+
+    node_info->address = strdup(address);
+
+    return node_info;
+}
+
+bool ip_node_info_destroy(ip_node_info_t *node_info)
+{
+    rs_assert(node_info != NULL);
+
+    if (node_info->address != NULL)
+        free(node_info->address);
+
+    free(node_info);
 
     return TRUE;
 }
@@ -101,30 +124,28 @@ bool ip_init_node(node_t *node, ip_node_info_t *node_info)
 {
     rs_assert(node != NULL);
     rs_assert(node_info != NULL);
-    rs_assert(node->ip_info == NULL);
 
-    node->ip_info = (ip_node_info_t *) malloc(sizeof(ip_node_info_t));
-    memcpy(node->ip_info, node_info, sizeof(ip_node_info_t));
+    node->ip_info = node_info;
 
     return TRUE;
 }
 
 void ip_event_before_pdu_sent(node_t *node, ip_pdu_t *pdu)
 {
-    // todo
+    rs_debug("src = '%s', dst = '%s'", pdu->src_address, pdu->dst_address);
 }
 
 void ip_event_after_pdu_received(node_t *node, ip_pdu_t *pdu)
 {
-    // todo
+    rs_debug("src = '%s', dst = '%s'", pdu->src_address, pdu->dst_address);
 }
 
 void icmp_event_before_pdu_sent(node_t *node, icmp_pdu_t *pdu)
 {
-    // todo
+    rs_debug(NULL);
 }
 
 void icmp_event_after_pdu_received(node_t *node, icmp_pdu_t *pdu)
 {
-    // todo
+    rs_debug(NULL);
 }
