@@ -95,6 +95,12 @@ static gboolean cb_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *e
     return TRUE;
 }
 
+static void cb_expander_toggle_button_clicked(GtkToggleButton *button, GtkWidget *widget)
+{
+    gtk_widget_set_visible(widget, gtk_toggle_button_get_active(button));
+}
+
+
 static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data)
 {
     rs_debug(NULL);
@@ -114,9 +120,43 @@ static void cb_main_window_delete()
 
 GtkWidget *create_params_widget()
 {
-    GtkWidget *label = gtk_label_new("Params");
+    GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+    gtk_widget_set_size_request(scrolled_window, 200, 0);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
-    return label;
+    GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), 5);
+    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), vbox);
+
+    /* System */
+    GtkWidget *system_button = gtk_toggle_button_new_with_label("System");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(system_button), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), system_button, FALSE, TRUE, 0);
+
+    GtkWidget *label1 = gtk_label_new("Label1");
+    gtk_box_pack_start(GTK_BOX(vbox), label1, FALSE, TRUE, 0);
+    gtk_signal_connect(GTK_OBJECT(system_button), "clicked", G_CALLBACK(cb_expander_toggle_button_clicked), label1);
+
+    /* Nodes */
+    GtkWidget *nodes_button = gtk_toggle_button_new_with_label("Nodes");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(nodes_button), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), nodes_button, FALSE, TRUE, 0);
+
+    GtkWidget *label2 = gtk_label_new("Label2");
+    gtk_box_pack_start(GTK_BOX(vbox), label2, FALSE, TRUE, 0);
+    gtk_signal_connect(GTK_OBJECT(nodes_button), "clicked", G_CALLBACK(cb_expander_toggle_button_clicked), label2);
+
+    /* Display */
+    GtkWidget *display_button = gtk_toggle_button_new_with_label("Display");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(display_button), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), display_button, FALSE, TRUE, 0);
+
+    GtkWidget *label3 = gtk_label_new("Label3");
+    gtk_box_pack_start(GTK_BOX(vbox), label3, FALSE, TRUE, 0);
+    gtk_signal_connect(GTK_OBJECT(display_button), "clicked", G_CALLBACK(cb_expander_toggle_button_clicked), label3);
+
+
+    return scrolled_window;
 }
 
 GtkWidget *create_monitoring_widget()
