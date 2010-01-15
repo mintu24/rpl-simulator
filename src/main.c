@@ -81,9 +81,9 @@ int main(int argc, char *argv[]) {
 
     /****************************************/
 
-//    gtk_init(&argc, &argv);
-//    GtkWidget *main_window = main_window_create();
-//    gtk_widget_show_all(main_window);
+    gtk_init(&argc, &argv);
+    GtkWidget *main_window = main_window_create();
+    gtk_widget_show_all(main_window);
 	gtk_main();
 
 	rs_system_destroy();
