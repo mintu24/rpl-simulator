@@ -3,6 +3,7 @@
 #include <math.h>
 #include <gtk/gtk.h>
 
+#include "main.h"
 #include "system.h"
 #include "gui/mainwin.h"
 
@@ -37,53 +38,63 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
 
 void rs_quit()
 {
+    // todo: ask "are you sure" stupid question
     gtk_main_quit();
 }
 
-node_t *create_node(char *name, char *mac, char *ip, coord_t cx, coord_t cy)
+void rs_add_node()
 {
-    node_t *node = node_create(name, 0, 0);
+    node_t *node = node_create();
 
-    phy_node_info_t *phy_node_info = phy_node_info_create(name, cx, cy);
+    // todo: choose random/next values
+    phy_node_info_t *phy_node_info = phy_node_info_create("A", 10, 20);
     phy_node_info->battery_level = 0.5;
     phy_node_info->mains_powered = FALSE;
-    phy_node_info->power_level = 0.5;
+    phy_node_info->tx_power = 0.5;
     phy_init_node(node, phy_node_info);
 
-    mac_node_info_t *mac_node_info = mac_node_info_create(mac);
+    mac_node_info_t *mac_node_info = mac_node_info_create("AA:AA:AA:AA:AA:AA");
     mac_init_node(node, mac_node_info);
 
-    ip_node_info_t *ip_node_info = ip_node_info_create(ip);
+    ip_node_info_t *ip_node_info = ip_node_info_create("10.0.0.1");
     ip_init_node(node, ip_node_info);
 
     rpl_node_info_t *rpl_node_info = rpl_node_info_create();
     rpl_init_node(node, rpl_node_info);
 
-    return node;
+    rs_system_add_node(node);
+
+    node = node_create();
+
+    phy_node_info = phy_node_info_create("B", 30, 100);
+    phy_node_info->battery_level = 0.5;
+    phy_node_info->mains_powered = FALSE;
+    phy_node_info->tx_power = 0.5;
+    phy_init_node(node, phy_node_info);
+
+    mac_node_info = mac_node_info_create("BB:BB:BB:BB:BB:BB");
+    mac_init_node(node, mac_node_info);
+
+    ip_node_info = ip_node_info_create("10.0.0.2");
+    ip_init_node(node, ip_node_info);
+
+    rpl_node_info = rpl_node_info_create();
+    rpl_init_node(node, rpl_node_info);
+
+    rs_system_add_node(node);
 }
 
-int main(int argc, char *argv[]) {
+
+int main(int argc, char *argv[])
+{
 	rs_info("hello");
 
 	g_thread_init(NULL);
 
 	rs_system_create();
 
-	/****************************************/
-
-	node_t *node_a = create_node("A", "AA:AA:AA:AA:AA:AA", "10.0.0.1", 10, 20);
-	node_t *node_b = create_node("B", "BB:BB:BB:BB:BB:BB", "10.0.0.2", 30, 40);
-
-	node_start(node_a);
-	node_start(node_b);
-
-	rs_system_send_rpl_dis(node_a, node_b);
-
-    /****************************************/
-
     gtk_init(&argc, &argv);
-    GtkWidget *main_window = main_window_create();
-    gtk_widget_show_all(main_window);
+    main_win_init();
 	gtk_main();
 
 	rs_system_destroy();

@@ -12,6 +12,7 @@
 #define MAIN_WIN_HEIGHT		400
 
 
-GtkWidget *main_window_create();
+void                main_win_init();
+
 
 #endif /* MAINWIN_H_ */

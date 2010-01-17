@@ -13,8 +13,9 @@
 #define MIN_NODE_DISTANCE       0
 
 
-void draw_simfield(GdkDrawable *drawable, GdkGC *gc, coord_t current_x, coord_t current_y, double power);
-void snap_node_coords(coord_t *x, coord_t *y);
+void    sim_field_init(GdkWindow *window, GdkGC *gc);
+void    sim_field_redraw();
+void    sim_field_node_coords_assure_non_intersection(coord_t *x, coord_t *y);
 
 
 #endif /* SIMFIELD_H_ */

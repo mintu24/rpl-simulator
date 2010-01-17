@@ -62,7 +62,6 @@
 
 
 void rs_print(FILE *stream, char *sym, const char *file, int line, const char *function, const char *fmt, ...);
-void rs_quit();
 
 
 #endif /* BASE_H_ */

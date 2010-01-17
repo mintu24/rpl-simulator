@@ -91,6 +91,17 @@ node_t *rs_system_find_node_by_name(char *name)
     return NULL;
 }
 
+node_t ** rs_system_get_nodes(uint16 *node_count)
+{
+    rs_assert(rs_system != NULL);
+
+    if (node_count != NULL) {
+        *node_count = rs_system->node_count;
+    }
+
+    return rs_system->node_list;
+}
+
 percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
 {
     rs_assert(rs_system != NULL);
@@ -103,7 +114,7 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
     }
 
     percent_t dist_factor = (percent_t) (rs_system->no_link_dist_thresh - distance) / rs_system->no_link_dist_thresh;
-    percent_t quality = src_node->phy_info->power_level * dist_factor;
+    percent_t quality = src_node->phy_info->tx_power * dist_factor;
 
     return quality;
 }

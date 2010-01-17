@@ -3,23 +3,80 @@
 
 #include "mainwin.h"
 #include "simfield.h"
+#include "../node.h"
+#include "../system.h"
+#include "../main.h"
 
 
     /**** global variables ****/
 
-static coord_t current_x, current_y;
-static double power = 0.5;
+// todo: remove these
 static gboolean moving = FALSE;
-static GtkWidget *drawing_area;
+
+static GtkBuilder *gtk_builder = NULL;
+
+    /**** params widgets ****/
+static GtkWidget *params_system_button = NULL;
+static GtkWidget *params_system_no_link_dist_entry = NULL;
+static GtkWidget *params_transmit_mode_block_radio = NULL;
+static GtkWidget *params_transmit_mode_reject_radio = NULL;
+static GtkWidget *params_transmit_mode_queue_radio = NULL;
+
+static GtkWidget *params_nodes_button = NULL;
+static GtkWidget *params_nodes_name_entry = NULL;
+static GtkWidget *params_nodes_x_spin = NULL;
+static GtkWidget *params_nodes_y_spin = NULL;
+static GtkWidget *params_nodes_tx_power_spin = NULL;
+static GtkWidget *params_nodes_bat_level_spin = NULL;
+static GtkWidget *params_nodes_mains_powered_check = NULL;
+static GtkWidget *params_nodes_mac_address_entry = NULL;
+static GtkWidget *params_nodes_ip_address_entry = NULL;
+
+static GtkWidget *params_display_button = NULL;
+
+
+    /**** other widgets ****/
+static GtkWidget *drawing_area = NULL;
+
+
+    /**** prototypes ****/
+
+void cb_expander_toggle_button_clicked(GtkWidget *widget, GtkToggleButton *button);
+void cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data);
+
+static gboolean cb_drawing_area_expose(GtkWidget *widget, GdkEventExpose *event, gpointer data);
+static gboolean cb_drawing_area_button_press(GtkDrawingArea *widget, GdkEventButton *event, gpointer data);
+static gboolean cb_drawing_area_button_release(GtkDrawingArea *widget, GdkEventButton *event, gpointer data);
+static gboolean cb_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMotion *event, gpointer data);
+static gboolean cb_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *event, gpointer data);
+
+static void cb_add_node_tool_button_clicked(GtkWidget *widget, gpointer *data);
+static void cb_rem_node_tool_button_clicked(GtkWidget *widget, gpointer *data);
+static void cb_start_tool_button_clicked(GtkWidget *widget, gpointer *data);
+static void cb_stop_tool_button_clicked(GtkWidget *widget, gpointer *data);
+
+static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
+static void cb_main_window_delete();
+
+static void initialize_widgets();
+static void update_sensitivity();
 
 
     /**** callbacks ****/
 
+void cb_expander_toggle_button_clicked(GtkWidget *widget, GtkToggleButton *button)
+{
+    gtk_widget_set_visible(widget, gtk_toggle_button_get_active(button));
+}
+
+void cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data)
+{
+    update_sensitivity();
+}
+
 static gboolean cb_drawing_area_expose(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-    rs_debug(NULL);
-
-    draw_simfield(widget->window, widget->style->fg_gc[widget->state], current_x, current_y, power);
+    sim_field_redraw(); // todo: is this a good idea?
 
     return TRUE;
 }
@@ -30,12 +87,20 @@ static gboolean cb_drawing_area_button_press(GtkDrawingArea *widget, GdkEventBut
 
     moving = TRUE;
 
-    current_x = event->x;
-    current_y = event->y;
+    gint current_x = event->x;
+    gint current_y = event->y;
 
-    snap_node_coords(&current_x, &current_y);
+    sim_field_node_coords_assure_non_intersection(&current_x, &current_y);
 
-    gtk_widget_queue_draw(drawing_area);
+    node_t *node = rs_system_find_node_by_name("B");
+    if (node == NULL) {
+        return FALSE;
+    }
+
+    node->phy_info->cx = current_x;
+    node->phy_info->cy = current_y;
+
+    sim_field_redraw();
 
     return TRUE;
 }
@@ -57,12 +122,20 @@ static gboolean cb_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMo
         return FALSE;
     }
 
-    current_x = event->x;
-    current_y = event->y;
+    gint current_x = event->x;
+    gint current_y = event->y;
 
-    snap_node_coords(&current_x, &current_y);
+    sim_field_node_coords_assure_non_intersection(&current_x, &current_y);
 
-    gtk_widget_queue_draw(drawing_area);
+    node_t *node = rs_system_find_node_by_name("B");
+    if (node == NULL) {
+        return FALSE;
+    }
+
+    node->phy_info->cx = current_x;
+    node->phy_info->cy = current_y;
+
+    sim_field_redraw();
 
     return TRUE;
 }
@@ -71,41 +144,61 @@ static gboolean cb_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *e
 {
     rs_debug(NULL);
 
+    node_t *node = rs_system_find_node_by_name("B");
+    if (node == NULL) {
+        return FALSE;
+    }
+
     if (event->direction == GDK_SCROLL_UP) {
-        if (power + 0.1 <= 1.0) {
-            power += 0.1;
+        if (node->phy_info->tx_power + 0.1 <= 1.0) {
+            node->phy_info->tx_power += 0.1;
         }
         else {
-            power = 1.0;
+            node->phy_info->tx_power = 1.0;
         }
     }
-    else /* (event->direction == GDK_SCROLL_UP) */ {
-        if (power - 0.1 >= 0.0) {
-            power -= 0.1;
+    else /* (event->direction == GDK_SCROLL_UP) */{
+        if (node->phy_info->tx_power - 0.1 >= 0.0) {
+            node->phy_info->tx_power -= 0.1;
         }
         else {
-            power = 0.0;
+            node->phy_info->tx_power = 0.0;
         }
     }
 
-    snap_node_coords(&current_x, &current_y);
-
-    gtk_widget_queue_draw(drawing_area);
+    sim_field_redraw();
 
     return TRUE;
 }
-
-static void cb_expander_toggle_button_clicked(GtkToggleButton *button, GtkWidget *widget)
-{
-    gtk_widget_set_visible(widget, gtk_toggle_button_get_active(button));
-}
-
 
 static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data)
 {
     rs_debug(NULL);
 
     rs_quit();
+}
+
+static void cb_add_node_tool_button_clicked(GtkWidget *widget, gpointer *data)
+{
+    rs_debug(NULL);
+}
+
+static void cb_rem_node_tool_button_clicked(GtkWidget *widget, gpointer *data)
+{
+    rs_debug(NULL);
+
+}
+
+static void cb_start_tool_button_clicked(GtkWidget *widget, gpointer *data)
+{
+    rs_debug(NULL);
+
+}
+
+static void cb_stop_tool_button_clicked(GtkWidget *widget, gpointer *data)
+{
+    rs_debug(NULL);
+
 }
 
 static void cb_main_window_delete()
@@ -115,46 +208,54 @@ static void cb_main_window_delete()
     rs_quit();
 }
 
+static void update_sensitivity()
+{
+    gtk_widget_set_sensitive(params_nodes_bat_level_spin, !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check)));
+}
+
+static void initialize_widgets()
+{
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_button), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_button), FALSE);
+
+    /* force a visibility update in the params panel */
+    gtk_signal_emit_by_name(GTK_OBJECT(params_system_button), "toggled");
+    gtk_signal_emit_by_name(GTK_OBJECT(params_nodes_button), "toggled");
+    gtk_signal_emit_by_name(GTK_OBJECT(params_display_button), "toggled");
+
+    update_sensitivity();
+}
+
 
     /**** widget creation ****/
 
 GtkWidget *create_params_widget()
 {
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
-    gtk_widget_set_size_request(scrolled_window, 200, 0);
+    gtk_widget_set_size_request(scrolled_window, 250, 0);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
-    GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox), 5);
-    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), vbox);
+    GtkWidget *params_table = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_table");
+    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), params_table);
 
-    /* System */
-    GtkWidget *system_button = gtk_toggle_button_new_with_label("System");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(system_button), TRUE);
-    gtk_box_pack_start(GTK_BOX(vbox), system_button, FALSE, TRUE, 0);
+    params_system_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_button");
+    params_system_no_link_dist_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_dist_entry");
+    params_transmit_mode_block_radio = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_transmit_mode_block_radio");
+    params_transmit_mode_reject_radio = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_transmit_mode_reject_radio");
+    params_transmit_mode_queue_radio = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_transmit_mode_queue_radio");
 
-    GtkWidget *label1 = gtk_label_new("Label1");
-    gtk_box_pack_start(GTK_BOX(vbox), label1, FALSE, TRUE, 0);
-    gtk_signal_connect(GTK_OBJECT(system_button), "clicked", G_CALLBACK(cb_expander_toggle_button_clicked), label1);
+    params_nodes_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_button");
+    params_nodes_name_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_name_entry");
+    params_nodes_x_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_x_spin");
+    params_nodes_y_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_y_spin");
+    params_nodes_tx_power_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_tx_power_spin");
+    params_nodes_bat_level_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_bat_level_spin");
+    params_nodes_mains_powered_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mains_powered_check");
+    params_nodes_mac_address_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mac_address_entry");
+    params_nodes_ip_address_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ip_address_entry");
 
-    /* Nodes */
-    GtkWidget *nodes_button = gtk_toggle_button_new_with_label("Nodes");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(nodes_button), TRUE);
-    gtk_box_pack_start(GTK_BOX(vbox), nodes_button, FALSE, TRUE, 0);
-
-    GtkWidget *label2 = gtk_label_new("Label2");
-    gtk_box_pack_start(GTK_BOX(vbox), label2, FALSE, TRUE, 0);
-    gtk_signal_connect(GTK_OBJECT(nodes_button), "clicked", G_CALLBACK(cb_expander_toggle_button_clicked), label2);
-
-    /* Display */
-    GtkWidget *display_button = gtk_toggle_button_new_with_label("Display");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(display_button), TRUE);
-    gtk_box_pack_start(GTK_BOX(vbox), display_button, FALSE, TRUE, 0);
-
-    GtkWidget *label3 = gtk_label_new("Label3");
-    gtk_box_pack_start(GTK_BOX(vbox), label3, FALSE, TRUE, 0);
-    gtk_signal_connect(GTK_OBJECT(display_button), "clicked", G_CALLBACK(cb_expander_toggle_button_clicked), label3);
-
+    params_display_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_button");
 
     return scrolled_window;
 }
@@ -225,14 +326,38 @@ GtkWidget *create_menu_bar()
 GtkWidget *create_tool_bar()
 {
     GtkWidget *toolbar = gtk_toolbar_new();
+    gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_BOTH_HORIZ);
+
+    GtkToolItem *add_node_toolbar_item = gtk_tool_button_new_from_stock(GTK_STOCK_ADD);
+    gtk_tool_item_set_tooltip_text(add_node_toolbar_item, "Add a new node");
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(add_node_toolbar_item), "Add Node");
+    gtk_tool_item_set_is_important(add_node_toolbar_item, TRUE);
+    gtk_signal_connect(GTK_OBJECT(add_node_toolbar_item), "clicked", G_CALLBACK(cb_add_node_tool_button_clicked), NULL);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), add_node_toolbar_item, 0);
+
+    GtkToolItem *rem_node_toolbar_item = gtk_tool_button_new_from_stock(GTK_STOCK_REMOVE);
+    gtk_tool_item_set_tooltip_text(rem_node_toolbar_item, "Remove the selected node");
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(rem_node_toolbar_item), "Remove Node");
+    gtk_tool_item_set_is_important(rem_node_toolbar_item, TRUE);
+    gtk_signal_connect(GTK_OBJECT(rem_node_toolbar_item), "clicked", G_CALLBACK(cb_rem_node_tool_button_clicked), NULL);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), rem_node_toolbar_item, 1);
+
+    GtkToolItem *sep_toolbar_item = gtk_separator_tool_item_new();
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), sep_toolbar_item, 2);
 
     GtkToolItem *start_toolbar_item = gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_PLAY);
-    gtk_tool_item_set_tooltip_text(start_toolbar_item, "Start Simulation");
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), start_toolbar_item, 0);
+    gtk_tool_item_set_tooltip_text(start_toolbar_item, "Start simulation");
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(start_toolbar_item), "Start");
+    gtk_tool_item_set_is_important(start_toolbar_item, TRUE);
+    gtk_signal_connect(GTK_OBJECT(start_toolbar_item), "clicked", G_CALLBACK(cb_start_tool_button_clicked), NULL);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), start_toolbar_item, 3);
 
     GtkToolItem *stop_toolbar_item = gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_STOP);
-    gtk_tool_item_set_tooltip_text(stop_toolbar_item, "Stop Simulation");
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), stop_toolbar_item, 1);
+    gtk_tool_item_set_tooltip_text(stop_toolbar_item, "Stop simulation");
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(stop_toolbar_item), "Stop");
+    gtk_tool_item_set_is_important(stop_toolbar_item, TRUE);
+    gtk_signal_connect(GTK_OBJECT(stop_toolbar_item), "clicked", G_CALLBACK(cb_stop_tool_button_clicked), NULL);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), stop_toolbar_item, 4);
 
     return toolbar;
 }
@@ -260,8 +385,20 @@ GtkWidget *create_content_widget()
     return hbox;
 }
 
-GtkWidget *main_window_create()
+void main_win_init()
 {
+    gtk_builder = gtk_builder_new();
+
+    GError *error = NULL;
+    gtk_builder_add_from_file(gtk_builder, "resources/params.glade", &error);
+    if (error != NULL) {
+        rs_error("failed to load params ui: %s", error->message);
+        return;
+    }
+
+    gtk_builder_connect_signals(gtk_builder, NULL);
+
+
     GtkWidget *main_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_default_size(GTK_WINDOW(main_window), MAIN_WIN_WIDTH, MAIN_WIN_HEIGHT);
     gtk_window_set_title(GTK_WINDOW(main_window), "RPL Simulator");
@@ -282,5 +419,9 @@ GtkWidget *main_window_create()
     GtkWidget *status_bar = create_status_bar();
     gtk_box_pack_start(GTK_BOX(vbox), status_bar, FALSE, TRUE, 0);
 
-    return main_window;
+    //sim_field_init(drawing_area->window, drawing_area->)
+
+    gtk_widget_show_all(main_window);
+
+    initialize_widgets();
 }
