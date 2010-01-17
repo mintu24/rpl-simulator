@@ -93,6 +93,8 @@ int main(int argc, char *argv[])
 
 	rs_system_create();
 
+	rs_add_node();
+
     gtk_init(&argc, &argv);
     main_win_init();
 	gtk_main();

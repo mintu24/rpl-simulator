@@ -83,12 +83,10 @@ static gboolean cb_drawing_area_expose(GtkWidget *widget, GdkEventExpose *event,
 
 static gboolean cb_drawing_area_button_press(GtkDrawingArea *widget, GdkEventButton *event, gpointer data)
 {
-    rs_debug(NULL);
-
     moving = TRUE;
 
-    gint current_x = event->x;
-    gint current_y = event->y;
+    coord_t current_x = event->x;
+    coord_t current_y = event->y;
 
     sim_field_node_coords_assure_non_intersection(&current_x, &current_y);
 
@@ -107,8 +105,6 @@ static gboolean cb_drawing_area_button_press(GtkDrawingArea *widget, GdkEventBut
 
 static gboolean cb_drawing_area_button_release(GtkDrawingArea *widget, GdkEventButton *event, gpointer data)
 {
-    rs_debug(NULL);
-
     moving = FALSE;
 
     return TRUE;
@@ -116,14 +112,12 @@ static gboolean cb_drawing_area_button_release(GtkDrawingArea *widget, GdkEventB
 
 static gboolean cb_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMotion *event, gpointer data)
 {
-    rs_debug(NULL);
-
     if (!moving) {
         return FALSE;
     }
 
-    gint current_x = event->x;
-    gint current_y = event->y;
+    coord_t current_x = event->x;
+    coord_t current_y = event->y;
 
     sim_field_node_coords_assure_non_intersection(&current_x, &current_y);
 
@@ -142,8 +136,6 @@ static gboolean cb_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMo
 
 static gboolean cb_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *event, gpointer data)
 {
-    rs_debug(NULL);
-
     node_t *node = rs_system_find_node_by_name("B");
     if (node == NULL) {
         return FALSE;
@@ -186,19 +178,16 @@ static void cb_add_node_tool_button_clicked(GtkWidget *widget, gpointer *data)
 static void cb_rem_node_tool_button_clicked(GtkWidget *widget, gpointer *data)
 {
     rs_debug(NULL);
-
 }
 
 static void cb_start_tool_button_clicked(GtkWidget *widget, gpointer *data)
 {
     rs_debug(NULL);
-
 }
 
 static void cb_stop_tool_button_clicked(GtkWidget *widget, gpointer *data)
 {
     rs_debug(NULL);
-
 }
 
 static void cb_main_window_delete()
@@ -419,9 +408,10 @@ void main_win_init()
     GtkWidget *status_bar = create_status_bar();
     gtk_box_pack_start(GTK_BOX(vbox), status_bar, FALSE, TRUE, 0);
 
-    //sim_field_init(drawing_area->window, drawing_area->)
 
     gtk_widget_show_all(main_window);
+
+    sim_field_init(drawing_area->window, drawing_area->style->fg_gc[GTK_STATE_NORMAL]);
 
     initialize_widgets();
 }
