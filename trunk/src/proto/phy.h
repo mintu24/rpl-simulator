@@ -14,7 +14,7 @@ typedef struct phy_node_info_t {
     coord_t cy;
 
     percent_t battery_level;
-    percent_t power_level;
+    percent_t tx_power;
     bool mains_powered;
 
 } phy_node_info_t;

@@ -33,6 +33,7 @@ bool                        rs_system_destroy();
 bool                        rs_system_add_node(node_t *node);
 bool                        rs_system_remove_node(node_t *node);
 node_t *                    rs_system_find_node_by_name(char *name);
+node_t **                   rs_system_get_nodes(uint16 *node_count);
 
 percent_t                   rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
 

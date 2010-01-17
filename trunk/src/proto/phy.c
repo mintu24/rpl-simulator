@@ -45,7 +45,7 @@ phy_node_info_t *phy_node_info_create(char *name, coord_t cx, coord_t cy)
     node_info->cy = cy;
 
     node_info->mains_powered = FALSE;
-    node_info->power_level = 0;
+    node_info->tx_power = 0;
     node_info->battery_level = 0;
 
     return node_info;
