@@ -88,12 +88,12 @@ static gboolean cb_drawing_area_button_press(GtkDrawingArea *widget, GdkEventBut
     coord_t current_x = event->x;
     coord_t current_y = event->y;
 
-    sim_field_node_coords_assure_non_intersection(&current_x, &current_y);
-
     node_t *node = rs_system_find_node_by_name("B");
     if (node == NULL) {
         return FALSE;
     }
+
+    sim_field_node_coords_assure_non_intersection(node, &current_x, &current_y);
 
     node->phy_info->cx = current_x;
     node->phy_info->cy = current_y;
@@ -119,12 +119,13 @@ static gboolean cb_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMo
     coord_t current_x = event->x;
     coord_t current_y = event->y;
 
-    sim_field_node_coords_assure_non_intersection(&current_x, &current_y);
 
     node_t *node = rs_system_find_node_by_name("B");
     if (node == NULL) {
         return FALSE;
     }
+
+    sim_field_node_coords_assure_non_intersection(node, &current_x, &current_y);
 
     node->phy_info->cx = current_x;
     node->phy_info->cy = current_y;
