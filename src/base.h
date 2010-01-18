@@ -41,7 +41,7 @@
 
     /**** specific types ****/
 
-#define coord_t             uint16
+#define coord_t             double
 #define percent_t           double
 
 

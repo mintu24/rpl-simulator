@@ -10,12 +10,9 @@
 
     /**** global variables ****/
 
-// todo: remove these
-static gboolean moving = FALSE;
-
 static GtkBuilder *gtk_builder = NULL;
 
-    /**** params widgets ****/
+    /* params widgets */
 static GtkWidget *params_system_button = NULL;
 static GtkWidget *params_system_no_link_dist_entry = NULL;
 static GtkWidget *params_transmit_mode_block_radio = NULL;
@@ -35,34 +32,74 @@ static GtkWidget *params_nodes_ip_address_entry = NULL;
 static GtkWidget *params_display_button = NULL;
 
 
-    /**** other widgets ****/
-static GtkWidget *drawing_area = NULL;
+    /**** local function prototypes ****/
+
+void                cb_expander_toggle_button_clicked(GtkWidget *widget, GtkToggleButton *button);
+void                cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data);
+
+static void         cb_add_node_tool_button_clicked(GtkWidget *widget, gpointer *data);
+static void         cb_rem_node_tool_button_clicked(GtkWidget *widget, gpointer *data);
+static void         cb_start_tool_button_clicked(GtkWidget *widget, gpointer *data);
+static void         cb_stop_tool_button_clicked(GtkWidget *widget, gpointer *data);
+
+static void         cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
+static void         cb_main_window_delete();
+
+static GtkWidget *  create_params_widget();
+static GtkWidget *  create_monitoring_widget();
+static GtkWidget *  create_menu_bar();
+static GtkWidget *  create_tool_bar();
+static GtkWidget *  create_status_bar();
+static GtkWidget *  create_content_widget();
+
+static void         initialize_widgets();
+static void         update_sensitivity();
 
 
-    /**** prototypes ****/
+    /**** exported functions ****/
 
-void cb_expander_toggle_button_clicked(GtkWidget *widget, GtkToggleButton *button);
-void cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data);
+void main_win_init()
+{
+    gtk_builder = gtk_builder_new();
 
-static gboolean cb_drawing_area_expose(GtkWidget *widget, GdkEventExpose *event, gpointer data);
-static gboolean cb_drawing_area_button_press(GtkDrawingArea *widget, GdkEventButton *event, gpointer data);
-static gboolean cb_drawing_area_button_release(GtkDrawingArea *widget, GdkEventButton *event, gpointer data);
-static gboolean cb_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMotion *event, gpointer data);
-static gboolean cb_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *event, gpointer data);
+    GError *error = NULL;
+    gtk_builder_add_from_file(gtk_builder, "resources/params.glade", &error);
+    if (error != NULL) {
+        rs_error("failed to load params ui: %s", error->message);
+        return;
+    }
 
-static void cb_add_node_tool_button_clicked(GtkWidget *widget, gpointer *data);
-static void cb_rem_node_tool_button_clicked(GtkWidget *widget, gpointer *data);
-static void cb_start_tool_button_clicked(GtkWidget *widget, gpointer *data);
-static void cb_stop_tool_button_clicked(GtkWidget *widget, gpointer *data);
-
-static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
-static void cb_main_window_delete();
-
-static void initialize_widgets();
-static void update_sensitivity();
+    gtk_builder_connect_signals(gtk_builder, NULL);
 
 
-    /**** callbacks ****/
+    GtkWidget *main_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_default_size(GTK_WINDOW(main_window), MAIN_WIN_WIDTH, MAIN_WIN_HEIGHT);
+    gtk_window_set_title(GTK_WINDOW(main_window), "RPL Simulator");
+    gtk_signal_connect(GTK_OBJECT(main_window), "delete-event", GTK_SIGNAL_FUNC(cb_main_window_delete), NULL);
+
+    GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(main_window), vbox);
+
+    GtkWidget *menu_bar = create_menu_bar();
+    gtk_box_pack_start(GTK_BOX(vbox), menu_bar, FALSE, TRUE, 0);
+
+    GtkWidget *tool_bar = create_tool_bar();
+    gtk_box_pack_start(GTK_BOX(vbox), tool_bar, FALSE, TRUE, 0);
+
+    GtkWidget *content_widget = create_content_widget();
+    gtk_box_pack_start(GTK_BOX(vbox), content_widget, TRUE, TRUE, 0);
+
+    GtkWidget *status_bar = create_status_bar();
+    gtk_box_pack_start(GTK_BOX(vbox), status_bar, FALSE, TRUE, 0);
+
+
+    gtk_widget_show_all(main_window);
+
+    initialize_widgets();
+}
+
+
+    /**** local functions ****/
 
 void cb_expander_toggle_button_clicked(GtkWidget *widget, GtkToggleButton *button)
 {
@@ -72,96 +109,6 @@ void cb_expander_toggle_button_clicked(GtkWidget *widget, GtkToggleButton *butto
 void cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data)
 {
     update_sensitivity();
-}
-
-static gboolean cb_drawing_area_expose(GtkWidget *widget, GdkEventExpose *event, gpointer data)
-{
-    sim_field_redraw(); // todo: is this a good idea?
-
-    return TRUE;
-}
-
-static gboolean cb_drawing_area_button_press(GtkDrawingArea *widget, GdkEventButton *event, gpointer data)
-{
-    moving = TRUE;
-
-    coord_t current_x = event->x;
-    coord_t current_y = event->y;
-
-    node_t *node = rs_system_find_node_by_name("B");
-    if (node == NULL) {
-        return FALSE;
-    }
-
-    sim_field_node_coords_assure_non_intersection(node, &current_x, &current_y);
-
-    node->phy_info->cx = current_x;
-    node->phy_info->cy = current_y;
-
-    sim_field_redraw();
-
-    return TRUE;
-}
-
-static gboolean cb_drawing_area_button_release(GtkDrawingArea *widget, GdkEventButton *event, gpointer data)
-{
-    moving = FALSE;
-
-    return TRUE;
-}
-
-static gboolean cb_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMotion *event, gpointer data)
-{
-    if (!moving) {
-        return FALSE;
-    }
-
-    coord_t current_x = event->x;
-    coord_t current_y = event->y;
-
-
-    node_t *node = rs_system_find_node_by_name("B");
-    if (node == NULL) {
-        return FALSE;
-    }
-
-    sim_field_node_coords_assure_non_intersection(node, &current_x, &current_y);
-
-    node->phy_info->cx = current_x;
-    node->phy_info->cy = current_y;
-
-    sim_field_redraw();
-
-    return TRUE;
-}
-
-static gboolean cb_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *event, gpointer data)
-{
-    node_t *node = rs_system_find_node_by_name("B");
-    if (node == NULL) {
-        return FALSE;
-    }
-
-    if (event->direction == GDK_SCROLL_UP) {
-        if (node->phy_info->tx_power + 0.1 <= 1.0) {
-            node->phy_info->tx_power += 0.1;
-        }
-        else {
-            node->phy_info->tx_power = 1.0;
-        }
-    }
-    else /* (event->direction == GDK_SCROLL_UP) */{
-        if (node->phy_info->tx_power - 0.1 >= 0.0) {
-            node->phy_info->tx_power -= 0.1;
-        }
-        else {
-            node->phy_info->tx_power = 0.0;
-        }
-    }
-
-    sim_field_redraw();
-
-    return TRUE;
 }
 
 static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data)
@@ -255,19 +202,6 @@ GtkWidget *create_monitoring_widget()
     GtkWidget *label = gtk_label_new("Monitoring");
 
     return label;
-}
-
-GtkWidget *create_drawing_area()
-{
-    drawing_area = gtk_drawing_area_new();
-    gtk_widget_add_events(drawing_area, GDK_ALL_EVENTS_MASK);
-    gtk_signal_connect(GTK_OBJECT(drawing_area), "expose-event", GTK_SIGNAL_FUNC(cb_drawing_area_expose), NULL);
-    gtk_signal_connect(GTK_OBJECT(drawing_area), "button-press-event", GTK_SIGNAL_FUNC(cb_drawing_area_button_press), NULL);
-    gtk_signal_connect(GTK_OBJECT(drawing_area), "button-release-event", GTK_SIGNAL_FUNC(cb_drawing_area_button_release), NULL);
-    gtk_signal_connect(GTK_OBJECT(drawing_area), "motion-notify-event", GTK_SIGNAL_FUNC(cb_drawing_area_motion_notify), NULL);
-    gtk_signal_connect(GTK_OBJECT(drawing_area), "scroll-event", GTK_SIGNAL_FUNC(cb_drawing_area_scroll), NULL);
-
-    return drawing_area;
 }
 
 GtkWidget *create_menu_bar()
@@ -366,53 +300,11 @@ GtkWidget *create_content_widget()
     GtkWidget *params_widget = create_params_widget();
     gtk_box_pack_start(GTK_BOX(hbox), params_widget, FALSE, TRUE, 0);
 
-    GtkWidget *drawing_area = create_drawing_area();
-    gtk_box_pack_start(GTK_BOX(hbox), drawing_area, TRUE, TRUE, 0);
+    GtkWidget *sim_field = sim_field_create(NULL, NULL);// todo: fix this
+    gtk_box_pack_start(GTK_BOX(hbox), sim_field, TRUE, TRUE, 0);
 
     GtkWidget *monitoring_widget = create_monitoring_widget();
     gtk_box_pack_start(GTK_BOX(hbox), monitoring_widget, FALSE, TRUE, 0);
 
     return hbox;
-}
-
-void main_win_init()
-{
-    gtk_builder = gtk_builder_new();
-
-    GError *error = NULL;
-    gtk_builder_add_from_file(gtk_builder, "resources/params.glade", &error);
-    if (error != NULL) {
-        rs_error("failed to load params ui: %s", error->message);
-        return;
-    }
-
-    gtk_builder_connect_signals(gtk_builder, NULL);
-
-
-    GtkWidget *main_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_default_size(GTK_WINDOW(main_window), MAIN_WIN_WIDTH, MAIN_WIN_HEIGHT);
-    gtk_window_set_title(GTK_WINDOW(main_window), "RPL Simulator");
-    gtk_signal_connect(GTK_OBJECT(main_window), "delete-event", GTK_SIGNAL_FUNC(cb_main_window_delete), NULL);
-
-    GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-    gtk_container_add(GTK_CONTAINER(main_window), vbox);
-
-    GtkWidget *menu_bar = create_menu_bar();
-    gtk_box_pack_start(GTK_BOX(vbox), menu_bar, FALSE, TRUE, 0);
-
-    GtkWidget *tool_bar = create_tool_bar();
-    gtk_box_pack_start(GTK_BOX(vbox), tool_bar, FALSE, TRUE, 0);
-
-    GtkWidget *content_widget = create_content_widget();
-    gtk_box_pack_start(GTK_BOX(vbox), content_widget, TRUE, TRUE, 0);
-
-    GtkWidget *status_bar = create_status_bar();
-    gtk_box_pack_start(GTK_BOX(vbox), status_bar, FALSE, TRUE, 0);
-
-
-    gtk_widget_show_all(main_window);
-
-    sim_field_init(drawing_area->window, drawing_area->style->fg_gc[GTK_STATE_NORMAL]);
-
-    initialize_widgets();
 }

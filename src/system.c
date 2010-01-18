@@ -3,12 +3,18 @@
 #include "math.h"
 
 
+    /**** global variables ****/
+
+rs_system_t *           rs_system = NULL;
+
+
+    /**** local function prototypes ****/
+
 static bool             rs_system_mangle_message(node_t *src_node, node_t *dst_node, phy_pdu_t *message);
 static bool             rs_system_send_rpl(node_t *src_node, node_t *dst_node, void *rpl_pdu, uint8 icmp_rpl_code);
 
 
-rs_system_t *rs_system = NULL;
-
+    /**** exported functions ****/
 
 bool rs_system_create()
 {
@@ -20,6 +26,8 @@ bool rs_system_create()
     rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
     rs_system->phy_transmit_mode = DEFAULT_PHY_TRANSMIT_MODE;
 
+    rs_system->nodes_mutex = g_mutex_new();
+
     return TRUE;
 }
 
@@ -27,11 +35,69 @@ bool rs_system_destroy()
 {
     rs_assert(rs_system != NULL);
 
+    // todo: destroy the nodes
     free(rs_system->node_list);
+
+    g_mutex_free(rs_system->nodes_mutex);
 
     free(rs_system);
 
     return TRUE;
+}
+
+coord_t rs_system_get_no_link_dist_thresh()
+{
+    rs_assert(rs_system != NULL);
+
+    return rs_system->no_link_dist_thresh;
+}
+
+void rs_system_set_no_link_dist_thresh(coord_t thresh)
+{
+    rs_assert(rs_system != NULL);
+
+}
+
+uint8 rs_system_get_transmit_mode()
+{
+    rs_assert(rs_system != NULL);
+
+    return rs_system->phy_transmit_mode;
+}
+
+void rs_system_set_transmit_mode(uint8 mode)
+{
+    rs_assert(rs_system != NULL);
+
+    rs_system->phy_transmit_mode = mode;
+}
+
+coord_t rs_system_get_width()
+{
+    rs_assert(rs_system != NULL);
+
+    return rs_system->width;
+}
+
+coord_t rs_system_get_height()
+{
+    rs_assert(rs_system != NULL);
+
+    return rs_system->height;
+}
+
+void rs_system_set_width(coord_t width)
+{
+    rs_assert(rs_system != NULL);
+
+    rs_system->width = width;
+}
+
+void rs_system_set_height(coord_t height)
+{
+    rs_assert(rs_system != NULL);
+
+    rs_system->height = height;
 }
 
 bool rs_system_add_node(node_t *node)
@@ -39,13 +105,12 @@ bool rs_system_add_node(node_t *node)
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
 
-    if (rs_system_find_node_by_name(node->phy_info->name)) {
-        rs_error("a node with name '%s' already exists", node->phy_info->name);
-        return FALSE;
-    }
+    g_mutex_lock(rs_system->nodes_mutex);
 
     rs_system->node_list = (node_t **) realloc(rs_system->node_list, (++rs_system->node_count) * sizeof(node_t *));
     rs_system->node_list[rs_system->node_count - 1] = node;
+
+    g_mutex_unlock(rs_system->nodes_mutex);
 
     return TRUE;
 }
@@ -54,6 +119,8 @@ bool rs_system_remove_node(node_t *node)
 {
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
+
+    g_mutex_lock(rs_system->nodes_mutex);
 
     int i, pos = -1;
     for (i = 0; i < rs_system->node_count; i++) {
@@ -64,6 +131,7 @@ bool rs_system_remove_node(node_t *node)
 
     if (pos == -1) {
         rs_error("node '%s' not found", node->phy_info->name);
+        g_mutex_unlock(rs_system->nodes_mutex);
         return FALSE;
     }
 
@@ -72,6 +140,8 @@ bool rs_system_remove_node(node_t *node)
     }
 
     rs_system->node_count--;
+
+    g_mutex_unlock(rs_system->nodes_mutex);
 
     return TRUE;
 }
@@ -82,24 +152,32 @@ node_t *rs_system_find_node_by_name(char *name)
     rs_assert(name != NULL);
 
     int i;
+    node_t *node = NULL;
     for (i = 0; i < rs_system->node_count; i++) {
         if (!strcmp(rs_system->node_list[i]->phy_info->name, name)) {
-            return rs_system->node_list[i];
+            node = rs_system->node_list[i];
+            break;
         }
     }
 
-    return NULL;
+    return node;
 }
 
 node_t ** rs_system_get_nodes(uint16 *node_count)
 {
     rs_assert(rs_system != NULL);
 
+    g_mutex_lock(rs_system->nodes_mutex);
+
     if (node_count != NULL) {
         *node_count = rs_system->node_count;
     }
 
-    return rs_system->node_list;
+    node_t **list = rs_system->node_list;
+
+    g_mutex_unlock(rs_system->nodes_mutex);
+
+    return list;
 }
 
 percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
@@ -109,8 +187,8 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
     rs_assert(dst_node != NULL);
 
     coord_t distance = sqrt(pow(src_node->phy_info->cx - dst_node->phy_info->cx, 2) + pow(src_node->phy_info->cy - dst_node->phy_info->cy, 2));
-    if (distance > rs_system->no_link_dist_thresh) {
-        distance = rs_system->no_link_dist_thresh;
+    if (distance > rs_system_get_no_link_dist_thresh()) {
+        distance = rs_system_get_no_link_dist_thresh();
     }
 
     percent_t dist_factor = (percent_t) (rs_system->no_link_dist_thresh - distance) / rs_system->no_link_dist_thresh;
@@ -263,6 +341,8 @@ bool rs_system_process_message(node_t *node, phy_pdu_t *message)
 }
 
 
+    /**** local functions ****/
+
 static bool rs_system_mangle_message(node_t *src_node, node_t *dst_node, phy_pdu_t *message)
 {
     rs_assert(rs_system != NULL);
@@ -299,7 +379,7 @@ static bool rs_system_send_rpl(node_t *src_node, node_t *dst_node, void *rpl_pdu
         return FALSE;
     }
 
-    if (!node_enqueue_pdu(dst_node, phy_pdu, rs_system->phy_transmit_mode)) {
+    if (!node_enqueue_pdu(dst_node, phy_pdu, rs_system_get_transmit_mode())) {
         rs_error("failed to enqueue pdu");
         return FALSE;
     }
