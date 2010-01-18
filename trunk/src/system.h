@@ -14,13 +14,22 @@
 #define DEFAULT_PHY_TRANSMIT_MODE       PHY_TRANSMIT_MODE_BLOCK
 
 
-typedef struct {
+typedef struct rs_system_t {
 
-    node_t **node_list;
-    uint16 node_count;
+    /* params */
+    coord_t             no_link_dist_thresh;
+    uint8               phy_transmit_mode;
 
-    coord_t no_link_dist_thresh;
-    uint8 phy_transmit_mode;
+    coord_t             width;
+    coord_t             height;
+
+    /* nodes */
+    node_t **           node_list;
+    uint16              node_count;
+
+    /* mutexes */
+    GMutex *            nodes_mutex;
+    GMutex *            params_mutex;
 
 } rs_system_t;
 
@@ -30,6 +39,19 @@ extern rs_system_t *rs_system;
 bool                        rs_system_create();
 bool                        rs_system_destroy();
 
+    /* params */
+coord_t                     rs_system_get_no_link_dist_thresh();
+void                        rs_system_set_no_link_dist_thresh(coord_t thresh);
+
+uint8                       rs_system_get_transmit_mode();
+void                        rs_system_set_transmit_mode(uint8 mode);
+
+coord_t                     rs_system_get_width();
+coord_t                     rs_system_get_height();
+void                        rs_system_set_width(coord_t width);
+void                        rs_system_set_height(coord_t height);
+
+    /* nodes */
 bool                        rs_system_add_node(node_t *node);
 bool                        rs_system_remove_node(node_t *node);
 node_t *                    rs_system_find_node_by_name(char *name);

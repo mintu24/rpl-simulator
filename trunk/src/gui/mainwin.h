@@ -8,8 +8,8 @@
 
 #include "../base.h"
 
-#define MAIN_WIN_WIDTH		600
-#define MAIN_WIN_HEIGHT		400
+#define MAIN_WIN_WIDTH		800
+#define MAIN_WIN_HEIGHT		600
 
 
 void                main_win_init();

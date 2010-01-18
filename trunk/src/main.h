@@ -6,8 +6,11 @@
 #include "node.h"
 
 
-void                    rs_quit();
+extern                  GThread *rs_main_thread;
+
+
 void                    rs_add_node();
+void                    rs_quit();
 
 
 #endif /* MAIN_H_ */
