@@ -249,7 +249,7 @@ static void draw_node(node_t *node, cairo_t *cr, gint width, gint height)
     coord_t x = node->phy_info->cx;
     coord_t y = node->phy_info->cy;
 
-    cairo_surface_t *image = node_images[(int) round(tx_power * 10)];
+    cairo_surface_t *image = node_images[(int) lround(tx_power * 10)];
 
     int w = cairo_image_surface_get_width(image);
     int h = cairo_image_surface_get_height(image);
