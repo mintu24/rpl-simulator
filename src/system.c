@@ -150,6 +150,8 @@ node_t *rs_system_find_node_by_name(char *name)
     rs_assert(rs_system != NULL);
     rs_assert(name != NULL);
 
+    g_mutex_lock(rs_system->nodes_mutex);
+
     int i;
     node_t *node = NULL;
     for (i = 0; i < rs_system->node_count; i++) {
@@ -159,10 +161,54 @@ node_t *rs_system_find_node_by_name(char *name)
         }
     }
 
+    g_mutex_unlock(rs_system->nodes_mutex);
+
     return node;
 }
 
-node_t ** rs_system_get_nodes(uint16 *node_count)
+node_t *rs_system_find_node_by_mac_address(char *address)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(address != NULL);
+
+    g_mutex_lock(rs_system->nodes_mutex);
+
+    int i;
+    node_t *node = NULL;
+    for (i = 0; i < rs_system->node_count; i++) {
+        if (!strcmp(mac_node_get_address(rs_system->node_list[i]), address)) {
+            node = rs_system->node_list[i];
+            break;
+        }
+    }
+
+    g_mutex_unlock(rs_system->nodes_mutex);
+
+    return node;
+}
+
+node_t *rs_system_find_node_by_ip_address(char *address)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(address != NULL);
+
+    g_mutex_lock(rs_system->nodes_mutex);
+
+    int i;
+    node_t *node = NULL;
+    for (i = 0; i < rs_system->node_count; i++) {
+        if (!strcmp(ip_node_get_address(rs_system->node_list[i]), address)) {
+            node = rs_system->node_list[i];
+            break;
+        }
+    }
+
+    g_mutex_unlock(rs_system->nodes_mutex);
+
+    return node;
+}
+
+node_t ** rs_system_get_node_list(uint16 *node_count)
 {
     rs_assert(rs_system != NULL);
 

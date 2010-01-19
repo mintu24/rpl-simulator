@@ -1,7 +1,9 @@
 
 #include <math.h>
+#include <gdk/gdk.h>
 
 #include "simfield.h"
+#include "mainwin.h"
 #include "../main.h"
 #include "../system.h"
 
@@ -16,7 +18,7 @@ static GtkWidget *          sim_field_drawing_area = NULL;
 static GtkWidget *          sim_field_vruler = NULL;
 static GtkWidget *          sim_field_hruler = NULL;
 
-static node_t *             selected_node = NULL;
+static node_t *             hovered_node = NULL;
 
 
     /**** local function prototypes ****/
@@ -30,6 +32,8 @@ static gboolean             cb_sim_field_drawing_area_scroll(GtkDrawingArea *wid
 static void                 draw_arrow_line(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius);
 static void                 draw_node(node_t *node, cairo_t *cr, float scale_x, float scale_y);
 static gboolean             draw_sim_field(void *data);
+
+static node_t *             find_node_by_coords(gint x, gint y, gint pixel_width, gint pixel_height, float scale_x, float scale_y);
 
 
     /**** exported functions ****/
@@ -148,87 +152,79 @@ static gboolean cb_sim_field_drawing_area_expose(GtkWidget *widget, GdkEventExpo
 
 static gboolean cb_sim_field_drawing_area_button_press(GtkDrawingArea *widget, GdkEventButton *event, gpointer data)
 {
-    rs_assert(selected_node == NULL);
-
-    gint pixel_width, pixel_height;
-    gdk_drawable_get_size(sim_field_window, &pixel_width, &pixel_height);
-
-    float scale_x = pixel_width / rs_system_get_width();
-    float scale_y = pixel_height / rs_system_get_height();
-
-    coord_t current_x = event->x / scale_x;
-    coord_t current_y = event->y / scale_y;
-
-    selected_node = rs_system_find_node_by_name("B");
-    if (selected_node == NULL) {
-        return FALSE;
-    }
-
-    phy_node_set_xy(selected_node, current_x, current_y);
-
-    sim_field_redraw();
+    main_win_set_selected_node(hovered_node);
 
     return TRUE;
 }
 
 static gboolean cb_sim_field_drawing_area_button_release(GtkDrawingArea *widget, GdkEventButton *event, gpointer data)
 {
-    selected_node = NULL;
-
-    return TRUE;
+//    selected_node = NULL;
+//
+//    return TRUE;
 }
 
 static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMotion *event, gpointer data)
 {
-    if (selected_node == NULL) {
-        return FALSE;
-    }
-
     // todo update h,v ruler positions
-
+//
     gint pixel_width, pixel_height;
     gdk_drawable_get_size(sim_field_window, &pixel_width, &pixel_height);
 
     float scale_x = pixel_width / rs_system_get_width();
     float scale_y = pixel_height / rs_system_get_height();
 
-    coord_t current_x = event->x / scale_x;
-    coord_t current_y = event->y / scale_y;
+    node_t *node = find_node_by_coords(event->x, event->y, pixel_width, pixel_height, scale_x, scale_y);
+    hovered_node = node;
 
-    phy_node_set_xy(selected_node, current_x, current_y);
+    if (node != NULL) {
+        GdkCursor* cursor = cursor = gdk_cursor_new(GDK_HAND2);
+        gdk_window_set_cursor(sim_field_window, cursor);
+        gdk_cursor_destroy(cursor);
+    }
+    else {
+        GdkCursor* cursor = cursor = gdk_cursor_new(GDK_ARROW);
+        gdk_window_set_cursor(sim_field_window, cursor);
+        gdk_cursor_destroy(cursor);
+    }
 
     sim_field_redraw();
 
+//    coord_t current_x = event->x / scale_x;
+//    coord_t current_y = event->y / scale_y;
+//
+//    phy_node_set_xy(selected_node, current_x, current_y);
+//
     return TRUE;
 }
 
 static gboolean cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *event, gpointer data)
 {
-    node_t *node = rs_system_find_node_by_name("B");
-    if (node == NULL) {
-        return FALSE;
-    }
-
-    if (event->direction == GDK_SCROLL_UP) {
-        if (phy_node_get_tx_power(node) + 0.1 <= 1.0) {
-            phy_node_set_tx_power(node, phy_node_get_tx_power(node) + 0.1);
-        }
-        else {
-            phy_node_set_tx_power(node, 1.0);
-        }
-    }
-    else /* (event->direction == GDK_SCROLL_DOWN) */{
-        if (phy_node_get_tx_power(node) - 0.1 >= 0.0) {
-            phy_node_set_tx_power(node, phy_node_get_tx_power(node) - 0.1);
-        }
-        else {
-            phy_node_set_tx_power(node, 0.0);
-        }
-    }
-
-    sim_field_redraw();
-
-    return TRUE;
+//    node_t *node = rs_system_find_node_by_name("B");
+//    if (node == NULL) {
+//        return FALSE;
+//    }
+//
+//    if (event->direction == GDK_SCROLL_UP) {
+//        if (phy_node_get_tx_power(node) + 0.1 <= 1.0) {
+//            phy_node_set_tx_power(node, phy_node_get_tx_power(node) + 0.1);
+//        }
+//        else {
+//            phy_node_set_tx_power(node, 1.0);
+//        }
+//    }
+//    else /* (event->direction == GDK_SCROLL_DOWN) */{
+//        if (phy_node_get_tx_power(node) - 0.1 >= 0.0) {
+//            phy_node_set_tx_power(node, phy_node_get_tx_power(node) - 0.1);
+//        }
+//        else {
+//            phy_node_set_tx_power(node, 0.0);
+//        }
+//    }
+//
+//    sim_field_redraw();
+//
+//    return TRUE;
 }
 
 static void draw_arrow_line(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius)
@@ -308,7 +304,7 @@ static gboolean draw_sim_field(void *data)
     /* nodes */
     uint16 node_count, index;
     node_t **node_list;
-    node_list = rs_system_get_nodes(&node_count);
+    node_list = rs_system_get_node_list(&node_count);
 
     float scale_x = pixel_width / rs_system_get_width();
     float scale_y = pixel_height / rs_system_get_height();
@@ -328,4 +324,31 @@ static gboolean draw_sim_field(void *data)
     cairo_surface_destroy(surface);
 
     return FALSE;
+}
+
+static node_t *find_node_by_coords(gint x, gint y, gint pixel_width, gint pixel_height, float scale_x, float scale_y)
+{
+    uint16 node_count;
+    int32 index;
+    node_t **node_list;
+    node_list = rs_system_get_node_list(&node_count);
+
+    uint16 pixel_x, pixel_y;
+
+    for (index = node_count - 1; index >= 0; index--) {
+        node_t *node = node_list[index];
+
+        pixel_x = phy_node_get_x(node) * scale_x;
+        pixel_y = phy_node_get_y(node) * scale_y;
+
+        if ((x > pixel_x - NODE_OVER_THRESH) &&
+            (x < pixel_x + NODE_OVER_THRESH) &&
+            (y > pixel_y - NODE_OVER_THRESH) &&
+            (y < pixel_y + NODE_OVER_THRESH)) {
+
+            return node;
+        }
+    }
+
+    return NULL;
 }

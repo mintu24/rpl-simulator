@@ -14,7 +14,7 @@
 
 
     /* a node in the simulated network */
-typedef struct {
+typedef struct node_t {
 
     struct phy_node_info_t *phy_info;
     struct mac_node_info_t *mac_info;
@@ -41,7 +41,7 @@ typedef struct {
 typedef void (* node_schedule_func_t) (node_t *node, void *data);
 
     /* structure used for scheduling actions to be executed at a certain moment */
-typedef struct {
+typedef struct node_schedule_t {
 
     char *name;
     node_schedule_func_t func;

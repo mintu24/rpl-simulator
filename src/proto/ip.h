@@ -17,7 +17,7 @@ typedef struct ip_node_info_t {
 } ip_node_info_t;
 
     /* fields contained in a IP packet */
-typedef struct {
+typedef struct ip_pdu_t {
 
     char *dst_address;
     char *src_address;
@@ -28,7 +28,7 @@ typedef struct {
 } ip_pdu_t;
 
     /* fields contained in a ICMP message */
-typedef struct {
+typedef struct icmp_pdu_t {
 
     uint8 type;
     uint8 code;
