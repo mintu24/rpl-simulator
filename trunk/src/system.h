@@ -15,6 +15,10 @@
 #define DEFAULT_SYS_WIDTH               100
 #define DEFAULT_SYS_HEIGHT              100
 
+#define DEFAULT_NODE_NAME               "node1"
+#define DEFAULT_NODE_MAC_ADDRESS        "000000000001"
+#define DEFAULT_NODE_IP_ADDRESS         "FF02::0001"
+
 
 typedef struct rs_system_t {
 
@@ -56,7 +60,9 @@ void                        rs_system_set_width_height(coord_t width, coord_t he
 bool                        rs_system_add_node(node_t *node);
 bool                        rs_system_remove_node(node_t *node);
 node_t *                    rs_system_find_node_by_name(char *name);
-node_t **                   rs_system_get_nodes(uint16 *node_count);
+node_t *                    rs_system_find_node_by_mac_address(char *address);
+node_t *                    rs_system_find_node_by_ip_address(char *address);
+node_t **                   rs_system_get_node_list(uint16 *node_count);
 
 percent_t                   rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
 

@@ -26,7 +26,7 @@ typedef struct rpl_node_info_t {
 } rpl_node_info_t;
 
     /* fields of a DAG configuration suboption in a RPL DIO message */
-typedef struct {
+typedef struct dio_suboption_dag_config_t {
 
     int8 interval_doublings;
     int8 interval_min;
@@ -47,7 +47,7 @@ typedef struct dio_suboption_t {
 } dio_suboption_t;
 
     /* fields contained in a RPL DIO message */
-typedef struct {
+typedef struct rpl_dio_pdu_t {
 
     bool grounded;
     bool da_trigger;
@@ -63,7 +63,7 @@ typedef struct {
 } rpl_dio_pdu_t;
 
     /* fields contained in a RPL DAO message */
-typedef struct {
+typedef struct rpl_dao_pdu_t {
 
     uint16 sequence;
     uint8 instance_id;

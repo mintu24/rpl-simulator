@@ -58,10 +58,10 @@
 
 #define rs_warn(args...)                rs_print(stderr, "# ", __FILE__, __LINE__, __FUNCTION__, args)
 #define rs_error(args...)               rs_print(stderr, "! ", __FILE__, __LINE__, __FUNCTION__, args)
-#define rs_assert(cond)        { if (!(cond)) rs_print(stderr, "# ", __FILE__, __LINE__, __FUNCTION__, "assertion '%s' failed", #cond); }
+#define rs_assert(cond)                 { if (!(cond)) rs_print(stderr, "# ", __FILE__, __LINE__, __FUNCTION__, "assertion '%s' failed", #cond); }
 
 
-void rs_print(FILE *stream, char *sym, const char *file, int line, const char *function, const char *fmt, ...);
+void        rs_print(FILE *stream, char *sym, const char *file, int line, const char *function, const char *fmt, ...);
 
 
 #endif /* BASE_H_ */

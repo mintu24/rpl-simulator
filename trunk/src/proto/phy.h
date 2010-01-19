@@ -20,7 +20,7 @@ typedef struct phy_node_info_t {
 } phy_node_info_t;
 
     /* fields contained in a PHY message */
-typedef struct {
+typedef struct phy_pdu_t {
 
     void *sdu;
 

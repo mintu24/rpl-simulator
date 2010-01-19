@@ -11,9 +11,8 @@
 #include "../base.h"
 #include "../node.h"
 
-#define NODE_RADIUS             10
-#define MIN_NODE_DISTANCE       20
 #define TX_POWER_STEP_COUNT     11
+#define NODE_OVER_THRESH        20
 
 
 GtkWidget *     sim_field_create();

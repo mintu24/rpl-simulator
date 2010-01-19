@@ -14,7 +14,7 @@ typedef struct mac_node_info_t {
 } mac_node_info_t;
 
     /* fields contained in a MAC frame */
-typedef struct {
+typedef struct mac_pdu_t {
 
 	char *dst_address;
 	char *src_address;

@@ -3,42 +3,63 @@
 
 #include "mainwin.h"
 #include "simfield.h"
-#include "../node.h"
 #include "../system.h"
 #include "../main.h"
+
+#define signal_enter()          { if (signals_disabled) return; signals_disabled = TRUE; }
+#define signal_leave()          { signals_disabled = FALSE; }
+
+#define signals_disable()       { signals_disabled = TRUE; }
+#define signals_enable()        { signals_disabled = FALSE; }
 
 
     /**** global variables ****/
 
-static GtkBuilder *gtk_builder = NULL;
+static GtkBuilder *             gtk_builder = NULL;
 
     /* params widgets */
-static GtkWidget *params_system_button = NULL;
-static GtkWidget *params_system_no_link_dist_spin = NULL;
-static GtkWidget *params_transmit_mode_block_radio = NULL;
-static GtkWidget *params_transmit_mode_reject_radio = NULL;
-static GtkWidget *params_transmit_mode_queue_radio = NULL;
-static GtkWidget *params_system_width_spin = NULL;
-static GtkWidget *params_system_height_spin = NULL;
+static GtkWidget *              params_system_button = NULL;
+static GtkWidget *              params_system_vbox = NULL;
+static GtkWidget *              params_system_no_link_dist_spin = NULL;
+static GtkWidget *              params_transmit_mode_block_radio = NULL;
+static GtkWidget *              params_transmit_mode_reject_radio = NULL;
+static GtkWidget *              params_transmit_mode_queue_radio = NULL;
+static GtkWidget *              params_system_width_spin = NULL;
+static GtkWidget *              params_system_height_spin = NULL;
 
-static GtkWidget *params_nodes_button = NULL;
-static GtkWidget *params_nodes_name_entry = NULL;
-static GtkWidget *params_nodes_x_spin = NULL;
-static GtkWidget *params_nodes_y_spin = NULL;
-static GtkWidget *params_nodes_tx_power_spin = NULL;
-static GtkWidget *params_nodes_bat_level_spin = NULL;
-static GtkWidget *params_nodes_mains_powered_check = NULL;
-static GtkWidget *params_nodes_mac_address_entry = NULL;
-static GtkWidget *params_nodes_ip_address_entry = NULL;
+static GtkWidget *              params_nodes_button = NULL;
+static GtkWidget *              params_nodes_vbox = NULL;
+static GtkWidget *              params_nodes_name_entry = NULL;
+static GtkWidget *              params_nodes_x_spin = NULL;
+static GtkWidget *              params_nodes_y_spin = NULL;
+static GtkWidget *              params_nodes_tx_power_spin = NULL;
+static GtkWidget *              params_nodes_bat_level_spin = NULL;
+static GtkWidget *              params_nodes_mains_powered_check = NULL;
+static GtkWidget *              params_nodes_mac_address_entry = NULL;
+static GtkWidget *              params_nodes_ip_address_entry = NULL;
 
-static GtkWidget *params_display_button = NULL;
+static GtkWidget *              params_display_button = NULL;
+static GtkWidget *              params_display_vbox = NULL;
+
+    /* other widgets */
+static GtkWidget *              add_node_toolbar_item = NULL;
+static GtkWidget *              rem_node_toolbar_item = NULL;
+static GtkWidget *              start_toolbar_item = NULL;
+static GtkWidget *              stop_toolbar_item = NULL;
+
+static node_t *                 selected_node = NULL;
+
+static bool                     signals_disabled = FALSE;
 
 
     /**** local function prototypes ****/
 
-void                cb_expander_toggle_button_clicked(GtkWidget *widget, GtkToggleButton *button);
+void                cb_params_system_button_clicked(GtkWidget *button, gpointer data);
+void                cb_params_nodes_button_clicked(GtkWidget *button, gpointer data);
+void                cb_params_display_button_clicked(GtkWidget *button, gpointer data);
 void                cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data);
 void                cb_width_height_spin_value_changed(GtkSpinButton *spin, gpointer data);
+void                cb_gui_node_updated(GtkWidget *widget, gpointer data);
 
 static void         cb_add_node_tool_button_clicked(GtkWidget *widget, gpointer *data);
 static void         cb_rem_node_tool_button_clicked(GtkWidget *widget, gpointer *data);
@@ -101,174 +122,172 @@ void main_win_init()
 
     gtk_widget_show_all(main_window);
 
-    initialize_widgets();
     system_to_gui();
-
     gtk_builder_connect_signals(gtk_builder, NULL);
+    initialize_widgets();
+}
+
+node_t *main_win_get_selected_node()
+{
+    return selected_node;
+}
+
+void main_win_set_selected_node(node_t *node)
+{
+    selected_node = node;
+
+    if (node != NULL) {
+        node_to_gui(node);
+    }
+
+    update_sensitivity();
 }
 
 
     /**** local functions ****/
 
-void cb_expander_toggle_button_clicked(GtkWidget *widget, GtkToggleButton *button)
+void cb_params_system_button_clicked(GtkWidget *widget, gpointer data)
 {
-    gtk_widget_set_visible(widget, gtk_toggle_button_get_active(button));
-}
+    signal_enter();
 
-void cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data)
-{
-    update_sensitivity();
-}
+    gtk_widget_set_visible(params_system_vbox, TRUE);
+    gtk_widget_set_visible(params_nodes_vbox, FALSE);
+    gtk_widget_set_visible(params_display_vbox, FALSE);
 
-void cb_width_height_spin_value_changed(GtkSpinButton *spin, gpointer data)
-{
-    gui_to_system();
-
-    sim_field_redraw();
-}
-
-
-static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data)
-{
-    rs_debug(NULL);
-
-    rs_quit();
-}
-
-static void cb_add_node_tool_button_clicked(GtkWidget *widget, gpointer *data)
-{
-    rs_debug(NULL);
-}
-
-static void cb_rem_node_tool_button_clicked(GtkWidget *widget, gpointer *data)
-{
-    rs_debug(NULL);
-}
-
-static void cb_start_tool_button_clicked(GtkWidget *widget, gpointer *data)
-{
-    rs_debug(NULL);
-}
-
-static void cb_stop_tool_button_clicked(GtkWidget *widget, gpointer *data)
-{
-    rs_debug(NULL);
-}
-
-static void cb_main_window_delete()
-{
-    rs_debug(NULL);
-
-    rs_quit();
-}
-
-static void update_sensitivity()
-{
-    gtk_widget_set_sensitive(params_nodes_bat_level_spin, !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check)));
-}
-
-static void initialize_widgets()
-{
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_button), TRUE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_button), FALSE);
 
-    /* force a visibility update in the params panel */
-    gtk_signal_emit_by_name(GTK_OBJECT(params_system_button), "toggled");
-    gtk_signal_emit_by_name(GTK_OBJECT(params_nodes_button), "toggled");
-    gtk_signal_emit_by_name(GTK_OBJECT(params_display_button), "toggled");
+    signal_leave();
+}
+
+void cb_params_nodes_button_clicked(GtkWidget *widget, gpointer data)
+{
+    signal_enter();
+
+    gtk_widget_set_visible(params_system_vbox, FALSE);
+    gtk_widget_set_visible(params_nodes_vbox, TRUE);
+    gtk_widget_set_visible(params_display_vbox, FALSE);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_button), FALSE);
+
+    signal_leave();
+}
+
+void cb_params_display_button_clicked(GtkWidget *widget, gpointer data)
+{
+    signal_enter();
+
+    gtk_widget_set_visible(params_system_vbox, FALSE);
+    gtk_widget_set_visible(params_nodes_vbox, FALSE);
+    gtk_widget_set_visible(params_display_vbox, TRUE);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_button), TRUE);
+
+    signal_leave();
+}
+
+void cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data)
+{
+    signal_enter();
 
     update_sensitivity();
+
+    signal_leave();
 }
 
-static void system_to_gui()
+void cb_width_height_spin_value_changed(GtkSpinButton *spin, gpointer data)
 {
-    rs_assert(rs_system != NULL);
+    signal_enter();
 
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin), rs_system_get_no_link_dist_thresh());
+    gui_to_system();
+    sim_field_redraw();
 
-    switch (rs_system_get_transmit_mode()) {
-        case PHY_TRANSMIT_MODE_BLOCK :
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_transmit_mode_block_radio), TRUE);
-            break;
-
-        case PHY_TRANSMIT_MODE_REJECT :
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_transmit_mode_reject_radio), TRUE);
-            break;
-
-        case PHY_TRANSMIT_MODE_QUEUE :
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_transmit_mode_queue_radio), TRUE);
-            break;
-    }
-
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_width_spin), rs_system_get_width());
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_height_spin), rs_system_get_height());
+    signal_leave();
 }
 
-static void gui_to_system()
+void cb_gui_node_updated(GtkWidget *widget, gpointer data)
 {
-    rs_assert(rs_system != NULL);
+    signal_enter();
 
-    rs_system_set_no_link_dist_thresh(gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin)));
+    rs_assert(selected_node != NULL);
 
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_transmit_mode_block_radio))) {
-        rs_system_set_transmit_mode(PHY_TRANSMIT_MODE_BLOCK);
-    }
-    else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_transmit_mode_reject_radio))) {
-        rs_system_set_transmit_mode(PHY_TRANSMIT_MODE_REJECT);
-    }
-    else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_transmit_mode_queue_radio))) {
-        rs_system_set_transmit_mode(PHY_TRANSMIT_MODE_QUEUE);
-    }
+    gui_to_node(selected_node);
+    sim_field_redraw();
 
-    rs_system_set_width_height(
-            gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_width_spin)),
-            gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_height_spin))
-    );
+    signal_leave();
 }
 
-static void node_to_gui(node_t *node)
+
+static void cb_add_node_tool_button_clicked(GtkWidget *widget, gpointer *data)
 {
-    /* phy */
-    gtk_entry_set_text(GTK_ENTRY(params_nodes_name_entry), phy_node_get_name(node));
+    signal_enter();
 
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_x_spin), phy_node_get_x(node));
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_y_spin), phy_node_get_y(node));
+    node_t *node = rs_add_node();
+    main_win_set_selected_node(node);
+    sim_field_redraw();
 
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_tx_power_spin), phy_node_get_tx_power(node));
+    update_sensitivity();
 
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_bat_level_spin), phy_node_get_battery_level(node));
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check), phy_node_is_mains_powered(node));
-
-    /* mac */
-    gtk_entry_set_text(GTK_ENTRY(params_nodes_mac_address_entry), mac_node_get_address(node));
-
-    /* ip */
-    gtk_entry_set_text(GTK_ENTRY(params_nodes_ip_address_entry), ip_node_get_address(node));
+    signal_leave();
 }
 
-static void gui_to_node(node_t *node)
+static void cb_rem_node_tool_button_clicked(GtkWidget *widget, gpointer *data)
 {
-    /* phy */
-    phy_node_set_name(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_name_entry)));
+    signal_enter();
 
-    phy_node_set_xy(node,
-            gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_x_spin)),
-            gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_y_spin))
-    );
+    rs_assert(selected_node != NULL);
 
-    phy_node_set_tx_power(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_tx_power_spin)));
+    rs_system_remove_node(selected_node);
+    node_destroy(selected_node);
+    main_win_set_selected_node(NULL);
+    sim_field_redraw();
 
-    phy_node_set_battery_level(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_bat_level_spin)));
+    update_sensitivity();
 
-    phy_node_set_mains_powered(node, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check)));
+    signal_leave();
+}
 
-    /* mac */
-    mac_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_mac_address_entry)));
+static void cb_start_tool_button_clicked(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
 
-    /* ip */
-    ip_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_ip_address_entry)));
+    rs_debug(NULL);
+
+    signal_leave();
+}
+
+static void cb_stop_tool_button_clicked(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    signal_leave();
+}
+
+static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+    rs_quit();
+
+    signal_leave();
+}
+
+static void cb_main_window_delete()
+{
+    signal_enter();
+
+    rs_debug(NULL);
+    rs_quit();
+
+    signal_leave();
 }
 
 
@@ -284,6 +303,7 @@ GtkWidget *create_params_widget()
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), params_table);
 
     params_system_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_button");
+    params_system_vbox = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_vbox");
     params_system_no_link_dist_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_dist_spin");
     params_transmit_mode_block_radio = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_transmit_mode_block_radio");
     params_transmit_mode_reject_radio = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_transmit_mode_reject_radio");
@@ -292,6 +312,7 @@ GtkWidget *create_params_widget()
     params_system_height_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_height_spin");
 
     params_nodes_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_button");
+    params_nodes_vbox = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_vbox");
     params_nodes_name_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_name_entry");
     params_nodes_x_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_x_spin");
     params_nodes_y_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_y_spin");
@@ -302,6 +323,7 @@ GtkWidget *create_params_widget()
     params_nodes_ip_address_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ip_address_entry");
 
     params_display_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_button");
+    params_display_vbox = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_vbox");
 
     return scrolled_window;
 }
@@ -361,36 +383,36 @@ GtkWidget *create_tool_bar()
     GtkWidget *toolbar = gtk_toolbar_new();
     gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_BOTH_HORIZ);
 
-    GtkToolItem *add_node_toolbar_item = gtk_tool_button_new_from_stock(GTK_STOCK_ADD);
-    gtk_tool_item_set_tooltip_text(add_node_toolbar_item, "Add a new node");
+    add_node_toolbar_item = (GtkWidget *) gtk_tool_button_new_from_stock(GTK_STOCK_ADD);
+    gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(add_node_toolbar_item), "Add a new node");
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(add_node_toolbar_item), "Add Node");
-    gtk_tool_item_set_is_important(add_node_toolbar_item, TRUE);
+    gtk_tool_item_set_is_important(GTK_TOOL_ITEM(add_node_toolbar_item), TRUE);
     gtk_signal_connect(GTK_OBJECT(add_node_toolbar_item), "clicked", G_CALLBACK(cb_add_node_tool_button_clicked), NULL);
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), add_node_toolbar_item, 0);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(add_node_toolbar_item), 0);
 
-    GtkToolItem *rem_node_toolbar_item = gtk_tool_button_new_from_stock(GTK_STOCK_REMOVE);
-    gtk_tool_item_set_tooltip_text(rem_node_toolbar_item, "Remove the selected node");
+    rem_node_toolbar_item = (GtkWidget *) gtk_tool_button_new_from_stock(GTK_STOCK_REMOVE);
+    gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(rem_node_toolbar_item), "Remove the selected node");
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(rem_node_toolbar_item), "Remove Node");
-    gtk_tool_item_set_is_important(rem_node_toolbar_item, TRUE);
+    gtk_tool_item_set_is_important(GTK_TOOL_ITEM(rem_node_toolbar_item), TRUE);
     gtk_signal_connect(GTK_OBJECT(rem_node_toolbar_item), "clicked", G_CALLBACK(cb_rem_node_tool_button_clicked), NULL);
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), rem_node_toolbar_item, 1);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(rem_node_toolbar_item), 1);
 
     GtkToolItem *sep_toolbar_item = gtk_separator_tool_item_new();
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), sep_toolbar_item, 2);
 
-    GtkToolItem *start_toolbar_item = gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_PLAY);
-    gtk_tool_item_set_tooltip_text(start_toolbar_item, "Start simulation");
+    start_toolbar_item = (GtkWidget *)gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_PLAY);
+    gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(start_toolbar_item), "Start simulation");
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(start_toolbar_item), "Start");
-    gtk_tool_item_set_is_important(start_toolbar_item, TRUE);
+    gtk_tool_item_set_is_important(GTK_TOOL_ITEM(start_toolbar_item), TRUE);
     gtk_signal_connect(GTK_OBJECT(start_toolbar_item), "clicked", G_CALLBACK(cb_start_tool_button_clicked), NULL);
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), start_toolbar_item, 3);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(start_toolbar_item), 3);
 
-    GtkToolItem *stop_toolbar_item = gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_STOP);
-    gtk_tool_item_set_tooltip_text(stop_toolbar_item, "Stop simulation");
+    stop_toolbar_item = (GtkWidget *)gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_STOP);
+    gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(stop_toolbar_item), "Stop simulation");
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(stop_toolbar_item), "Stop");
-    gtk_tool_item_set_is_important(stop_toolbar_item, TRUE);
+    gtk_tool_item_set_is_important(GTK_TOOL_ITEM(stop_toolbar_item), TRUE);
     gtk_signal_connect(GTK_OBJECT(stop_toolbar_item), "clicked", G_CALLBACK(cb_stop_tool_button_clicked), NULL);
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), stop_toolbar_item, 4);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(stop_toolbar_item), 4);
 
     return toolbar;
 }
@@ -398,6 +420,11 @@ GtkWidget *create_tool_bar()
 GtkWidget *create_status_bar()
 {
     GtkWidget *status_bar = gtk_statusbar_new();
+
+    // todo: statusbar: node count
+    // todo: statusbar: status (running/stopped)
+    // todo: statusbar: current field (x, y)
+    // todo: statusbar: real to simulated time ratio
 
     return status_bar;
 }
@@ -417,3 +444,133 @@ GtkWidget *create_content_widget()
 
     return hbox;
 }
+
+static void initialize_widgets()
+{
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_button), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_button), FALSE);
+
+//    /* force a visibility update in the params panel */
+//    gtk_signal_emit_by_name(GTK_OBJECT(params_system_button), "clicked");
+//    gtk_signal_emit_by_name(GTK_OBJECT(params_nodes_button), "clicked");
+//    gtk_signal_emit_by_name(GTK_OBJECT(params_display_button), "clicked");
+
+    update_sensitivity();
+}
+
+static void update_sensitivity()
+{
+    bool mains_powered = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check));
+    bool node_selected = selected_node != NULL;
+
+    gtk_widget_set_sensitive(params_nodes_name_entry, node_selected);
+    gtk_widget_set_sensitive(params_nodes_x_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_y_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_tx_power_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_bat_level_spin, node_selected && !mains_powered);
+    gtk_widget_set_sensitive(params_nodes_mains_powered_check, node_selected);
+    gtk_widget_set_sensitive(params_nodes_mac_address_entry, node_selected);
+    gtk_widget_set_sensitive(params_nodes_ip_address_entry, node_selected);
+
+    gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected);
+}
+
+static void system_to_gui()
+{
+    signals_disable();
+
+    rs_assert(rs_system != NULL);
+
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin), rs_system_get_no_link_dist_thresh());
+
+    switch (rs_system_get_transmit_mode()) {
+        case PHY_TRANSMIT_MODE_BLOCK :
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_transmit_mode_block_radio), TRUE);
+            break;
+
+        case PHY_TRANSMIT_MODE_REJECT :
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_transmit_mode_reject_radio), TRUE);
+            break;
+
+        case PHY_TRANSMIT_MODE_QUEUE :
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_transmit_mode_queue_radio), TRUE);
+            break;
+    }
+
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_width_spin), rs_system_get_width());
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_height_spin), rs_system_get_height());
+
+    signals_enable();
+}
+
+static void gui_to_system()
+{
+    rs_assert(rs_system != NULL);
+
+    rs_system_set_no_link_dist_thresh(gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin)));
+
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_transmit_mode_block_radio))) {
+        rs_system_set_transmit_mode(PHY_TRANSMIT_MODE_BLOCK);
+    }
+    else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_transmit_mode_reject_radio))) {
+        rs_system_set_transmit_mode(PHY_TRANSMIT_MODE_REJECT);
+    }
+    else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_transmit_mode_queue_radio))) {
+        rs_system_set_transmit_mode(PHY_TRANSMIT_MODE_QUEUE);
+    }
+
+    rs_system_set_width_height(
+            gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_width_spin)),
+            gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_height_spin))
+    );
+}
+
+static void node_to_gui(node_t *node)
+{
+    signals_disable();
+
+    /* phy */
+    gtk_entry_set_text(GTK_ENTRY(params_nodes_name_entry), phy_node_get_name(node));
+
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_x_spin), phy_node_get_x(node));
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_y_spin), phy_node_get_y(node));
+
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_tx_power_spin), phy_node_get_tx_power(node) * 100);
+
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_bat_level_spin), phy_node_get_battery_level(node) * 100);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check), phy_node_is_mains_powered(node));
+
+    /* mac */
+    gtk_entry_set_text(GTK_ENTRY(params_nodes_mac_address_entry), mac_node_get_address(node));
+
+    /* ip */
+    gtk_entry_set_text(GTK_ENTRY(params_nodes_ip_address_entry), ip_node_get_address(node));
+
+    signals_enable();
+}
+
+static void gui_to_node(node_t *node)
+{
+    /* phy */
+    phy_node_set_name(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_name_entry)));
+
+    phy_node_set_xy(node,
+            gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_x_spin)),
+            gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_y_spin))
+    );
+
+    phy_node_set_tx_power(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_tx_power_spin)) / 100.0);
+
+    phy_node_set_battery_level(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_bat_level_spin)) / 100.0);
+
+    phy_node_set_mains_powered(node, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check)));
+
+    /* mac */
+    mac_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_mac_address_entry)));
+
+    /* ip */
+    ip_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_ip_address_entry)));
+}
+
