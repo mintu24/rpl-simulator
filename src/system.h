@@ -15,7 +15,7 @@
 #define DEFAULT_SYS_WIDTH               100
 #define DEFAULT_SYS_HEIGHT              100
 
-#define DEFAULT_NODE_NAME               "node1"
+#define DEFAULT_NODE_NAME               "A"
 #define DEFAULT_NODE_MAC_ADDRESS        "000000000001"
 #define DEFAULT_NODE_IP_ADDRESS         "FF02::0001"
 

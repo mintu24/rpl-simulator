@@ -1,6 +1,7 @@
 
+#include <math.h>
+
 #include "system.h"
-#include "math.h"
 
 
     /**** global variables ****/

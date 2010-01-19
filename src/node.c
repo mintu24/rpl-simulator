@@ -3,7 +3,6 @@
 
 #include "node.h"
 #include "system.h"
-#include "proto/phy.h"
 
 
 typedef struct {
