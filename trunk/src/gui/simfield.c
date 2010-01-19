@@ -28,7 +28,7 @@ static gboolean             cb_sim_field_drawing_area_motion_notify(GtkDrawingAr
 static gboolean             cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *event, gpointer data);
 
 static void                 draw_arrow_line(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius);
-static void                 draw_node(node_t *node, cairo_t *cr, gint width, gint height);
+static void                 draw_node(node_t *node, cairo_t *cr, float scale_x, float scale_y);
 static gboolean             draw_sim_field(void *data);
 
 
@@ -79,6 +79,7 @@ GtkWidget *sim_field_create(GdkWindow *window, GdkGC *gc)
     return table;
 }
 
+/*
 void sim_field_node_coords_assure_non_intersection(node_t *subject_node, coord_t *x, coord_t *y)
 {
     // fixme: baaad implementation
@@ -102,8 +103,8 @@ void sim_field_node_coords_assure_non_intersection(node_t *subject_node, coord_t
             continue;
         }
 
-        node_x = node->phy_info->cx;
-        node_y = node->phy_info->cy;
+        node_x = phy_node_get_x(node);
+        node_y = phy_node_get_y(node);
 
         angle = atan2(node_y - *y, node_x - *x) + M_PI;
         xlim = node_x + MIN_NODE_DISTANCE * cos(angle);
@@ -119,9 +120,18 @@ void sim_field_node_coords_assure_non_intersection(node_t *subject_node, coord_t
     }
 
 }
+*/
 
 void sim_field_redraw()
 {
+    rs_assert(rs_system != NULL);
+
+    coord_t width = rs_system_get_width();
+    coord_t height = rs_system_get_height();
+
+    gtk_ruler_set_range(GTK_RULER(sim_field_hruler), 0, width, width / 2, width);
+    gtk_ruler_set_range(GTK_RULER(sim_field_vruler), 0, height, height / 2, height);
+
     /* assure thread safety, performing all the drawing ops in the GUI thread */
     gdk_threads_add_idle(draw_sim_field, NULL);
 }
@@ -140,18 +150,21 @@ static gboolean cb_sim_field_drawing_area_button_press(GtkDrawingArea *widget, G
 {
     rs_assert(selected_node == NULL);
 
-    coord_t current_x = event->x;
-    coord_t current_y = event->y;
+    gint pixel_width, pixel_height;
+    gdk_drawable_get_size(sim_field_window, &pixel_width, &pixel_height);
+
+    float scale_x = pixel_width / rs_system_get_width();
+    float scale_y = pixel_height / rs_system_get_height();
+
+    coord_t current_x = event->x / scale_x;
+    coord_t current_y = event->y / scale_y;
 
     selected_node = rs_system_find_node_by_name("B");
     if (selected_node == NULL) {
         return FALSE;
     }
 
-    sim_field_node_coords_assure_non_intersection(selected_node, &current_x, &current_y);
-
-    selected_node->phy_info->cx = current_x;
-    selected_node->phy_info->cy = current_y;
+    phy_node_set_xy(selected_node, current_x, current_y);
 
     sim_field_redraw();
 
@@ -171,13 +184,18 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
         return FALSE;
     }
 
-    coord_t current_x = event->x;
-    coord_t current_y = event->y;
+    // todo update h,v ruler positions
 
-    sim_field_node_coords_assure_non_intersection(selected_node, &current_x, &current_y);
+    gint pixel_width, pixel_height;
+    gdk_drawable_get_size(sim_field_window, &pixel_width, &pixel_height);
 
-    selected_node->phy_info->cx = current_x;
-    selected_node->phy_info->cy = current_y;
+    float scale_x = pixel_width / rs_system_get_width();
+    float scale_y = pixel_height / rs_system_get_height();
+
+    coord_t current_x = event->x / scale_x;
+    coord_t current_y = event->y / scale_y;
+
+    phy_node_set_xy(selected_node, current_x, current_y);
 
     sim_field_redraw();
 
@@ -192,19 +210,19 @@ static gboolean cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEven
     }
 
     if (event->direction == GDK_SCROLL_UP) {
-        if (node->phy_info->tx_power + 0.1 <= 1.0) {
-            node->phy_info->tx_power += 0.1;
+        if (phy_node_get_tx_power(node) + 0.1 <= 1.0) {
+            phy_node_set_tx_power(node, phy_node_get_tx_power(node) + 0.1);
         }
         else {
-            node->phy_info->tx_power = 1.0;
+            phy_node_set_tx_power(node, 1.0);
         }
     }
-    else /* (event->direction == GDK_SCROLL_UP) */{
-        if (node->phy_info->tx_power - 0.1 >= 0.0) {
-            node->phy_info->tx_power -= 0.1;
+    else /* (event->direction == GDK_SCROLL_DOWN) */{
+        if (phy_node_get_tx_power(node) - 0.1 >= 0.0) {
+            phy_node_set_tx_power(node, phy_node_get_tx_power(node) - 0.1);
         }
         else {
-            node->phy_info->tx_power = 0.0;
+            phy_node_set_tx_power(node, 0.0);
         }
     }
 
@@ -241,20 +259,23 @@ static void draw_arrow_line(cairo_t *cr, double start_x, double start_y, double 
     cairo_stroke(cr);
 }
 
-static void draw_node(node_t *node, cairo_t *cr, gint width, gint height)
+static void draw_node(node_t *node, cairo_t *cr, float scale_x, float scale_y)
 {
     // todo: return bool
 
-    percent_t tx_power = node->phy_info->tx_power;
-    coord_t x = node->phy_info->cx;
-    coord_t y = node->phy_info->cy;
+    percent_t tx_power = phy_node_get_tx_power(node);
+    coord_t x = phy_node_get_x(node);
+    coord_t y = phy_node_get_y(node);
 
-    cairo_surface_t *image = node_images[(int) lround(tx_power * 10)];
+    int pixel_x = x * scale_x;
+    int pixel_y = y * scale_y;
+
+    cairo_surface_t *image = node_images[(int) round(tx_power * 10)];
 
     int w = cairo_image_surface_get_width(image);
     int h = cairo_image_surface_get_height(image);
 
-    cairo_set_source_surface(cr, image, x - w / 2, y - h / 2);
+    cairo_set_source_surface(cr, image, pixel_x - w / 2, pixel_y - h / 2);
     cairo_paint(cr);
 
     //cairo_set_line_width(cr, 1);
@@ -273,29 +294,28 @@ static gboolean draw_sim_field(void *data)
         sim_field_gc = sim_field_drawing_area->style->fg_gc[GTK_STATE_NORMAL];
     }
 
-    gint width, height;
-    gdk_drawable_get_size(sim_field_window, &width, &height);
+    gint pixel_width, pixel_height;
+    gdk_drawable_get_size(sim_field_window, &pixel_width, &pixel_height);
 
-    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, pixel_width, pixel_height);
     cairo_t *cr = cairo_create(surface);
 
     /* background */
     cairo_set_source_rgb(cr, 30 / 255.0, 30 / 255.0, 30 / 255.0);
-    cairo_rectangle(cr, 0, 0, width, height);
+    cairo_rectangle(cr, 0, 0, pixel_width, pixel_height);
     cairo_fill(cr);
 
-//    /* frame */
-//    cairo_set_source_rgb(cr, 255 / 255.0, 255 / 255.0, 255 / 255.0);
-//    cairo_rectangle(cr, 0, 0, width, height);
-//    cairo_stroke(cr);
-
+    /* nodes */
     uint16 node_count, index;
     node_t **node_list;
     node_list = rs_system_get_nodes(&node_count);
 
+    float scale_x = pixel_width / rs_system_get_width();
+    float scale_y = pixel_height / rs_system_get_height();
+
     for (index = 0; index < node_count; index++) {
         node_t *node = node_list[index];
-        draw_node(node, cr, width, height);
+        draw_node(node, cr, scale_x, scale_y);
     }
 
     /* do the actual double-buffered paint */

@@ -13,57 +13,33 @@
 GThread *rs_main_thread = NULL;
 
 
+    /**** local function prototypes ****/
+
 static node_t *create_node(char *name, char *mac, char *ip, coord_t cx, coord_t cy);
 
 
+    /**** exported functions ****/
+
 void rs_add_node()
 {
-    node_t *node = node_create();
-
-    // todo: choose random/next values
-    phy_node_info_t *phy_node_info = phy_node_info_create("A", 50, 80);
-    phy_node_info->battery_level = 0.5;
-    phy_node_info->mains_powered = FALSE;
-    phy_node_info->tx_power = 0.5;
-    phy_init_node(node, phy_node_info);
-
-    mac_node_info_t *mac_node_info = mac_node_info_create("AA:AA:AA:AA:AA:AA");
-    mac_init_node(node, mac_node_info);
-
-    ip_node_info_t *ip_node_info = ip_node_info_create("10.0.0.1");
-    ip_init_node(node, ip_node_info);
-
-    rpl_node_info_t *rpl_node_info = rpl_node_info_create();
-    rpl_init_node(node, rpl_node_info);
-
+    node_t *node = create_node("A", "A", "A", rand() % 100, rand() % 100);
     rs_system_add_node(node);
 
-    node = node_create();
-
-    phy_node_info = phy_node_info_create("B", 30, 100);
-    phy_node_info->battery_level = 0.5;
-    phy_node_info->mains_powered = FALSE;
-    phy_node_info->tx_power = 0.5;
-    phy_init_node(node, phy_node_info);
-
-    mac_node_info = mac_node_info_create("BB:BB:BB:BB:BB:BB");
-    mac_init_node(node, mac_node_info);
-
-    ip_node_info = ip_node_info_create("10.0.0.2");
-    ip_init_node(node, ip_node_info);
-
-    rpl_node_info = rpl_node_info_create();
-    rpl_init_node(node, rpl_node_info);
-
+    node = create_node("B", "B", "B", rand() % 100, rand() % 100);
     rs_system_add_node(node);
 
     int i;
     for (i = 0; i < 100; i++) {
         char s[256];
         sprintf(s, "node%d", i);
-        node = create_node(s, s, s, rand() % 1000, rand() % 1000);
+        node = create_node(s, s, s, rand() % 100, rand() % 100);
         rs_system_add_node(node);
     }
+}
+
+void rs_load_params(char *filename)
+{
+    // todo: implement this
 }
 
 void rs_quit()
@@ -102,9 +78,11 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
 }
 
 
+    /**** local functions ****/
+
 static node_t *create_node(char *name, char *mac, char *ip, coord_t cx, coord_t cy)
 {
-    node_t *node = node_create(name, 0, 0);
+    node_t *node = node_create();
 
     phy_node_info_t *phy_node_info = phy_node_info_create(name, cx, cy);
     phy_node_info->battery_level = 0.5;
@@ -123,7 +101,6 @@ static node_t *create_node(char *name, char *mac, char *ip, coord_t cx, coord_t 
 
     return node;
 }
-
 
 int main(int argc, char *argv[])
 {

@@ -17,10 +17,10 @@
     /* info that a node supporting RPL should store */
 typedef struct rpl_node_info_t {
 
-    node_t *parent_list;
+    node_t **parent_list;
     uint16 parent_count;
 
-    node_t *sibling_list;
+    node_t **sibling_list;
     uint16 sibling_count;
 
 } rpl_node_info_t;
@@ -92,6 +92,14 @@ rpl_node_info_t *   rpl_node_info_create();
 bool                rpl_node_info_destroy(rpl_node_info_t *node_info);
 
 bool                rpl_init_node(node_t *node, rpl_node_info_t *node_info);
+
+node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
+bool                rpl_node_add_parent(node_t *node, node_t *parent);
+bool                rpl_node_remove_parent(node_t *node, node_t *parent);
+
+node_t **           rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count);
+bool                rpl_node_add_sibling(node_t *node, node_t *sibling);
+bool                rpl_node_remove_sibling(node_t *node, node_t *sibling);
 
     /* RPL events */
 void                rpl_event_before_dis_pdu_sent(node_t *node, void *data);

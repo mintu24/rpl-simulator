@@ -29,6 +29,7 @@ typedef struct {
 
     GMutex *life_mutex;
     GMutex *schedule_mutex;
+    GMutex *proto_info_mutex;
     GMutex *pdu_mutex;
 
     GQueue *pdu_queue;

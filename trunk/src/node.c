@@ -45,6 +45,7 @@ node_t *node_create()
 
     node->life_mutex = g_mutex_new();
     node->schedule_mutex = g_mutex_new();
+    node->proto_info_mutex = g_mutex_new();
     node->pdu_mutex = g_mutex_new();
 
     return node;
@@ -72,6 +73,8 @@ bool node_destroy(node_t *node)
         g_mutex_free(node->life_mutex);
     if (node->schedule_mutex)
         g_mutex_free(node->schedule_mutex);
+    if (node->proto_info_mutex)
+        g_mutex_free(node->proto_info_mutex);
     if (node->pdu_mutex)
         g_mutex_free(node->pdu_mutex);
 
@@ -179,7 +182,7 @@ bool node_schedule(node_t *node, char *name, node_schedule_func_t func, void *da
             g_hash_table_insert(node->schedules, new_schedule->name, new_schedule);
 
             if (new_schedule->usecs > 0)
-                rs_debug("scheduled action '%s' for node '%s' in %d milliseconds", new_schedule->name, node->phy_info->name, usecs);
+                rs_debug("scheduled action '%s' for node '%s' in %d milliseconds", new_schedule->name, phy_node_get_name(node), usecs);
 //            else  <- annoying
 //                rs_debug("scheduled action '%s' for node '%s'", new_schedule->name, node->phy_info->name, usecs);
         }
@@ -289,7 +292,7 @@ bool node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode)
 
     g_mutex_unlock(node->pdu_mutex);
 
-    rs_debug("enqueued message for node '%s'", node->phy_info->name);
+    rs_debug("enqueued message for node '%s'", phy_node_get_name(node));
 
     return all_ok;
 }
@@ -303,7 +306,7 @@ static void *node_dequeue_pdu(node_t *node)
 
     void *pdu = g_queue_pop_head(node->pdu_queue);
     if (pdu != NULL) {
-        rs_debug("dequeued message by node '%s'", node->phy_info->name);
+        rs_debug("dequeued message by node '%s'", phy_node_get_name(node));
     }
 
     g_cond_signal(node->pdu_cond);
@@ -322,7 +325,7 @@ static void *node_life_core(node_t *node)
     rs_assert(node != NULL);
     rs_assert(node->alive == FALSE);
 
-    rs_debug("node '%s' life started", node->phy_info->name);
+    rs_debug("node '%s' life started", phy_node_get_name(node));
 
     node->alive = TRUE;
 

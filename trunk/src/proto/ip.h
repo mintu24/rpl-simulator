@@ -50,6 +50,9 @@ bool                ip_node_info_destroy(ip_node_info_t *node_info);
 
 bool                ip_init_node(node_t *node, ip_node_info_t *node_info);
 
+char *              ip_node_get_address(node_t *node);
+void                ip_node_set_address(node_t *node, const char *address);
+
     /* IP events */
 void                ip_event_before_pdu_sent(node_t *node, ip_pdu_t *pdu);
 void                ip_event_after_pdu_received(node_t *node, ip_pdu_t *pdu);
