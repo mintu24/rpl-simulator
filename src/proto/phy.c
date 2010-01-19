@@ -73,6 +73,87 @@ bool phy_init_node(node_t *node, phy_node_info_t *node_info)
     return TRUE;
 }
 
+char *phy_node_get_name(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->phy_info->name;
+}
+
+void phy_node_set_name(node_t *node, const char *name)
+{
+    rs_assert(node != NULL);
+
+    if (node->phy_info->name != NULL)
+        free(node->phy_info->name);
+
+    node->phy_info->name = strdup(name);
+}
+
+coord_t phy_node_get_x(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->phy_info->cx;
+}
+
+coord_t phy_node_get_y(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->phy_info->cy;
+}
+
+void phy_node_set_xy(node_t *node, coord_t x, coord_t y)
+{
+    rs_assert(node != NULL);
+
+    node->phy_info->cx = x;
+    node->phy_info->cy = y;
+}
+
+percent_t phy_node_get_battery_level(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->phy_info->battery_level;
+}
+
+void phy_node_set_battery_level(node_t *node, percent_t level)
+{
+    rs_assert(node != NULL);
+
+    node->phy_info->battery_level = level;
+}
+
+percent_t phy_node_get_tx_power(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->phy_info->tx_power;
+}
+
+void phy_node_set_tx_power(node_t *node, percent_t tx_power)
+{
+    rs_assert(node != NULL);
+
+    node->phy_info->tx_power = tx_power;
+}
+
+bool phy_node_is_mains_powered(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->phy_info->mains_powered;
+}
+
+void phy_node_set_mains_powered(node_t *node, bool value)
+{
+    rs_assert(node != NULL);
+
+    node->phy_info->mains_powered = value;
+}
+
 void phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu)
 {
     rs_debug(NULL);

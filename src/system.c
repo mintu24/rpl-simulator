@@ -26,6 +26,9 @@ bool rs_system_create()
     rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
     rs_system->phy_transmit_mode = DEFAULT_PHY_TRANSMIT_MODE;
 
+    rs_system->width = DEFAULT_SYS_WIDTH;
+    rs_system->height = DEFAULT_SYS_HEIGHT;
+
     rs_system->nodes_mutex = g_mutex_new();
 
     return TRUE;
@@ -86,17 +89,11 @@ coord_t rs_system_get_height()
     return rs_system->height;
 }
 
-void rs_system_set_width(coord_t width)
+void rs_system_set_width_height(coord_t width, coord_t height)
 {
     rs_assert(rs_system != NULL);
 
     rs_system->width = width;
-}
-
-void rs_system_set_height(coord_t height)
-{
-    rs_assert(rs_system != NULL);
-
     rs_system->height = height;
 }
 
@@ -126,11 +123,12 @@ bool rs_system_remove_node(node_t *node)
     for (i = 0; i < rs_system->node_count; i++) {
         if (rs_system->node_list[i] == node) {
             pos = i;
+            break;
         }
     }
 
     if (pos == -1) {
-        rs_error("node '%s' not found", node->phy_info->name);
+        rs_error("node '%s' not found", rs_system->node_list[i]);
         g_mutex_unlock(rs_system->nodes_mutex);
         return FALSE;
     }
@@ -139,6 +137,7 @@ bool rs_system_remove_node(node_t *node)
         rs_system->node_list[i] = rs_system->node_list[i + 1];
     }
 
+    // todo: call realloc on node_list
     rs_system->node_count--;
 
     g_mutex_unlock(rs_system->nodes_mutex);
@@ -154,7 +153,7 @@ node_t *rs_system_find_node_by_name(char *name)
     int i;
     node_t *node = NULL;
     for (i = 0; i < rs_system->node_count; i++) {
-        if (!strcmp(rs_system->node_list[i]->phy_info->name, name)) {
+        if (!strcmp(phy_node_get_name(rs_system->node_list[i]), name)) {
             node = rs_system->node_list[i];
             break;
         }
@@ -186,13 +185,13 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
     rs_assert(src_node != NULL);
     rs_assert(dst_node != NULL);
 
-    coord_t distance = sqrt(pow(src_node->phy_info->cx - dst_node->phy_info->cx, 2) + pow(src_node->phy_info->cy - dst_node->phy_info->cy, 2));
+    coord_t distance = sqrt(pow(phy_node_get_x(src_node) - phy_node_get_x(dst_node), 2) + pow(phy_node_get_y(src_node) - phy_node_get_x(dst_node), 2));
     if (distance > rs_system_get_no_link_dist_thresh()) {
         distance = rs_system_get_no_link_dist_thresh();
     }
 
     percent_t dist_factor = (percent_t) (rs_system->no_link_dist_thresh - distance) / rs_system->no_link_dist_thresh;
-    percent_t quality = src_node->phy_info->tx_power * dist_factor;
+    percent_t quality = phy_node_get_tx_power(src_node) * dist_factor;
 
     return quality;
 }
@@ -361,11 +360,11 @@ static bool rs_system_send_rpl(node_t *src_node, node_t *dst_node, void *rpl_pdu
     icmp_pdu_set_sdu(icmp_pdu, ICMP_TYPE_RPL, icmp_rpl_code, rpl_pdu);
     node_execute(src_node, "icmp_event_before_pdu_sent", (node_schedule_func_t) icmp_event_before_pdu_sent, icmp_pdu, TRUE);
 
-    ip_pdu_t *ip_pdu = ip_pdu_create(dst_node->ip_info->address, src_node->ip_info->address);
+    ip_pdu_t *ip_pdu = ip_pdu_create(ip_node_get_address(dst_node), ip_node_get_address(src_node));
     ip_pdu_set_sdu(ip_pdu, IP_NEXT_HEADER_ICMP, icmp_pdu);
     node_execute(src_node, "ip_event_before_pdu_sent", (node_schedule_func_t) ip_event_before_pdu_sent, ip_pdu, TRUE);
 
-    mac_pdu_t *mac_pdu = mac_pdu_create(dst_node->mac_info->address, src_node->mac_info->address);
+    mac_pdu_t *mac_pdu = mac_pdu_create(mac_node_get_address(dst_node), mac_node_get_address(src_node));
     mac_pdu_set_sdu(mac_pdu, MAC_TYPE_IP, ip_pdu);
     node_execute(src_node, "mac_event_before_pdu_sent", (node_schedule_func_t) mac_event_before_pdu_sent, mac_pdu, TRUE);
 

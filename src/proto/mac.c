@@ -85,6 +85,23 @@ bool mac_init_node(node_t *node, mac_node_info_t *node_info)
     return TRUE;
 }
 
+char *mac_node_get_address(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->mac_info->address;
+}
+
+void mac_node_set_address(node_t *node, const char *address)
+{
+    rs_assert(node != NULL);
+
+    if (node->mac_info->address != NULL)
+        free(node->mac_info->address);
+
+    node->mac_info->address = strdup(address);
+}
+
 void mac_event_before_pdu_sent(node_t *node, mac_pdu_t *pdu)
 {
     rs_debug("src = '%s', dst = '%s'", pdu->src_address, pdu->dst_address);

@@ -18,7 +18,7 @@
 
 GtkWidget *     sim_field_create();
 void            sim_field_redraw();
-void            sim_field_node_coords_assure_non_intersection(node_t *subject_node, coord_t *x, coord_t *y);
+//void            sim_field_node_coords_assure_non_intersection(node_t *subject_node, coord_t *x, coord_t *y);
 
 
 #endif /* SIMFIELD_H_ */

@@ -130,6 +130,23 @@ bool ip_init_node(node_t *node, ip_node_info_t *node_info)
     return TRUE;
 }
 
+char *ip_node_get_address(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->ip_info->address;
+}
+
+void ip_node_set_address(node_t *node, const char *address)
+{
+    rs_assert(node != NULL);
+
+    if (node->ip_info->address != NULL)
+        free(node->ip_info->address);
+
+    node->ip_info->address = strdup(address);
+}
+
 void ip_event_before_pdu_sent(node_t *node, ip_pdu_t *pdu)
 {
     rs_debug("src = '%s', dst = '%s'", pdu->src_address, pdu->dst_address);

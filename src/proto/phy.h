@@ -36,6 +36,22 @@ bool                    phy_node_info_destroy(phy_node_info_t *node_info);
 
 bool                    phy_init_node(node_t *node, phy_node_info_t *node_info);
 
+char *                  phy_node_get_name(node_t *node);
+void                    phy_node_set_name(node_t *node, const char *name);
+
+coord_t                 phy_node_get_x(node_t *node);
+coord_t                 phy_node_get_y(node_t *node);
+void                    phy_node_set_xy(node_t *node, coord_t x, coord_t y);
+
+percent_t               phy_node_get_battery_level(node_t *node);
+void                    phy_node_set_battery_level(node_t *node, percent_t level);
+
+percent_t               phy_node_get_tx_power(node_t *node);
+void                    phy_node_set_tx_power(node_t *node, percent_t tx_power);
+
+bool                    phy_node_is_mains_powered(node_t *node);
+void                    phy_node_set_mains_powered(node_t *node, bool value);
+
     /* PHY events */
 void                    phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu);
 void                    phy_event_after_pdu_received(node_t *node, phy_pdu_t *pdu);

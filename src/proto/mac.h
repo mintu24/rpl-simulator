@@ -34,6 +34,9 @@ bool                    mac_node_info_destroy(mac_node_info_t *node_info);
 
 bool                    mac_init_node(node_t *node, mac_node_info_t *node_info);
 
+char *                  mac_node_get_address(node_t *node);
+void                    mac_node_set_address(node_t *node, const char *address);
+
     /* MAC events */
 void                    mac_event_before_pdu_sent(node_t *node, mac_pdu_t *pdu);
 void                    mac_event_after_pdu_received(node_t *node, mac_pdu_t *pdu);

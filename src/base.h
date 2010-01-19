@@ -41,8 +41,8 @@
 
     /**** specific types ****/
 
-#define coord_t             double
-#define percent_t           double
+#define coord_t             float
+#define percent_t           float
 
 
 #define RES_DIR             "resources"

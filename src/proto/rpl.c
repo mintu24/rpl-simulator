@@ -1,5 +1,6 @@
 
 #include "rpl.h"
+#include "../system.h"
 
 
 rpl_dio_pdu_t *dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id)
@@ -172,6 +173,152 @@ bool rpl_init_node(node_t *node, rpl_node_info_t *node_info)
     rs_assert(node_info != NULL);
 
     node->rpl_info = node_info;
+
+    return TRUE;
+}
+
+node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count)
+{
+    rs_assert(node != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    node_t **list = node->rpl_info->parent_list;
+    *parent_count = node->rpl_info->parent_count;
+
+    g_mutex_unlock(node->proto_info_mutex);
+
+    return list;
+}
+
+bool rpl_node_add_parent(node_t *node, node_t *parent)
+{
+    rs_assert(node != NULL);
+    rs_assert(parent != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    int i;
+    for (i = 0; i < node->rpl_info->parent_count; i++) {
+        if (node->rpl_info->parent_list[i] == parent) {
+            rs_error("node '%s' already has node '%s' as a parent", phy_node_get_name(node), phy_node_get_name(parent));
+            g_mutex_unlock(node->proto_info_mutex);
+
+            return FALSE;
+        }
+    }
+
+    node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, (node->rpl_info->parent_count + 1) * sizeof(node_t));
+    node->rpl_info->parent_list[node->rpl_info->parent_count++] = parent;
+
+    g_mutex_unlock(node->proto_info_mutex);
+
+    return TRUE;
+}
+
+bool rpl_node_remove_parent(node_t *node, node_t *parent)
+{
+    rs_assert(node != NULL);
+    rs_assert(parent != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    int pos = -1, i;
+    for (i = 0; i < node->rpl_info->parent_count; i++) {
+        if (node->rpl_info->parent_list[i] == parent) {
+            pos = i;
+            break;
+        }
+    }
+
+    if (pos == -1) {
+        rs_error("node '%s' does not have node '%s' as a parent", phy_node_get_name(node), phy_node_get_name(parent));
+        g_mutex_unlock(node->proto_info_mutex);
+
+        return FALSE;
+    }
+
+    for (i = pos; i < node->rpl_info->parent_count - 1; i++) {
+        node->rpl_info->parent_list[i] = node->rpl_info->parent_list[i + 1];
+    }
+
+    // todo: call realloc()
+    node->rpl_info->parent_count--;
+
+    g_mutex_unlock(node->proto_info_mutex);
+
+    return TRUE;
+}
+
+node_t **rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count)
+{
+    rs_assert(node != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    node_t **list = node->rpl_info->sibling_list;
+    *sibling_count = node->rpl_info->sibling_count;
+
+    g_mutex_unlock(node->proto_info_mutex);
+
+    return list;
+}
+
+bool rpl_node_add_sibling(node_t *node, node_t *sibling)
+{
+    rs_assert(node != NULL);
+    rs_assert(sibling != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    int i;
+    for (i = 0; i < node->rpl_info->sibling_count; i++) {
+        if (node->rpl_info->sibling_list[i] == sibling) {
+            rs_error("node '%s' already has node '%s' as a sibling", phy_node_get_name(node), phy_node_get_name(sibling));
+            g_mutex_unlock(node->proto_info_mutex);
+
+            return FALSE;
+        }
+    }
+
+    node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, (node->rpl_info->sibling_count + 1) * sizeof(node_t));
+    node->rpl_info->sibling_list[node->rpl_info->sibling_count++] = sibling;
+
+    g_mutex_unlock(node->proto_info_mutex);
+
+    return TRUE;
+}
+
+bool rpl_node_remove_sibling(node_t *node, node_t *sibling)
+{
+    rs_assert(node != NULL);
+    rs_assert(sibling != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    int pos = -1, i;
+    for (i = 0; i < node->rpl_info->sibling_count; i++) {
+        if (node->rpl_info->sibling_list[i] == sibling) {
+            pos = i;
+            break;
+        }
+    }
+
+    if (pos == -1) {
+        rs_error("node '%s' does not have node '%s' as a sibling", phy_node_get_name(node), phy_node_get_name(sibling));
+        g_mutex_unlock(node->proto_info_mutex);
+
+        return FALSE;
+    }
+
+    for (i = pos; i < node->rpl_info->sibling_count - 1; i++) {
+        node->rpl_info->sibling_list[i] = node->rpl_info->sibling_list[i + 1];
+    }
+
+    // todo: call realloc()
+    node->rpl_info->sibling_count--;
+
+    g_mutex_unlock(node->proto_info_mutex);
 
     return TRUE;
 }

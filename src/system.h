@@ -12,6 +12,8 @@
 
 #define DEFAULT_NO_LINK_DIST_THRESH     10
 #define DEFAULT_PHY_TRANSMIT_MODE       PHY_TRANSMIT_MODE_BLOCK
+#define DEFAULT_SYS_WIDTH               100
+#define DEFAULT_SYS_HEIGHT              100
 
 
 typedef struct rs_system_t {
@@ -48,8 +50,7 @@ void                        rs_system_set_transmit_mode(uint8 mode);
 
 coord_t                     rs_system_get_width();
 coord_t                     rs_system_get_height();
-void                        rs_system_set_width(coord_t width);
-void                        rs_system_set_height(coord_t height);
+void                        rs_system_set_width_height(coord_t width, coord_t height);
 
     /* nodes */
 bool                        rs_system_add_node(node_t *node);

@@ -10,6 +10,7 @@ extern                  GThread *rs_main_thread;
 
 
 void                    rs_add_node();
+void                    rs_load_params(char *filename);
 void                    rs_quit();
 
 
