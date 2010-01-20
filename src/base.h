@@ -17,6 +17,8 @@
 
 #define DEBUG
 
+#define RS_VERSION          "0.1"
+
 
     /**** general types ****/
 

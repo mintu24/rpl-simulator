@@ -98,6 +98,44 @@ node_t *rs_add_node()
     return node;
 }
 
+void rs_rem_node(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    if (!rs_system_remove_node(node)) {
+        rs_error("failed to remove node '%s' from the system", phy_node_get_name(node));
+        return;
+    }
+
+    if (!node_destroy(node)) {
+        rs_error("failed to destroy node '%s'", phy_node_get_name(node));
+        return;
+    }
+}
+
+void rs_rem_all_nodes()
+{
+    node_t **node_list;
+    uint16 node_count;
+
+    node_list = rs_system_get_node_list(&node_count);
+    while (node_count > 0) {
+        node_t *node = node_list[node_count - 1];
+
+        if (!rs_system_remove_node(node)) {
+            rs_error("failed to remove node '%s' from the system", phy_node_get_name(node));
+            return;
+        }
+
+        if (!node_destroy(node)) {
+            rs_error("failed to destroy node '%s'", phy_node_get_name(node));
+            return;
+        }
+
+        node_list = rs_system_get_node_list(&node_count);
+    }
+}
+
 void rs_load_params(char *filename)
 {
     // todo: implement this
