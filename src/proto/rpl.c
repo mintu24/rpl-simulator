@@ -5,16 +5,25 @@
 
     /**** local function prototypes ****/
 
+static void         rpl_event_before_dis_pdu_sent(node_t *src_node, node_t *dst_node, void *data);
+static void         rpl_event_after_dis_pdu_received(node_t *src_node, node_t *dst_node, void *data);
+
+static void         rpl_event_before_dio_pdu_sent(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+static void         rpl_event_after_dio_pdu_received(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+
+static void         rpl_event_before_dao_pdu_sent(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+static void         rpl_event_after_dao_pdu_received(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+
 static bool         rpl_send(node_t *src_node, node_t *dst_node, uint8 code, void *sdu);
 
 
     /**** exported functions ****/
 
-rpl_dio_pdu_t *dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id)
+rpl_dio_pdu_t *rpl_dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id)
 {
     rs_assert(dag_id != NULL);
 
-    rpl_dio_pdu_t *pdu = (rpl_dio_pdu_t *) malloc(sizeof(rpl_dio_pdu_t));
+    rpl_dio_pdu_t *pdu = malloc(sizeof(rpl_dio_pdu_t));
 
     pdu->grounded = grounded;
     pdu->da_trigger = da_trigger;
@@ -29,7 +38,7 @@ rpl_dio_pdu_t *dio_pdu_create(bool grounded, bool da_trigger, bool da_support, i
     return pdu;
 }
 
-bool dio_pdu_destroy(rpl_dio_pdu_t *pdu)
+bool rpl_dio_pdu_destroy(rpl_dio_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
 
@@ -37,45 +46,45 @@ bool dio_pdu_destroy(rpl_dio_pdu_t *pdu)
         free(pdu->dag_id);
 
     if (pdu->suboptions != NULL)
-        dio_suboption_destroy(pdu->suboptions);
+        rpl_dio_suboption_destroy(pdu->suboptions);
 
     free(pdu);
 
     return TRUE;
 }
 
-dio_suboption_t *dio_suboption_dag_config_create(int8 interval_doublings, int8 interval_min, int8 redundancy_constant, int8 max_rank_increase)
+rpl_dio_suboption_t *rpl_dio_suboption_dag_config_create(int8 interval_doublings, int8 interval_min, int8 redundancy_constant, int8 max_rank_increase)
 {
-    dio_suboption_t *suboption = (dio_suboption_t *) malloc(sizeof(dio_suboption_t));
+    rpl_dio_suboption_t *suboption = malloc(sizeof(rpl_dio_suboption_t));
 
-    dio_suboption_dag_config_t *content = (dio_suboption_dag_config_t *) malloc(sizeof(dio_suboption_dag_config_t));
+    rpl_dio_suboption_dag_config_t *content = malloc(sizeof(rpl_dio_suboption_dag_config_t));
 
     content->interval_doublings = interval_doublings;
     content->interval_min = interval_min;
     content->redundancy_constant = redundancy_constant;
     content->max_rank_increase = max_rank_increase;
 
-    suboption->type = DIO_SUBOPTION_TYPE_DAG_CONFIG;
+    suboption->type = RPL_DIO_SUBOPTION_TYPE_DAG_CONFIG;
     suboption->next_suboption = NULL;
     suboption->content = content;
 
     return suboption;
 }
 
-bool dio_suboption_destroy(dio_suboption_t *suboption)
+bool rpl_dio_suboption_destroy(rpl_dio_suboption_t *suboption)
 {
     rs_assert(suboption != NULL);
 
     bool all_ok = TRUE;
 
     if (suboption->next_suboption != NULL) {
-        if (!dio_suboption_destroy(suboption->next_suboption))
+        if (!rpl_dio_suboption_destroy(suboption->next_suboption))
             all_ok = FALSE;
     }
 
     if (suboption->content != NULL) {
         switch (suboption->type) {
-            case DIO_SUBOPTION_TYPE_DAG_CONFIG: {
+            case RPL_DIO_SUBOPTION_TYPE_DAG_CONFIG: {
                 free(suboption->content);
                 break;
             }
@@ -89,7 +98,7 @@ bool dio_suboption_destroy(dio_suboption_t *suboption)
     return all_ok;
 }
 
-bool dio_pdu_add_suboption(rpl_dio_pdu_t *pdu, dio_suboption_t *suboption)
+bool rpl_dio_pdu_add_suboption(rpl_dio_pdu_t *pdu, rpl_dio_suboption_t *suboption)
 {
     rs_assert(pdu != NULL);
 
@@ -97,7 +106,7 @@ bool dio_pdu_add_suboption(rpl_dio_pdu_t *pdu, dio_suboption_t *suboption)
         pdu->suboptions = suboption;
     }
     else {
-        dio_suboption_t *suboption = pdu->suboptions;
+        rpl_dio_suboption_t *suboption = pdu->suboptions;
 
         while (suboption->next_suboption != NULL)
             suboption = suboption->next_suboption;
@@ -108,11 +117,11 @@ bool dio_pdu_add_suboption(rpl_dio_pdu_t *pdu, dio_suboption_t *suboption)
     return TRUE;
 }
 
-rpl_dao_pdu_t *dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32 dao_lifetime, char *prefix, uint8 prefix_len)
+rpl_dao_pdu_t *rpl_dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32 dao_lifetime, char *prefix, uint8 prefix_len)
 {
     rs_assert(prefix != NULL);
 
-    rpl_dao_pdu_t *pdu = (rpl_dao_pdu_t *) malloc(sizeof(rpl_dao_pdu_t));
+    rpl_dao_pdu_t *pdu = malloc(sizeof(rpl_dao_pdu_t));
 
     pdu->sequence = sequence;
     pdu->instance_id = instance_id;
@@ -126,7 +135,7 @@ rpl_dao_pdu_t *dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, ui
     return pdu;
 }
 
-bool dao_pdu_destroy(rpl_dao_pdu_t *pdu)
+bool rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
 
@@ -141,12 +150,12 @@ bool dao_pdu_destroy(rpl_dao_pdu_t *pdu)
     return TRUE;
 }
 
-bool dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address)
+bool rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address)
 {
     rs_assert(pdu != NULL);
     rs_assert(ip_address != NULL);
 
-    pdu->rr_stack = (char **) realloc(pdu->rr_stack, (++pdu->rr_count) * sizeof(char *));
+    pdu->rr_stack = realloc(pdu->rr_stack, (++pdu->rr_count) * sizeof(char *));
     pdu->rr_stack[pdu->rr_count - 1] = strdup(ip_address);
 
     return TRUE;
@@ -154,7 +163,7 @@ bool dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address)
 
 rpl_node_info_t *rpl_node_info_create()
 {
-    rpl_node_info_t *node_info = (rpl_node_info_t *) malloc(sizeof(rpl_node_info_t));
+    rpl_node_info_t *node_info = malloc(sizeof(rpl_node_info_t));
 
     node_info->parent_list = NULL;
     node_info->parent_count = 0;
@@ -381,9 +390,28 @@ bool rpl_send_dis(node_t *src_node, node_t *dst_node)
     rs_assert(rs_system != NULL);
     rs_assert(src_node != NULL);
 
-    node_execute(src_node, "rpl_event_before_dis_pdu_sent", (node_schedule_func_t) rpl_event_before_dis_pdu_sent, NULL, TRUE);
+    node_execute_src_dst(
+            src_node,
+            "rpl_event_before_dis_pdu_sent",
+            (node_event_src_dst_t) rpl_event_before_dis_pdu_sent,
+            src_node, dst_node, NULL,
+            TRUE);
 
-    return rpl_send(src_node, dst_node, ICMP_CODE_DIS, NULL);
+    return rpl_send(src_node, dst_node, ICMP_RPL_CODE_DIS, NULL);
+}
+
+bool rpl_receive_dis(node_t *src_node, node_t *dst_node)
+{
+    rs_assert(dst_node != NULL);
+
+    node_execute_src_dst(
+            dst_node,
+            "rpl_event_after_dis_pdu_received",
+            (node_event_src_dst_t) rpl_event_after_dis_pdu_received,
+            src_node, dst_node, NULL,
+            TRUE);
+
+    return TRUE;
 }
 
 bool rpl_send_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
@@ -392,9 +420,29 @@ bool rpl_send_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
     rs_assert(src_node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute(src_node, "rpl_event_before_dio_pdu_sent", (node_schedule_func_t) rpl_event_before_dio_pdu_sent, pdu, TRUE);
+    node_execute_src_dst(
+            src_node,
+            "rpl_event_before_dio_pdu_sent",
+            (node_event_src_dst_t) rpl_event_before_dio_pdu_sent,
+            src_node, dst_node, pdu,
+            TRUE);
 
-    return rpl_send(src_node, dst_node, ICMP_CODE_DIO, pdu);
+    return rpl_send(src_node, dst_node, ICMP_RPL_CODE_DIO, pdu);
+}
+
+bool rpl_receive_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+    rs_assert(dst_node != NULL);
+
+    node_execute_src_dst(
+            dst_node,
+            "rpl_event_after_dio_pdu_received",
+            (node_event_src_dst_t) rpl_event_after_dio_pdu_received,
+            src_node, dst_node, pdu,
+            TRUE);
+
+    return TRUE;
 }
 
 bool rpl_send_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
@@ -403,43 +451,63 @@ bool rpl_send_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
     rs_assert(src_node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute(src_node, "rpl_event_before_dao_pdu_sent", (node_schedule_func_t) rpl_event_before_dao_pdu_sent, pdu, TRUE);
+    node_execute_src_dst(
+            src_node,
+            "rpl_event_before_dao_pdu_sent",
+            (node_event_src_dst_t) rpl_event_before_dao_pdu_sent,
+            src_node, dst_node, pdu,
+            TRUE);
 
-    return rpl_send(src_node, dst_node, ICMP_CODE_DAO, pdu);
+    return rpl_send(src_node, dst_node, ICMP_RPL_CODE_DAO, pdu);
 }
 
-void rpl_event_before_dis_pdu_sent(node_t *node, void *data)
+bool rpl_receive_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
 {
-    rs_debug(NULL);
-}
+    rs_assert(pdu != NULL);
+    rs_assert(dst_node != NULL);
 
-void rpl_event_after_dis_pdu_received(node_t *node, void *data)
-{
-    rs_debug(NULL);
-}
+    node_execute_src_dst(
+            dst_node,
+            "rpl_event_after_dao_pdu_received",
+            (node_event_src_dst_t) rpl_event_after_dao_pdu_received,
+            src_node, dst_node, pdu,
+            TRUE);
 
-void rpl_event_before_dio_pdu_sent(node_t *node, rpl_dio_pdu_t *pdu)
-{
-    rs_debug(NULL);
-}
-
-void rpl_event_after_dio_pdu_received(node_t *node, rpl_dio_pdu_t *pdu)
-{
-    rs_debug(NULL);
-}
-
-void rpl_event_before_dao_pdu_sent(node_t *node, rpl_dao_pdu_t *pdu)
-{
-    rs_debug(NULL);
-}
-
-void rpl_event_after_dao_pdu_received(node_t *node, rpl_dao_pdu_t *pdu)
-{
-    rs_debug(NULL);
+    return TRUE;
 }
 
 
     /**** local functions ****/
+
+static void rpl_event_before_dis_pdu_sent(node_t *src_node, node_t *dst_node, void *data)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+}
+
+static void rpl_event_after_dis_pdu_received(node_t *src_node, node_t *dst_node, void *data)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+}
+
+static void rpl_event_before_dio_pdu_sent(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+}
+
+static void rpl_event_after_dio_pdu_received(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+}
+
+static void rpl_event_before_dao_pdu_sent(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+}
+
+static void rpl_event_after_dao_pdu_received(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+}
 
 static bool rpl_send(node_t *src_node, node_t *dst_node, uint8 code, void *sdu)
 {
@@ -459,7 +527,7 @@ static bool rpl_send(node_t *src_node, node_t *dst_node, uint8 code, void *sdu)
         }
     }
     else {
-        if (!icmp_send(src_node, dst_node, ICMP_TYPE_RPL, ICMP_CODE_DIO, sdu)) {
+        if (!icmp_send(src_node, dst_node, ICMP_TYPE_RPL, code, sdu)) {
             rs_error("failed to send ICMP message");
             return FALSE;
         }

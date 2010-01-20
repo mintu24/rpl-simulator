@@ -4,9 +4,17 @@
 #include "../system.h"
 
 
+    /**** local function prototypes ****/
+
+static void             phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu);
+static void             phy_event_after_pdu_received(node_t *node, phy_pdu_t *pdu);
+
+
+    /**** exported functions ****/
+
 phy_pdu_t *phy_pdu_create()
 {
-    phy_pdu_t *pdu = (phy_pdu_t *) malloc(sizeof(phy_pdu_t));
+    phy_pdu_t *pdu = malloc(sizeof(phy_pdu_t));
 
     pdu->sdu = NULL;
 
@@ -39,7 +47,7 @@ phy_node_info_t *phy_node_info_create(char *name, coord_t cx, coord_t cy)
 {
     rs_assert(name != NULL);
 
-    phy_node_info_t *node_info = (phy_node_info_t *) malloc(sizeof(phy_node_info_t));
+    phy_node_info_t *node_info = malloc(sizeof(phy_node_info_t));
 
     node_info->name = strdup(name);
     node_info->cx = cx;
@@ -186,12 +194,27 @@ bool phy_send(node_t *src_node, node_t *dst_node, void *sdu)
     return TRUE;
 }
 
-void phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu)
+bool phy_receive(node_t *dst_node, phy_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+    rs_assert(dst_node != NULL);
+
+    node_execute(dst_node, "phy_event_after_pdu_received", (node_schedule_func_t) phy_event_after_pdu_received, pdu, TRUE);
+
+    mac_pdu_t *mac_pdu = pdu->sdu;
+
+    return mac_receive(dst_node, mac_pdu);
+}
+
+
+    /**** local functions ****/
+
+static void phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu)
 {
     rs_debug(NULL);
 }
 
-void phy_event_after_pdu_received(node_t *node, phy_pdu_t *pdu)
+static void phy_event_after_pdu_received(node_t *node, phy_pdu_t *pdu)
 {
     rs_debug(NULL);
 }
