@@ -1,6 +1,7 @@
 
 #include "phy.h"
 #include "mac.h"
+#include "../system.h"
 
 
 phy_pdu_t *phy_pdu_create()
@@ -152,6 +153,37 @@ void phy_node_set_mains_powered(node_t *node, bool value)
     rs_assert(node != NULL);
 
     node->phy_info->mains_powered = value;
+}
+
+bool phy_send(node_t *src_node, node_t *dst_node, void *sdu)
+{
+    phy_pdu_t *phy_pdu = phy_pdu_create();
+    phy_pdu_set_sdu(phy_pdu, sdu);
+    node_execute(src_node, "phy_event_before_pdu_sent", (node_schedule_func_t) phy_event_before_pdu_sent, phy_pdu, TRUE);
+
+    if (dst_node == NULL) { /* broadcast */
+        node_t **node_list;
+        uint16 index, node_count;
+
+        node_list = rs_system_get_node_list(&node_count);
+
+        // fixme this gives temporal priority to nodes at the begining of the node list
+        for (index = 0; index < node_count; index++) {
+            node_t *node = node_list[index];
+
+            if (!phy_send(src_node, node, sdu)) {
+                return FALSE;
+            }
+        }
+    }
+    else {
+        if (!node_enqueue_pdu(dst_node, phy_pdu, rs_system_get_transmit_mode())) {
+            rs_error("failed to enqueue pdu");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
 void phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu)

@@ -3,6 +3,13 @@
 #include "../system.h"
 
 
+    /**** local function prototypes ****/
+
+static bool         rpl_send(node_t *src_node, node_t *dst_node, uint8 code, void *sdu);
+
+
+    /**** exported functions ****/
+
 rpl_dio_pdu_t *dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id)
 {
     rs_assert(dag_id != NULL);
@@ -161,7 +168,11 @@ bool rpl_node_info_destroy(rpl_node_info_t *node_info)
 {
     rs_assert(node_info != NULL);
 
-    // todo: free the parent list & the sibling list
+    if (node_info->parent_list != NULL)
+        free(node_info->parent_list);
+    if (node_info->sibling_list != NULL)
+        free(node_info->sibling_list);
+
     free(node_info);
 
     return TRUE;
@@ -208,7 +219,7 @@ bool rpl_node_add_parent(node_t *node, node_t *parent)
         }
     }
 
-    node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, (node->rpl_info->parent_count + 1) * sizeof(node_t));
+    node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, (node->rpl_info->parent_count + 1) * sizeof(node_t *));
     node->rpl_info->parent_list[node->rpl_info->parent_count++] = parent;
 
     g_mutex_unlock(node->proto_info_mutex);
@@ -242,12 +253,33 @@ bool rpl_node_remove_parent(node_t *node, node_t *parent)
         node->rpl_info->parent_list[i] = node->rpl_info->parent_list[i + 1];
     }
 
-    // todo: call realloc()
     node->rpl_info->parent_count--;
+    node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, node->rpl_info->parent_count * sizeof(node_t *));
 
     g_mutex_unlock(node->proto_info_mutex);
 
     return TRUE;
+}
+
+bool rpl_node_has_parent(node_t *node, node_t *parent)
+{
+    rs_assert(node != NULL);
+    rs_assert(parent != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    int i;
+    for (i = 0; i < node->rpl_info->parent_count; i++) {
+        if (node->rpl_info->parent_list[i] == parent) {
+            g_mutex_unlock(node->proto_info_mutex);
+
+            return TRUE;
+        }
+    }
+
+    g_mutex_unlock(node->proto_info_mutex);
+
+    return FALSE;
 }
 
 node_t **rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count)
@@ -281,7 +313,7 @@ bool rpl_node_add_sibling(node_t *node, node_t *sibling)
         }
     }
 
-    node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, (node->rpl_info->sibling_count + 1) * sizeof(node_t));
+    node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, (node->rpl_info->sibling_count + 1) * sizeof(node_t *));
     node->rpl_info->sibling_list[node->rpl_info->sibling_count++] = sibling;
 
     g_mutex_unlock(node->proto_info_mutex);
@@ -315,12 +347,65 @@ bool rpl_node_remove_sibling(node_t *node, node_t *sibling)
         node->rpl_info->sibling_list[i] = node->rpl_info->sibling_list[i + 1];
     }
 
-    // todo: call realloc()
     node->rpl_info->sibling_count--;
+    node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, node->rpl_info->sibling_count * sizeof(node_t *));
 
     g_mutex_unlock(node->proto_info_mutex);
 
     return TRUE;
+}
+
+bool rpl_node_has_sibling(node_t *node, node_t *sibling)
+{
+    rs_assert(node != NULL);
+    rs_assert(sibling != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    int i;
+    for (i = 0; i < node->rpl_info->sibling_count; i++) {
+        if (node->rpl_info->sibling_list[i] == sibling) {
+            g_mutex_unlock(node->proto_info_mutex);
+
+            return TRUE;
+        }
+    }
+
+    g_mutex_unlock(node->proto_info_mutex);
+
+    return FALSE;
+}
+
+bool rpl_send_dis(node_t *src_node, node_t *dst_node)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(src_node != NULL);
+
+    node_execute(src_node, "rpl_event_before_dis_pdu_sent", (node_schedule_func_t) rpl_event_before_dis_pdu_sent, NULL, TRUE);
+
+    return rpl_send(src_node, dst_node, ICMP_CODE_DIS, NULL);
+}
+
+bool rpl_send_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(src_node != NULL);
+    rs_assert(pdu != NULL);
+
+    node_execute(src_node, "rpl_event_before_dio_pdu_sent", (node_schedule_func_t) rpl_event_before_dio_pdu_sent, pdu, TRUE);
+
+    return rpl_send(src_node, dst_node, ICMP_CODE_DIO, pdu);
+}
+
+bool rpl_send_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(src_node != NULL);
+    rs_assert(pdu != NULL);
+
+    node_execute(src_node, "rpl_event_before_dao_pdu_sent", (node_schedule_func_t) rpl_event_before_dao_pdu_sent, pdu, TRUE);
+
+    return rpl_send(src_node, dst_node, ICMP_CODE_DAO, pdu);
 }
 
 void rpl_event_before_dis_pdu_sent(node_t *node, void *data)
@@ -351,4 +436,34 @@ void rpl_event_before_dao_pdu_sent(node_t *node, rpl_dao_pdu_t *pdu)
 void rpl_event_after_dao_pdu_received(node_t *node, rpl_dao_pdu_t *pdu)
 {
     rs_debug(NULL);
+}
+
+
+    /**** local functions ****/
+
+static bool rpl_send(node_t *src_node, node_t *dst_node, uint8 code, void *sdu)
+{
+    if (dst_node == NULL) { /* RPL broadcast */
+        node_t **neighbor_list;
+        uint16 index, neighbor_count;
+
+        neighbor_list = ip_node_get_neighbor_list(src_node, &neighbor_count);
+
+        // fixme this gives temporal priority to nodes at the begining of the neighbor list
+        for (index = 0; index < neighbor_count; index++) {
+            node_t *node = neighbor_list[index];
+
+            if (!rpl_send(src_node, node, code, sdu)) {
+                return FALSE;
+            }
+        }
+    }
+    else {
+        if (!icmp_send(src_node, dst_node, ICMP_TYPE_RPL, ICMP_CODE_DIO, sdu)) {
+            rs_error("failed to send ICMP message");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }

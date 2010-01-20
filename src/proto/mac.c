@@ -1,5 +1,6 @@
 
 #include "mac.h"
+#include "phy.h"
 #include "ip.h"
 
 
@@ -100,6 +101,23 @@ void mac_node_set_address(node_t *node, const char *address)
         free(node->mac_info->address);
 
     node->mac_info->address = strdup(address);
+}
+
+bool mac_send(node_t *src_node, node_t *dst_node, uint16 type, void *sdu)
+{
+    rs_assert(src_node != NULL);
+
+    mac_pdu_t *mac_pdu = mac_pdu_create(mac_node_get_address(dst_node), mac_node_get_address(src_node));
+    mac_pdu_set_sdu(mac_pdu, type, sdu);
+
+    node_execute(src_node, "mac_event_before_pdu_sent", (node_schedule_func_t) mac_event_before_pdu_sent, mac_pdu, TRUE);
+
+    if (!phy_send(src_node, dst_node, mac_pdu)) {
+        rs_error("failed to send PHY message");
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 void mac_event_before_pdu_sent(node_t *node, mac_pdu_t *pdu)
