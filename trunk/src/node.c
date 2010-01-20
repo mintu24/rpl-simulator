@@ -15,6 +15,7 @@ typedef struct {
 
 
 static void *                   node_dequeue_pdu(node_t *node);
+static bool                     node_process_message(node_t *node, phy_pdu_t *message);
 
 static void *                   node_life_core(node_t *node);
 
@@ -315,6 +316,113 @@ static void *node_dequeue_pdu(node_t *node)
     return pdu;
 }
 
+static bool node_process_message(node_t *node, phy_pdu_t *message)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(node != NULL);
+    rs_assert(message != NULL);
+
+    phy_pdu_t *phy_pdu = message;
+    if (!node_execute(node, "phy_event_after_pdu_received", (node_schedule_func_t) phy_event_after_pdu_received, phy_pdu, TRUE)) {
+        rs_error("failed to execute phy_event_after_pdu_received()");
+        return FALSE;
+    }
+
+    mac_pdu_t *mac_pdu = phy_pdu->sdu;
+    rs_assert(mac_pdu != NULL);
+    if (!node_execute(node, "mac_event_after_pdu_received", (node_schedule_func_t) mac_event_after_pdu_received, mac_pdu, TRUE)) {
+        rs_error("failed to execute mac_event_after_pdu_received()");
+        return FALSE;
+    }
+
+    switch (mac_pdu->type) {
+
+        case MAC_TYPE_IP : {
+            ip_pdu_t *ip_pdu = mac_pdu->sdu;
+            rs_assert(ip_pdu != NULL);
+            if (!node_execute(node, "ip_event_after_pdu_received", (node_schedule_func_t) ip_event_after_pdu_received, ip_pdu, TRUE)) {
+                rs_error("failed to execute ip_event_after_pdu_received()");
+                return FALSE;
+            }
+
+            switch (ip_pdu->next_header) {
+
+                case IP_NEXT_HEADER_ICMP: {
+                    icmp_pdu_t *icmp_pdu = ip_pdu->sdu;
+                    rs_assert(icmp_pdu != NULL);
+                    if (!node_execute(node, "icmp_event_after_pdu_received", (node_schedule_func_t) icmp_event_after_pdu_received, icmp_pdu, TRUE)) {
+                        rs_error("failed to execute icmp_event_after_pdu_received()");
+                        return FALSE;
+                    }
+
+                    switch (icmp_pdu->type) {
+
+                        case ICMP_TYPE_RPL:
+                            switch (icmp_pdu->code) {
+
+                                case ICMP_CODE_DIS: {
+                                    rs_assert(icmp_pdu->sdu == NULL);
+                                    if (!node_execute(node, "rpl_event_after_dis_pdu_received", (node_schedule_func_t) rpl_event_after_dis_pdu_received, NULL, TRUE)) {
+                                        rs_error("failed to execute rpl_event_after_dis_pdu_received()");
+                                        return FALSE;
+                                    }
+
+                                    break;
+                                }
+
+                                case ICMP_CODE_DIO: {
+                                    rpl_dio_pdu_t *rpl_dio_pdu = icmp_pdu->sdu;
+                                    rs_assert(rpl_dio_pdu != NULL);
+                                    if (!node_execute(node, "rpl_event_after_dio_pdu_received", (node_schedule_func_t) rpl_event_after_dio_pdu_received, rpl_dio_pdu, TRUE)) {
+                                        rs_error("failed to execute rpl_event_after_dio_pdu_received()");
+                                        return FALSE;
+                                    }
+
+                                    break;
+                                }
+
+                                case ICMP_CODE_DAO: {
+                                    rpl_dao_pdu_t *rpl_dao_pdu = icmp_pdu->sdu;
+                                    rs_assert(rpl_dao_pdu != NULL);
+                                    if (!node_execute(node, "rpl_event_after_dao_pdu_received", (node_schedule_func_t) rpl_event_after_dao_pdu_received, rpl_dao_pdu, TRUE)) {
+                                        rs_error("failed to execute rpl_event_after_dao_pdu_received()");
+                                        return FALSE;
+                                    }
+
+                                    break;
+                                }
+
+                                default:
+                                    rs_error("unknown icmp code '0x%02X'", icmp_pdu->code);
+                                    return FALSE;
+                            }
+
+                            break;
+
+                        default:
+                            rs_error("unknown icmp type '0x%02X'", icmp_pdu->type);
+                            return FALSE;
+                    }
+
+                    break;
+                }
+
+                default:
+                    rs_error("unknown ip next header '0x%04X'");
+                    return FALSE;
+            }
+
+            break;
+        }
+
+        default:
+            rs_error("unknown mac type '0x%04X'", mac_pdu->type);
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
 static void *node_life_core(node_t *node)
 {
     /* wait until the creation routine exists */
@@ -379,7 +487,7 @@ static void *node_life_core(node_t *node)
 
         phy_pdu_t *message = node_dequeue_pdu(node);
         if (message != NULL) {
-            rs_system_process_message(node, message);
+            node_process_message(node, message);
         }
     }
 

@@ -66,11 +66,5 @@ node_t **                   rs_system_get_node_list(uint16 *node_count);
 
 percent_t                   rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
 
-bool                        rs_system_send_rpl_dis(node_t *src_node, node_t *dst_node);
-bool                        rs_system_send_rpl_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu);
-bool                        rs_system_send_rpl_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu);
-
-bool                        rs_system_process_message(node_t *node, phy_pdu_t *message);
-
 
 #endif /* SYSTEM_H_ */

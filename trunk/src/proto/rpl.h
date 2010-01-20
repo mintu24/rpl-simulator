@@ -96,10 +96,17 @@ bool                rpl_init_node(node_t *node, rpl_node_info_t *node_info);
 node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
 bool                rpl_node_add_parent(node_t *node, node_t *parent);
 bool                rpl_node_remove_parent(node_t *node, node_t *parent);
+bool                rpl_node_has_parent(node_t *node, node_t *parent);
 
 node_t **           rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count);
 bool                rpl_node_add_sibling(node_t *node, node_t *sibling);
 bool                rpl_node_remove_sibling(node_t *node, node_t *sibling);
+bool                rpl_node_has_sibling(node_t *node, node_t *sibling);
+
+bool                rpl_send_dis(node_t *src_node, node_t *dst_node);
+bool                rpl_send_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+bool                rpl_send_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+
 
     /* RPL events */
 void                rpl_event_before_dis_pdu_sent(node_t *node, void *data);
