@@ -16,7 +16,7 @@ rs_system_t *           rs_system = NULL;
 
 bool rs_system_create()
 {
-    rs_system = (rs_system_t *) malloc(sizeof(rs_system_t));
+    rs_system = malloc(sizeof(rs_system_t));
 
     rs_system->node_list = NULL;
     rs_system->node_count = 0;
@@ -36,8 +36,14 @@ bool rs_system_destroy()
 {
     rs_assert(rs_system != NULL);
 
-    // todo: destroy the nodes
-    free(rs_system->node_list);
+    int i;
+    for (i = 0; i < rs_system->node_count; i++) {
+        node_t *node = rs_system->node_list[i];
+
+        node_destroy(node);
+    }
+    if (rs_system->node_list != NULL)
+        free(rs_system->node_list);
 
     g_mutex_free(rs_system->nodes_mutex);
 
@@ -102,7 +108,7 @@ bool rs_system_add_node(node_t *node)
 
     g_mutex_lock(rs_system->nodes_mutex);
 
-    rs_system->node_list = (node_t **) realloc(rs_system->node_list, (++rs_system->node_count) * sizeof(node_t *));
+    rs_system->node_list = realloc(rs_system->node_list, (++rs_system->node_count) * sizeof(node_t *));
     rs_system->node_list[rs_system->node_count - 1] = node;
 
     g_mutex_unlock(rs_system->nodes_mutex);
@@ -135,8 +141,8 @@ bool rs_system_remove_node(node_t *node)
         rs_system->node_list[i] = rs_system->node_list[i + 1];
     }
 
-    // todo: call realloc on node_list
     rs_system->node_count--;
+    rs_system->node_list = realloc(rs_system->node_list, (rs_system->node_count) * sizeof(node_t *));
 
     g_mutex_unlock(rs_system->nodes_mutex);
 

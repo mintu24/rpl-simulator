@@ -349,6 +349,25 @@ static void cb_start_tool_button_clicked(GtkWidget *widget, gpointer *data)
 
     rs_debug(NULL);
 
+    /** fixme test **********************/
+    node_t *a = rs_system_find_node_by_name("A");
+    node_t *b = rs_system_find_node_by_name("B");
+
+    if (a == NULL || b == NULL) {
+        signal_leave();
+        return;
+    }
+
+    if (!a->alive)
+        node_start(a);
+
+    if (!b->alive)
+        node_start(b);
+
+    rpl_send_dis(a, b);
+
+    /************************************/
+
     signal_leave();
 }
 
@@ -530,7 +549,7 @@ GtkWidget *create_content_widget()
     GtkWidget *params_widget = create_params_widget();
     gtk_box_pack_start(GTK_BOX(hbox), params_widget, FALSE, TRUE, 0);
 
-    GtkWidget *sim_field = sim_field_create(NULL, NULL);// todo: fix this
+    GtkWidget *sim_field = sim_field_create();
     gtk_box_pack_start(GTK_BOX(hbox), sim_field, TRUE, TRUE, 0);
 
     GtkWidget *monitoring_widget = create_monitoring_widget();

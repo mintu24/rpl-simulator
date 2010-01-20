@@ -20,7 +20,9 @@ static char *       get_next_name(char *name);
 static void         get_next_coords(coord_t *x, coord_t *y);
 static char *       get_next_mac_address(char *address);
 static char *       get_next_ip_address(char *address);
+
 static node_t *     create_node(char *name, char *mac, char *ip, coord_t cx, coord_t cy);
+static node_t *     find_node_by_thread(GThread *thread);
 
 
     /**** exported functions ****/
@@ -121,18 +123,23 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
     vsnprintf(string, sizeof(string), fmt, ap);
     va_end(ap);
 
+    node_t *node = NULL;
+    if (g_thread_get_initialized())
+        node = find_node_by_thread(g_thread_self());
+
+    char *context = (node != NULL ? phy_node_get_name(node) : "main");
+
     if (strlen(string) > 0) {
         if (file != NULL && strlen(file) > 0) {
-            //fprintf(stream, "%s[in %s() at %s:%d] %s\n", sym, function, file, line, string);
-            fprintf(stream, "%s[in %s() at %s:%d]\n", sym, function, file, line);
+            fprintf(stream, "%s%s: [in %s() at %s:%d]\n", sym, context, function, file, line);
             fprintf(stream, "    %s\n", string);
         }
         else {
-            fprintf(stream, "%s%s\n", sym, string);
+            fprintf(stream, "%s%s: %s\n", sym, context, string);
         }
     }
     else {
-        fprintf(stream, "%s[in %s() at %s:%d]\n", sym, function, file, line);
+        fprintf(stream, "%s%s: [in %s() at %s:%d]\n", sym, context, function, file, line);
     }
 }
 
@@ -268,6 +275,24 @@ static node_t *create_node(char *name, char *mac, char *ip, coord_t cx, coord_t 
 
     return node;
 }
+
+static node_t *find_node_by_thread(GThread *thread)
+{
+    uint16 node_count, index;
+    node_t **node_list;
+    node_list = rs_system_get_node_list(&node_count);
+
+    for (index = 0; index < node_count; index++) {
+        node_t *node = node_list[index];
+
+        if (node->life == thread) {
+            return node;
+        }
+    }
+
+    return NULL;
+}
+
 
 int main(int argc, char *argv[])
 {

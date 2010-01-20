@@ -53,10 +53,7 @@ bool                    phy_node_is_mains_powered(node_t *node);
 void                    phy_node_set_mains_powered(node_t *node, bool value);
 
 bool                    phy_send(node_t *src_node, node_t *dst_node, void *sdu);
-
-    /* PHY events */
-void                    phy_event_before_pdu_sent(node_t *node, phy_pdu_t *pdu);
-void                    phy_event_after_pdu_received(node_t *node, phy_pdu_t *pdu);
+bool                    phy_receive(node_t *dst_node, phy_pdu_t *pdu);
 
 
 #endif /* PHY_H_ */

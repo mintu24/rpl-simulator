@@ -61,15 +61,10 @@ bool                ip_node_add_neighbor(node_t *node, node_t *neighbor);
 bool                ip_node_remove_neighbor(node_t *node, node_t *neighbor);
 bool                ip_node_has_neighbor(node_t *node, node_t *neighbor);
 
-bool                ip_send(node_t *src_node, node_t *dst_node, void *sdu);
+bool                ip_send(node_t *src_node, node_t *dst_node, uint16 next_header, void *sdu);
+bool                ip_receive(node_t *src_node, node_t *dst_node, ip_pdu_t *pdu);
 bool                icmp_send(node_t *src_node, node_t *dst_node, uint8 type, uint8 code, void *sdu);
-
-    /* IP events */
-void                ip_event_before_pdu_sent(node_t *node, ip_pdu_t *pdu);
-void                ip_event_after_pdu_received(node_t *node, ip_pdu_t *pdu);
-
-void                icmp_event_before_pdu_sent(node_t *node, icmp_pdu_t *pdu);
-void                icmp_event_after_pdu_received(node_t *node, icmp_pdu_t *pdu);
+bool                icmp_receive(node_t *src_node, node_t *dst_node, icmp_pdu_t *pdu);
 
 
 #endif /* IP_H_ */

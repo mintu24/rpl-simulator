@@ -18,37 +18,40 @@ typedef struct node_t {
 
     struct phy_node_info_t *phy_info;
     struct mac_node_info_t *mac_info;
-    struct ip_node_info_t *ip_info;
+    struct ip_node_info_t * ip_info;
     struct rpl_node_info_t *rpl_info;
 
-    GThread *life;
-    bool alive;
+    GQueue *                pdu_queue;
 
-    GHashTable *schedules;
-    GTimer *schedule_timer;
+    GThread *               life;
+    bool                    alive;
 
-    GMutex *life_mutex;
-    GMutex *schedule_mutex;
-    GMutex *proto_info_mutex;
-    GMutex *pdu_mutex;
+    GHashTable *            schedules;
+    GTimer *                schedule_timer;
 
-    GQueue *pdu_queue;
-    GCond *pdu_cond;
+    GMutex *                life_mutex;
+    GMutex *                schedule_mutex;
+    GMutex *                proto_info_mutex;
+    GMutex *                pdu_mutex;
+
+    GCond *                 pdu_cond;
 
 } node_t;
 
     /* a callback type representing a node's scheduled action */
 typedef void (* node_schedule_func_t) (node_t *node, void *data);
+typedef void (* node_event_t) (node_t *node, void *data);
+typedef void (* node_event_src_dst_t) (node_t *src_node, node_t *dst_node, void *data);
 
     /* structure used for scheduling actions to be executed at a certain moment */
 typedef struct node_schedule_t {
 
-    char *name;
-    node_schedule_func_t func;
-    void *data;
-    uint32 usecs;
-    uint32 remaining_usecs;
-    bool recurrent;
+    char *                  name;
+    node_schedule_func_t    func;
+    void *                  data;
+    uint32                  usecs;
+    uint32                  remaining_usecs;
+    bool                    recurrent;
 
 } node_schedule_t;
 
@@ -61,6 +64,7 @@ bool                        node_kill(node_t* node);
 
 bool                        node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);
 bool                        node_execute(node_t *node, char *name, node_schedule_func_t func, void *data, bool blocking);
+void                        node_execute_src_dst(node_t *node, char *name, node_event_src_dst_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking);
 
 bool                        node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode);
 

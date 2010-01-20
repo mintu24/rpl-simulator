@@ -50,11 +50,8 @@ static node_t *             find_node_under_coords(gint x, gint y, gint pixel_wi
 
     /**** exported functions ****/
 
-GtkWidget *sim_field_create(GdkWindow *window, GdkGC *gc)
+GtkWidget *sim_field_create()
 {
-    sim_field_window = window;
-    sim_field_gc = gc;
-
     /* load node images */
     char filename[256];
     int power_step;
@@ -115,49 +112,6 @@ GtkWidget *sim_field_create(GdkWindow *window, GdkGC *gc)
 
     return table;
 }
-
-/*
-void sim_field_node_coords_assure_non_intersection(node_t *subject_node, coord_t *x, coord_t *y)
-{
-    // fixme: baaad implementation
-
-    if (x == NULL || y == NULL) {
-        rs_error("invalid arguments");
-        return;
-    }
-
-    node_t **node_list, *node;
-    uint16 node_count, index;
-    coord_t xlim, ylim, node_x, node_y;
-    double angle;
-
-    node_list = rs_system_get_nodes(&node_count);
-
-    for (index = 0; index < node_count; index++) {
-        node = node_list[index];
-
-        if (node == subject_node) {
-            continue;
-        }
-
-        node_x = phy_node_get_x(node);
-        node_y = phy_node_get_y(node);
-
-        angle = atan2(node_y - *y, node_x - *x) + M_PI;
-        xlim = node_x + MIN_NODE_DISTANCE * cos(angle);
-        ylim = node_y + MIN_NODE_DISTANCE * sin(angle);
-
-        if ((*x > node_x && *x < xlim) || (*x < node_x && *x > xlim)) {
-            *x = xlim;
-        }
-
-        if ((*y > node_y && *y < ylim) || (*y < node_y && *y > ylim)) {
-            *y = ylim;
-        }
-    }
-
-}
-*/
 
 void sim_field_redraw()
 {

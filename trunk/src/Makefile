@@ -28,10 +28,10 @@ gui/mainwin.o: gui/mainwin.c gui/mainwin.h base.h node.h main.h system.h gui/sim
 
 gui/simfield.o: gui/simfield.c gui/simfield.h base.h node.h main.h system.h proto/phy.h proto/mac.h proto/ip.h proto/rpl.h 
 
-proto/phy.o: proto/phy.c proto/phy.h base.h node.h system.h proto/phy.h proto/mac.h proto/ip.h proto/rpl.h
+proto/phy.o: proto/phy.c proto/phy.h base.h node.h system.h proto/mac.h proto/ip.h proto/rpl.h
 
-proto/mac.o: proto/mac.c proto/mac.h base.h node.h proto/phy.h proto/ip.h
+proto/mac.o: proto/mac.c proto/mac.h base.h node.h system.h proto/phy.h proto/ip.h proto/rpl.h
 
 proto/ip.o: proto/ip.c proto/ip.h base.h node.h proto/phy.h proto/mac.h proto/rpl.h
 
-proto/rpl.o: proto/rpl.c proto/rpl.h base.h node.h system.h proto/phy.h proto/mac.h proto/ip.h proto/rpl.h 
+proto/rpl.o: proto/rpl.c proto/rpl.h base.h node.h system.h proto/phy.h proto/mac.h proto/ip.h 

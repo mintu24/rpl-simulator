@@ -5,13 +5,23 @@
 #include "system.h"
 
 
-typedef struct {
+typedef struct execute_wrapper_data_t {
 
-    node_schedule_func_t func;
-    void *data;
-    bool executed;
+    node_schedule_func_t    func;
+    void *                  data;
+    bool                    executed;
 
 } execute_wrapper_data_t;
+
+typedef struct execute_src_dst_wrapper_data_t{
+
+    node_event_src_dst_t    func;
+    node_t *                src_node;
+    node_t *                dst_node;
+    node_t *                data;
+    bool                    executed;
+
+} execute_src_dst_wrapper_data_t;
 
 
 static void *                   node_dequeue_pdu(node_t *node);
@@ -23,11 +33,12 @@ static node_schedule_t *        node_schedule_create(char *name, node_schedule_f
 static bool                     node_schedule_destroy(node_schedule_t *schedule);
 
 static void                     execute_wrapper(node_t *node, void *data);
+static void                     execute_src_dst_wrapper(node_t *node, void *data);
 
 
 node_t *node_create()
 {
-    node_t *node = (node_t *) malloc(sizeof(node_t));
+    node_t *node = malloc(sizeof(node_t));
 
     node->phy_info = NULL;
     node->mac_info = NULL;
@@ -55,8 +66,10 @@ bool node_destroy(node_t *node)
 {
     rs_assert(node != NULL);
 
-    if (node->alive)
+    if (node->alive) {
+        /* this will block until the node is killed */
         node_kill(node);
+    }
 
     if (node->schedules != NULL)
         g_hash_table_destroy(node->schedules);
@@ -101,12 +114,14 @@ bool node_destroy(node_t *node)
 
 bool node_start(node_t* node)
 {
-    rs_assert(!node->alive);
-    rs_assert(node->life == NULL);
+    rs_assert(node != NULL);
+
+    if (node->alive) {
+        rs_error("node '%s' is already alive", phy_node_get_name(node));
+        return FALSE;
+    }
 
     g_mutex_lock(node->life_mutex);
-    g_mutex_lock(node->schedule_mutex);
-    g_mutex_lock(node->pdu_mutex);
 
     bool all_ok = TRUE;
 
@@ -117,8 +132,6 @@ bool node_start(node_t* node)
         all_ok = FALSE;
     }
 
-    g_mutex_unlock(node->pdu_mutex);
-    g_mutex_unlock(node->schedule_mutex);
     g_mutex_unlock(node->life_mutex);
 
     return all_ok;
@@ -127,13 +140,15 @@ bool node_start(node_t* node)
 bool node_kill(node_t* node)
 {
     rs_assert(node != NULL);
-    rs_assert(node->alive);
+
+    if (!node->alive) {
+        rs_error("node '%s' is already dead", phy_node_get_name(node));
+        return FALSE;
+    }
+    node->alive = FALSE;
 
     g_mutex_lock(node->life_mutex);
-    g_mutex_lock(node->schedule_mutex);
-    g_mutex_lock(node->pdu_mutex);
 
-    node->alive = FALSE;
     node->life = NULL;
 
     GList *schedule_list = g_hash_table_get_values(node->schedules);
@@ -149,8 +164,6 @@ bool node_kill(node_t* node)
         phy_pdu_destroy(pdu);
     }
 
-    g_mutex_unlock(node->pdu_mutex);
-    g_mutex_unlock(node->schedule_mutex);
     g_mutex_unlock(node->life_mutex);
 
     return TRUE;
@@ -221,7 +234,7 @@ bool node_execute(node_t *node, char *name, node_schedule_func_t func, void *dat
             func(node, data);
         }
         else {
-            execute_wrapper_data_t *execute_data = (execute_wrapper_data_t *) malloc(sizeof(execute_wrapper_data_t));
+            execute_wrapper_data_t *execute_data = malloc(sizeof(execute_wrapper_data_t));
 
             execute_data->func = func;
             execute_data->data = data;
@@ -237,7 +250,7 @@ bool node_execute(node_t *node, char *name, node_schedule_func_t func, void *dat
     }
     else { /* no blocking */
 
-        execute_wrapper_data_t *execute_data = (execute_wrapper_data_t *) malloc(sizeof(execute_wrapper_data_t));
+        execute_wrapper_data_t *execute_data = malloc(sizeof(execute_wrapper_data_t));
 
         execute_data->func = func;
         execute_data->data = data;
@@ -248,6 +261,19 @@ bool node_execute(node_t *node, char *name, node_schedule_func_t func, void *dat
     }
 
     return TRUE;
+}
+
+void node_execute_src_dst(node_t *node, char *name, node_event_src_dst_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking)
+{
+    execute_src_dst_wrapper_data_t *execute_data = malloc(sizeof(execute_src_dst_wrapper_data_t));
+
+    execute_data->func = func;
+    execute_data->src_node = src_node;
+    execute_data->dst_node = dst_node;
+    execute_data->data = data;
+    execute_data->executed = FALSE;
+
+    node_execute(node, name, execute_src_dst_wrapper, execute_data, blocking);
 }
 
 bool node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode)
@@ -322,103 +348,11 @@ static bool node_process_message(node_t *node, phy_pdu_t *message)
     rs_assert(node != NULL);
     rs_assert(message != NULL);
 
-    phy_pdu_t *phy_pdu = message;
-    if (!node_execute(node, "phy_event_after_pdu_received", (node_schedule_func_t) phy_event_after_pdu_received, phy_pdu, TRUE)) {
-        rs_error("failed to execute phy_event_after_pdu_received()");
-        return FALSE;
+    if (!phy_receive(node, message)) {
+        rs_error("failed to process message");
     }
 
-    mac_pdu_t *mac_pdu = phy_pdu->sdu;
-    rs_assert(mac_pdu != NULL);
-    if (!node_execute(node, "mac_event_after_pdu_received", (node_schedule_func_t) mac_event_after_pdu_received, mac_pdu, TRUE)) {
-        rs_error("failed to execute mac_event_after_pdu_received()");
-        return FALSE;
-    }
-
-    switch (mac_pdu->type) {
-
-        case MAC_TYPE_IP : {
-            ip_pdu_t *ip_pdu = mac_pdu->sdu;
-            rs_assert(ip_pdu != NULL);
-            if (!node_execute(node, "ip_event_after_pdu_received", (node_schedule_func_t) ip_event_after_pdu_received, ip_pdu, TRUE)) {
-                rs_error("failed to execute ip_event_after_pdu_received()");
-                return FALSE;
-            }
-
-            switch (ip_pdu->next_header) {
-
-                case IP_NEXT_HEADER_ICMP: {
-                    icmp_pdu_t *icmp_pdu = ip_pdu->sdu;
-                    rs_assert(icmp_pdu != NULL);
-                    if (!node_execute(node, "icmp_event_after_pdu_received", (node_schedule_func_t) icmp_event_after_pdu_received, icmp_pdu, TRUE)) {
-                        rs_error("failed to execute icmp_event_after_pdu_received()");
-                        return FALSE;
-                    }
-
-                    switch (icmp_pdu->type) {
-
-                        case ICMP_TYPE_RPL:
-                            switch (icmp_pdu->code) {
-
-                                case ICMP_CODE_DIS: {
-                                    rs_assert(icmp_pdu->sdu == NULL);
-                                    if (!node_execute(node, "rpl_event_after_dis_pdu_received", (node_schedule_func_t) rpl_event_after_dis_pdu_received, NULL, TRUE)) {
-                                        rs_error("failed to execute rpl_event_after_dis_pdu_received()");
-                                        return FALSE;
-                                    }
-
-                                    break;
-                                }
-
-                                case ICMP_CODE_DIO: {
-                                    rpl_dio_pdu_t *rpl_dio_pdu = icmp_pdu->sdu;
-                                    rs_assert(rpl_dio_pdu != NULL);
-                                    if (!node_execute(node, "rpl_event_after_dio_pdu_received", (node_schedule_func_t) rpl_event_after_dio_pdu_received, rpl_dio_pdu, TRUE)) {
-                                        rs_error("failed to execute rpl_event_after_dio_pdu_received()");
-                                        return FALSE;
-                                    }
-
-                                    break;
-                                }
-
-                                case ICMP_CODE_DAO: {
-                                    rpl_dao_pdu_t *rpl_dao_pdu = icmp_pdu->sdu;
-                                    rs_assert(rpl_dao_pdu != NULL);
-                                    if (!node_execute(node, "rpl_event_after_dao_pdu_received", (node_schedule_func_t) rpl_event_after_dao_pdu_received, rpl_dao_pdu, TRUE)) {
-                                        rs_error("failed to execute rpl_event_after_dao_pdu_received()");
-                                        return FALSE;
-                                    }
-
-                                    break;
-                                }
-
-                                default:
-                                    rs_error("unknown icmp code '0x%02X'", icmp_pdu->code);
-                                    return FALSE;
-                            }
-
-                            break;
-
-                        default:
-                            rs_error("unknown icmp type '0x%02X'", icmp_pdu->type);
-                            return FALSE;
-                    }
-
-                    break;
-                }
-
-                default:
-                    rs_error("unknown ip next header '0x%04X'");
-                    return FALSE;
-            }
-
-            break;
-        }
-
-        default:
-            rs_error("unknown mac type '0x%04X'", mac_pdu->type);
-            return FALSE;
-    }
+    phy_pdu_destroy(message);
 
     return TRUE;
 }
@@ -426,15 +360,15 @@ static bool node_process_message(node_t *node, phy_pdu_t *message)
 static void *node_life_core(node_t *node)
 {
     /* wait until the creation routine exists */
+    /* life mutex will be locked during all the life of the node */
     g_mutex_lock(node->life_mutex);
-    g_mutex_unlock(node->life_mutex);
 
     rs_assert(node != NULL);
     rs_assert(node->alive == FALSE);
 
-    rs_debug("node '%s' life started", phy_node_get_name(node));
-
     node->alive = TRUE;
+
+    rs_debug("node '%s' life started", phy_node_get_name(node));
 
     while (node->alive) {
         g_timer_reset(node->schedule_timer);
@@ -445,6 +379,7 @@ static void *node_life_core(node_t *node)
 
         /* what if the node was killed while usleep()-ing? */
         if (!node->alive) {
+            g_mutex_unlock(node->schedule_mutex);
             break;
         }
 
@@ -482,9 +417,7 @@ static void *node_life_core(node_t *node)
 
         g_mutex_unlock(node->schedule_mutex);
 
-
         /* process a possibly received message */
-
         phy_pdu_t *message = node_dequeue_pdu(node);
         if (message != NULL) {
             node_process_message(node, message);
@@ -492,6 +425,8 @@ static void *node_life_core(node_t *node)
     }
 
     rs_debug("node '%s' life stopped", node->phy_info->name);
+
+    g_mutex_unlock(node->life_mutex);
 
     g_thread_exit(NULL);
 
@@ -501,7 +436,7 @@ static void *node_life_core(node_t *node)
 
 static node_schedule_t *node_schedule_create(char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent)
 {
-    node_schedule_t *schedule = (node_schedule_t *) malloc(sizeof(node_schedule_t));
+    node_schedule_t *schedule = malloc(sizeof(node_schedule_t));
 
     schedule->name = strdup(name);
     schedule->func = func;
@@ -533,6 +468,16 @@ static void execute_wrapper(node_t *node, void *data)
     execute_wrapper_data_t *execute_data = data;
 
     execute_data->func(node, execute_data->data);
+    execute_data->executed = TRUE;
+
+    free(execute_data);
+}
+
+static void execute_src_dst_wrapper(node_t *node, void *data)
+{
+    execute_src_dst_wrapper_data_t *execute_data = data;
+
+    execute_data->func(execute_data->src_node, execute_data->dst_node, execute_data->data);
     execute_data->executed = TRUE;
 
     free(execute_data);

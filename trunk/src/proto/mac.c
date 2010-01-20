@@ -2,14 +2,23 @@
 #include "mac.h"
 #include "phy.h"
 #include "ip.h"
+#include "../system.h"
 
+
+    /**** local function prototypes ****/
+
+static void             mac_event_before_pdu_sent(node_t *src_node, node_t *dst_node, mac_pdu_t *pdu);
+static void             mac_event_after_pdu_received(node_t *src_node, node_t *dst_node, mac_pdu_t *pdu);
+
+
+    /**** exported functions ****/
 
 mac_pdu_t *mac_pdu_create(char *dst_address, char *src_address)
 {
     rs_assert(dst_address != NULL);
     rs_assert(src_address != NULL);
 
-    mac_pdu_t *pdu = (mac_pdu_t *) malloc(sizeof(mac_pdu_t));
+    mac_pdu_t *pdu = malloc(sizeof(mac_pdu_t));
 
     pdu->dst_address = strdup(dst_address);
     pdu->src_address = strdup(src_address);
@@ -57,7 +66,7 @@ mac_node_info_t *mac_node_info_create(char *address)
 {
     rs_assert(address != NULL);
 
-    mac_node_info_t *node_info = (mac_node_info_t *) malloc(sizeof(mac_node_info_t));
+    mac_node_info_t *node_info = malloc(sizeof(mac_node_info_t));
 
     node_info->address = strdup(address);
 
@@ -110,7 +119,12 @@ bool mac_send(node_t *src_node, node_t *dst_node, uint16 type, void *sdu)
     mac_pdu_t *mac_pdu = mac_pdu_create(mac_node_get_address(dst_node), mac_node_get_address(src_node));
     mac_pdu_set_sdu(mac_pdu, type, sdu);
 
-    node_execute(src_node, "mac_event_before_pdu_sent", (node_schedule_func_t) mac_event_before_pdu_sent, mac_pdu, TRUE);
+    node_execute_src_dst(
+            src_node,
+            "mac_event_before_pdu_sent",
+            (node_event_src_dst_t) mac_event_before_pdu_sent,
+            src_node, dst_node, mac_pdu,
+            TRUE);
 
     if (!phy_send(src_node, dst_node, mac_pdu)) {
         rs_error("failed to send PHY message");
@@ -120,12 +134,47 @@ bool mac_send(node_t *src_node, node_t *dst_node, uint16 type, void *sdu)
     return TRUE;
 }
 
-void mac_event_before_pdu_sent(node_t *node, mac_pdu_t *pdu)
+bool mac_receive(node_t *dst_node, mac_pdu_t *pdu)
 {
-    rs_debug("src = '%s', dst = '%s'", pdu->src_address, pdu->dst_address);
+    rs_assert(pdu!= NULL);
+    rs_assert(dst_node != NULL);
+
+    node_t *src_node = rs_system_find_node_by_mac_address(pdu->src_address);
+
+    node_execute_src_dst(
+            dst_node,
+            "mac_event_after_pdu_received",
+            (node_event_src_dst_t) mac_event_after_pdu_received,
+            src_node, dst_node, pdu,
+            TRUE);
+
+    switch (pdu->type) {
+
+        case MAC_TYPE_IP : {
+            ip_pdu_t *ip_pdu = pdu->sdu;
+            return ip_receive(src_node, dst_node, ip_pdu);
+
+            break;
+        }
+
+        default:
+            rs_error("unknown MAC type '0x%04X'", pdu->type);
+
+            return FALSE;
+    }
+
+    return TRUE;
 }
 
-void mac_event_after_pdu_received(node_t *node, mac_pdu_t *pdu)
+
+    /**** local functions ****/
+
+static void mac_event_before_pdu_sent(node_t *src_node, node_t *dst_node, mac_pdu_t *pdu)
 {
-    rs_debug("src = '%s', dst = '%s'", pdu->src_address, pdu->dst_address);
+    rs_debug("'%s' -> '%s'", pdu->src_address, pdu->dst_address);
+}
+
+static void mac_event_after_pdu_received(node_t *src_node, node_t *dst_node, mac_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", pdu->src_address, pdu->dst_address);
 }
