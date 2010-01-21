@@ -96,7 +96,7 @@ bool node_destroy(node_t *node)
     return TRUE;
 }
 
-bool node_start(node_t* node)
+bool node_wake(node_t* node)
 {
     rs_assert(node != NULL);
 
@@ -117,6 +117,10 @@ bool node_start(node_t* node)
     }
 
     g_mutex_unlock(node->life_mutex);
+
+    while (!node->alive) { /* wait until the node is actually alive */
+        usleep(10);
+    }
 
     return all_ok;
 }
@@ -210,6 +214,7 @@ bool node_execute(node_t *node, char *name, node_schedule_func_t func, void *dat
 {
     rs_assert(node != NULL);
     rs_assert(func != NULL);
+    rs_assert(node->life != NULL);
 
     if (blocking) {
 
@@ -249,6 +254,8 @@ bool node_execute(node_t *node, char *name, node_schedule_func_t func, void *dat
 
 void node_execute_src_dst(node_t *node, char *name, node_event_src_dst_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking)
 {
+    rs_assert(node->life != NULL);
+
     execute_src_dst_wrapper_data_t *execute_data = malloc(sizeof(execute_src_dst_wrapper_data_t));
 
     execute_data->func = func;

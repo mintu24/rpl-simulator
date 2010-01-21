@@ -58,12 +58,16 @@ static GtkWidget *              stop_menu_item = NULL;
 static GtkWidget *              add_menu_item = NULL;
 static GtkWidget *              rem_menu_item = NULL;
 static GtkWidget *              clear_all_menu_item = NULL;
+static GtkWidget *              wake_menu_item = NULL;
+static GtkWidget *              kill_menu_item = NULL;
 static GtkWidget *              about_menu_item = NULL;
 
 static GtkWidget *              add_node_toolbar_item = NULL;
 static GtkWidget *              rem_node_toolbar_item = NULL;
 static GtkWidget *              start_toolbar_item = NULL;
 static GtkWidget *              stop_toolbar_item = NULL;
+static GtkWidget *              wake_toolbar_item = NULL;
+static GtkWidget *              kill_toolbar_item = NULL;
 
 static node_t *                 selected_node = NULL;
 
@@ -83,11 +87,13 @@ void                cb_gui_display_updated(GtkWidget *widget, gpointer data);
 static void         cb_open_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_save_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
-static void         cb_start_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_add_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_start_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_clear_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_wake_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_kill_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_about_menu_item_activate(GtkWidget *widget, gpointer *data);
 
 static void         cb_main_window_delete();
@@ -375,51 +381,6 @@ static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data)
     signal_leave();
 }
 
-static void cb_start_menu_item_activate(GtkWidget *widget, gpointer *data)
-{
-    signal_enter();
-
-    rs_debug(NULL);
-
-    /** fixme test **********************/
-    node_t *a = rs_system_find_node_by_name("A");
-    node_t *b = rs_system_find_node_by_name("B");
-    node_t *c = rs_system_find_node_by_name("C");
-
-    if (a == NULL || b == NULL || c == NULL) {
-        signal_leave();
-        return;
-    }
-
-    if (!a->alive)
-        node_start(a);
-
-    if (!b->alive)
-        node_start(b);
-
-    if (!c->alive)
-        node_start(c);
-
-    rpl_send_dis(a, b);
-
-    rpl_node_add_parent(a, b);
-    rpl_node_add_sibling(a, c);
-    rpl_node_add_sibling(c, a);
-
-    /************************************/
-
-    signal_leave();
-}
-
-static void cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data)
-{
-    signal_enter();
-
-    rs_debug(NULL);
-
-    signal_leave();
-}
-
 static void cb_add_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
@@ -452,6 +413,43 @@ static void cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data)
     signal_leave();
 }
 
+static void cb_start_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    /** fixme test **********************/
+    node_t *a = rs_system_find_node_by_name("A");
+    node_t *b = rs_system_find_node_by_name("B");
+    node_t *c = rs_system_find_node_by_name("C");
+
+    if (a == NULL || b == NULL || c == NULL) {
+        signal_leave();
+        return;
+    }
+
+    if (a->alive && b->alive)
+        rpl_send_dis(a, b);
+
+    rpl_node_add_parent(a, b);
+    rpl_node_add_sibling(a, c);
+    rpl_node_add_sibling(c, a);
+
+    /************************************/
+
+    signal_leave();
+}
+
+static void cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    signal_leave();
+}
+
 static void cb_clear_all_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
@@ -464,6 +462,36 @@ static void cb_clear_all_menu_item_activate(GtkWidget *widget, gpointer *data)
     sim_field_redraw();
 
     update_sensitivity();
+
+    signal_leave();
+}
+
+static void cb_wake_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+    rs_assert(selected_node != NULL);
+
+    node_wake(selected_node);
+
+    update_sensitivity();
+    sim_field_redraw();
+
+    signal_leave();
+}
+
+static void cb_kill_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+    rs_assert(selected_node != NULL);
+
+    node_kill(selected_node);
+
+    update_sensitivity();
+    sim_field_redraw();
 
     signal_leave();
 }
@@ -634,6 +662,18 @@ GtkWidget *create_menu_bar()
     gtk_signal_connect(GTK_OBJECT(clear_all_menu_item), "activate", GTK_SIGNAL_FUNC(cb_clear_all_menu_item_activate), NULL);
     gtk_menu_append(node_menu, clear_all_menu_item);
 
+    gtk_menu_append(node_menu, gtk_separator_menu_item_new());
+
+    wake_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_APPLY, NULL);
+    gtk_menu_item_set_label(GTK_MENU_ITEM(wake_menu_item), "_Wake Node");
+    gtk_signal_connect(GTK_OBJECT(wake_menu_item), "activate", GTK_SIGNAL_FUNC(cb_wake_menu_item_activate), NULL);
+    gtk_menu_append(node_menu, wake_menu_item);
+
+    kill_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_CANCEL, NULL);
+    gtk_menu_item_set_label(GTK_MENU_ITEM(wake_menu_item), "_Kill Node");
+    gtk_signal_connect(GTK_OBJECT(kill_menu_item), "activate", GTK_SIGNAL_FUNC(cb_kill_menu_item_activate), NULL);
+    gtk_menu_append(node_menu, kill_menu_item);
+
     GtkWidget *node_menu_item = gtk_menu_item_new_with_mnemonic("_Node");
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(node_menu_item), node_menu);
     gtk_menu_bar_append(menu_bar, node_menu_item);
@@ -674,19 +714,36 @@ GtkWidget *create_tool_bar()
     GtkToolItem *sep_toolbar_item = gtk_separator_tool_item_new();
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), sep_toolbar_item, 2);
 
-    start_toolbar_item = (GtkWidget *)gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_PLAY);
+    start_toolbar_item = (GtkWidget *) gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_PLAY);
     gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(start_toolbar_item), "Start simulation");
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(start_toolbar_item), "Start");
     gtk_tool_item_set_is_important(GTK_TOOL_ITEM(start_toolbar_item), TRUE);
     gtk_signal_connect(GTK_OBJECT(start_toolbar_item), "clicked", G_CALLBACK(cb_start_menu_item_activate), NULL);
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(start_toolbar_item), 3);
 
-    stop_toolbar_item = (GtkWidget *)gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_STOP);
+    stop_toolbar_item = (GtkWidget *) gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_STOP);
     gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(stop_toolbar_item), "Stop simulation");
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(stop_toolbar_item), "Stop");
     gtk_tool_item_set_is_important(GTK_TOOL_ITEM(stop_toolbar_item), TRUE);
     gtk_signal_connect(GTK_OBJECT(stop_toolbar_item), "clicked", G_CALLBACK(cb_stop_menu_item_activate), NULL);
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(stop_toolbar_item), 4);
+
+    sep_toolbar_item = gtk_separator_tool_item_new();
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), sep_toolbar_item, 5);
+
+    wake_toolbar_item = (GtkWidget *) gtk_tool_button_new_from_stock(GTK_STOCK_APPLY);
+    gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(wake_toolbar_item), "Wake Node");
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(wake_toolbar_item), "Wake");
+    gtk_tool_item_set_is_important(GTK_TOOL_ITEM(wake_toolbar_item), TRUE);
+    gtk_signal_connect(GTK_OBJECT(wake_toolbar_item), "clicked", G_CALLBACK(cb_wake_menu_item_activate), NULL);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(wake_toolbar_item), 6);
+
+    kill_toolbar_item = (GtkWidget *) gtk_tool_button_new_from_stock(GTK_STOCK_CANCEL);
+    gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(kill_toolbar_item), "Kill Node");
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(kill_toolbar_item), "Kill");
+    gtk_tool_item_set_is_important(GTK_TOOL_ITEM(kill_toolbar_item), TRUE);
+    gtk_signal_connect(GTK_OBJECT(kill_toolbar_item), "clicked", G_CALLBACK(cb_kill_menu_item_activate), NULL);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(kill_toolbar_item), 7);
 
     return toolbar;
 }
@@ -695,10 +752,11 @@ GtkWidget *create_status_bar()
 {
     GtkWidget *status_bar = gtk_statusbar_new();
 
-    // todo: statusbar: node count
+    // todo: statusbar: node count, alive, dead, removed
     // todo: statusbar: status (running/stopped)
     // todo: statusbar: current field (x, y)
     // todo: statusbar: real to simulated time ratio
+
 
     return status_bar;
 }
@@ -741,6 +799,7 @@ static void update_sensitivity()
     bool mains_powered = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check));
     bool node_selected = selected_node != NULL;
     bool has_nodes = node_count > 0;
+    bool node_alive = node_selected && selected_node->alive;
 
     gtk_widget_set_sensitive(params_nodes_name_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_x_spin, node_selected);
@@ -755,6 +814,11 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(rem_menu_item, node_selected);
 
     gtk_widget_set_sensitive(clear_all_menu_item, has_nodes);
+
+    gtk_widget_set_sensitive(wake_menu_item, node_selected && !node_alive);
+    gtk_widget_set_sensitive(wake_toolbar_item, node_selected && !node_alive);
+    gtk_widget_set_sensitive(kill_menu_item, node_selected && node_alive);
+    gtk_widget_set_sensitive(kill_toolbar_item, node_selected && node_alive);
 }
 
 static void gui_to_system()

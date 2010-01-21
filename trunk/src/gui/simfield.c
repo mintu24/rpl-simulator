@@ -43,8 +43,8 @@ static gboolean             cb_sim_field_drawing_area_scroll(GtkDrawingArea *wid
 
 static gboolean             draw_sim_field(void *data);
 static void                 draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y);
-static void                 draw_parent_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y);
-static void                 draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, bool draw_line);
+static void                 draw_parent_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, uint32 color);
+static void                 draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, uint32 color, bool draw_line);
 
 static void                 draw_arrow(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color, bool draw_line, bool dashed);
 static void                 draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_color, uint32 bg_color);
@@ -292,6 +292,11 @@ static gboolean draw_sim_field(void *data)
         for (node_index = 0; node_index < node_count; node_index++) {
             node_t *node = node_list[node_index];
 
+            /* don't draw arrows of dead nodes */
+            if (!node->alive) {
+                continue;
+            }
+
             start_pixel_x = phy_node_get_x(node) * scale_x;
             start_pixel_y = phy_node_get_y(node) * scale_y;
 
@@ -304,7 +309,14 @@ static gboolean draw_sim_field(void *data)
                     end_pixel_x = phy_node_get_x(parent) * scale_x;
                     end_pixel_y = phy_node_get_y(parent) * scale_y;
 
-                    draw_parent_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y);
+                    uint32 color = parent->alive ? SIM_FIELD_PARENT_ARROW_COLOR : SIM_FIELD_DEAD_ARROW_COLOR;
+
+                    if (parent->alive) {
+                        draw_parent_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color);
+                    }
+                    else {
+                        draw_parent_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color);
+                    }
                 }
             }
 
@@ -317,16 +329,18 @@ static gboolean draw_sim_field(void *data)
                     end_pixel_x = phy_node_get_x(sibling) * scale_x;
                     end_pixel_y = phy_node_get_y(sibling) * scale_y;
 
+                    uint32 color = sibling->alive ? SIM_FIELD_SIBLING_ARROW_COLOR : SIM_FIELD_DEAD_ARROW_COLOR;
+
                     /* in case of mutual siblingness, only the "lowest" node draws the line */
                     if (node < sibling) {
-                        draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, TRUE);
+                        draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, TRUE);
                     }
                     else {
-                        if (rpl_node_has_sibling(sibling, node)) {
-                            draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, FALSE);
+                        if (rpl_node_has_sibling(sibling, node) && sibling->alive && rs_system_has_node(sibling)) {
+                            draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, FALSE);
                         }
                         else {
-                            draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, TRUE);
+                            draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, TRUE);
                         }
                     }
                 }
@@ -394,7 +408,7 @@ static void draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y)
     cairo_surface_t **images;
 
     /* node itself */
-    if (!main_win_get_display_params()->show_node_tx_power) {
+    if (!main_win_get_display_params()->show_node_tx_power || !node->alive) {
         tx_power = 0.0;
     }
 
@@ -443,14 +457,14 @@ static void draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y)
     }
 }
 
-static void draw_parent_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y)
+static void draw_parent_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, uint32 color)
 {
-    draw_arrow(cr, start_pixel_x, start_pixel_y, stop_pixel_x, stop_pixel_y, SIM_FIELD_NODE_RADIUS, SIM_FIELD_PARENT_ARROW_COLOR, TRUE, FALSE);
+    draw_arrow(cr, start_pixel_x, start_pixel_y, stop_pixel_x, stop_pixel_y, SIM_FIELD_NODE_RADIUS, color, TRUE, FALSE);
 }
 
-static void draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, bool draw_line)
+static void draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, uint32 color, bool draw_line)
 {
-    draw_arrow(cr, start_pixel_x, start_pixel_y, stop_pixel_x, stop_pixel_y, SIM_FIELD_NODE_RADIUS, SIM_FIELD_SIBLING_ARROW_COLOR, draw_line, TRUE);
+    draw_arrow(cr, start_pixel_x, start_pixel_y, stop_pixel_x, stop_pixel_y, SIM_FIELD_NODE_RADIUS, color, draw_line, TRUE);
 }
 
 static void draw_arrow(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color, bool draw_line, bool dashed)

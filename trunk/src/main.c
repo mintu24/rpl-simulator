@@ -102,19 +102,17 @@ void rs_rem_node(node_t *node)
 {
     rs_assert(node != NULL);
 
-    rpl_done_node(node);
-    ip_done_node(node);
-    mac_done_node(node);
-    phy_done_node(node);
-
     if (!rs_system_remove_node(node)) {
         rs_error("failed to remove node '%s' from the system", phy_node_get_name(node));
         return;
     }
 
-    if (!node_destroy(node)) {
-        rs_error("failed to destroy node '%s'", phy_node_get_name(node));
-        return;
+    /* this won't actually destroy the node, but just kill it.
+     * instead, a garbage collector thread will check from time to time
+     * for completely unreferenced nodes, and effectively destroy them.
+     */
+    if (node->alive && !node_kill(node)) {
+        rs_error("failed to kill node '%s'", phy_node_get_name(node));
     }
 }
 
@@ -127,15 +125,7 @@ void rs_rem_all_nodes()
     while (node_count > 0) {
         node_t *node = node_list[node_count - 1];
 
-        if (!rs_system_remove_node(node)) {
-            rs_error("failed to remove node '%s' from the system", phy_node_get_name(node));
-            return;
-        }
-
-        if (!node_destroy(node)) {
-            rs_error("failed to destroy node '%s'", phy_node_get_name(node));
-            return;
-        }
+        rs_rem_node(node);
 
         node_list = rs_system_get_node_list(&node_count);
     }
@@ -170,7 +160,18 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
     if (g_thread_get_initialized())
         node = find_node_by_thread(g_thread_self());
 
-    char *context = (node != NULL ? phy_node_get_name(node) : "main");
+    char *context;
+    if (node == NULL) {
+        if (rs_system != NULL && g_thread_self() == rs_system->gc_thread) {
+            context = "garbage collector";
+        }
+        else {
+            context = "main";
+        }
+    }
+    else {
+        context = phy_node_get_name(node);
+    }
 
     if (strlen(string) > 0) {
         if (file != NULL && strlen(file) > 0) {
