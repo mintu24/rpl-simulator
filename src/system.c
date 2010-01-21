@@ -1,4 +1,5 @@
 
+#include <unistd.h>
 #include <math.h>
 
 #include "system.h"
@@ -10,6 +11,9 @@ rs_system_t *           rs_system = NULL;
 
 
     /**** local function prototypes ****/
+
+void *                  garbage_collector_core(void *data);
+void                    destroy_all_unreferenced_nodes();
 
 
     /**** exported functions ****/
@@ -29,12 +33,28 @@ bool rs_system_create()
 
     rs_system->nodes_mutex = g_mutex_new();
 
+    rs_system->gc_list = NULL;
+    rs_system->gc_count = 0;
+    rs_system->gc_running = FALSE;
+    rs_system->gc_mutex = g_mutex_new();
+
+    /* start the garbage collector */
+    GError *error;
+    rs_system->gc_thread = g_thread_create(garbage_collector_core, NULL, TRUE, &error);
+    if (rs_system->gc_thread == NULL) {
+        rs_error("g_thread_create() failed: %s", error->message);
+        return FALSE;
+    }
+
     return TRUE;
 }
 
 bool rs_system_destroy()
 {
     rs_assert(rs_system != NULL);
+
+    /* try to stop the GC */
+    rs_system->gc_running = FALSE;
 
     int i;
     for (i = 0; i < rs_system->node_count; i++) {
@@ -146,7 +166,35 @@ bool rs_system_remove_node(node_t *node)
 
     g_mutex_unlock(rs_system->nodes_mutex);
 
+    /* add the removed node to the garbge collector's list */
+    g_mutex_lock(rs_system->gc_mutex);
+
+    rs_system->gc_list = realloc(rs_system->gc_list, sizeof(node_t *) * rs_system->gc_count + 1);
+    rs_system->gc_list[rs_system->gc_count++] = node;
+
+    g_mutex_unlock(rs_system->gc_mutex);
+
     return TRUE;
+}
+
+bool rs_system_has_node(node_t *node)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(node != NULL);
+
+    g_mutex_lock(rs_system->nodes_mutex);
+
+    int i;
+    for (i = 0; i < rs_system->node_count; i++) {
+        if (rs_system->node_list[i] == node) {
+            g_mutex_unlock(rs_system->nodes_mutex);
+            return TRUE;
+        }
+    }
+
+    g_mutex_unlock(rs_system->nodes_mutex);
+
+    return FALSE;
 }
 
 node_t *rs_system_find_node_by_name(char *name)
@@ -248,4 +296,83 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
 
 
     /**** local functions ****/
+
+void *garbage_collector_core(void *data)
+{
+    // todo: make rs_print recognize this thread
+
+    rs_debug("garbage collector started");
+
+    rs_system->gc_running = TRUE;
+
+    while (rs_system->gc_running) {
+        usleep(GARBAGE_COLLECTOR_INTERVAL);
+
+        destroy_all_unreferenced_nodes();
+    }
+
+    rs_debug("garbage collector stopped");
+
+    g_thread_exit(NULL);
+
+    return NULL;
+}
+
+void destroy_all_unreferenced_nodes()
+{
+    uint16 index, ref_node_index;
+
+    g_mutex_lock(rs_system->gc_mutex);
+
+    for (index = 0; index < rs_system->gc_count; index++) {
+        node_t *node = rs_system->gc_list[index];
+
+        bool referenced = FALSE;
+        for (ref_node_index = 0; ref_node_index < rs_system->node_count; ref_node_index++) {
+            node_t *ref_node = rs_system->node_list[ref_node_index];
+
+            if (ip_node_has_neighbor(ref_node, node)) {
+                referenced = TRUE;
+                break;
+            }
+
+            if (rpl_node_has_parent(ref_node, node)) {
+                referenced = TRUE;
+                break;
+            }
+
+            if (rpl_node_has_sibling(ref_node, node)) {
+                referenced = TRUE;
+                break;
+            }
+        }
+
+        if (!referenced) {
+            rs_debug("node '%s' is not referenced anymore, will be destroyed", phy_node_get_name(node));
+
+            rpl_done_node(node);
+            ip_done_node(node);
+            mac_done_node(node);
+            phy_done_node(node);
+
+            /* destroy it, once and for all !! */
+            if (!node_destroy(node)) {
+                rs_error("failed to destroy node at 0x%X", node);
+            }
+
+            /* remove it from the garbage collector's list */
+            for (ref_node_index = index; ref_node_index < rs_system->gc_count - 1; ref_node_index++) {
+                rs_system->gc_list[ref_node_index] = rs_system->gc_list[ref_node_index + 1];
+            }
+
+            rs_system->gc_count--;
+            rs_system->gc_list = realloc(rs_system->gc_list, sizeof(node_t *) * rs_system->gc_count);
+
+            /* this position is now occupied by a (possible) next node in the list */
+            index--;
+        }
+    }
+
+    g_mutex_unlock(rs_system->gc_mutex);
+}
 

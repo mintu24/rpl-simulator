@@ -26,6 +26,7 @@
 
 #define SIM_FIELD_PARENT_ARROW_COLOR            0xFF72ADFF
 #define SIM_FIELD_SIBLING_ARROW_COLOR           0xFF72ADFF
+#define SIM_FIELD_DEAD_ARROW_COLOR              0xFF808080
 
 #define SIM_FIELD_HOVER_COLOR                   0xFFFFFFFF
 #define SIM_FIELD_SELECTED_COLOR                0xFFFFFFFF
