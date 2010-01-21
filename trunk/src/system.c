@@ -299,8 +299,6 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
 
 void *garbage_collector_core(void *data)
 {
-    // todo: make rs_print recognize this thread
-
     rs_debug("garbage collector started");
 
     rs_system->gc_running = TRUE;

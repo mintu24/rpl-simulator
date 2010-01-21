@@ -6,7 +6,7 @@
 
 #include "base.h"
 
-#define NODE_LIFE_CORE_SLEEP            10
+#define NODE_LIFE_CORE_SLEEP            10000
 
 #define PHY_TRANSMIT_MODE_BLOCK         0
 #define PHY_TRANSMIT_MODE_REJECT        1
@@ -59,7 +59,7 @@ typedef struct node_schedule_t {
 node_t *                    node_create();
 bool                        node_destroy(node_t* node);
 
-bool                        node_wake(node_t* node);
+bool                        node_wake(node_t* node, bool wait);
 bool                        node_kill(node_t* node);
 
 bool                        node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);

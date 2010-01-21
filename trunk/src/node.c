@@ -96,7 +96,7 @@ bool node_destroy(node_t *node)
     return TRUE;
 }
 
-bool node_wake(node_t* node)
+bool node_wake(node_t* node, bool wait)
 {
     rs_assert(node != NULL);
 
@@ -109,7 +109,7 @@ bool node_wake(node_t* node)
 
     bool all_ok = TRUE;
 
-    GError *error;
+    GError *error = NULL;
     node->life = g_thread_create((void *(*) (void *)) node_life_core, node, TRUE, &error);
     if (node->life == NULL) {
         rs_error("g_thread_create() failed: %s", error->message);
@@ -118,8 +118,10 @@ bool node_wake(node_t* node)
 
     g_mutex_unlock(node->life_mutex);
 
-    while (!node->alive) { /* wait until the node is actually alive */
-        usleep(10);
+    if (wait && all_ok) {
+        while (!node->alive) { /* wait until the node is actually alive */
+            usleep(10);
+        }
     }
 
     return all_ok;

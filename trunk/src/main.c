@@ -27,6 +27,50 @@ static node_t *     find_node_by_thread(GThread *thread);
 
     /**** exported functions ****/
 
+void rs_open(char *filename)
+{
+    // todo: implement me
+}
+
+void rs_save(char *filename)
+{
+    // todo: implement me
+}
+
+void rs_quit()
+{
+    // todo: ask "are you sure" stupid question
+    gtk_main_quit();
+}
+
+void rs_start(char *filename)
+{
+    // todo: implement me
+
+    /** fixme test **********************/
+    node_t *a = rs_system_find_node_by_name("A");
+    node_t *b = rs_system_find_node_by_name("B");
+    node_t *c = rs_system_find_node_by_name("C");
+
+    if (a == NULL || b == NULL || c == NULL) {
+        return;
+    }
+
+    if (a->alive && b->alive)
+        rpl_send_dis(a, b);
+
+    rpl_node_add_parent(a, b);
+    rpl_node_add_sibling(a, c);
+    rpl_node_add_sibling(c, a);
+
+    /************************************/
+}
+
+void rs_stop(char *filename)
+{
+    // todo: implement me
+}
+
 node_t *rs_add_node()
 {
     char *new_name = NULL;
@@ -116,6 +160,30 @@ void rs_rem_node(node_t *node)
     }
 }
 
+void rs_wake_node(node_t *node)
+{
+    if (!node_wake(node, TRUE)) {
+        rs_error("failed to wake node '%s'", phy_node_get_name(node));
+    }
+}
+
+void rs_kill_node(node_t *node)
+{
+    if (!node_kill(node)) {
+        rs_error("failed to kill node '%s'", phy_node_get_name(node));
+    }
+}
+
+void rs_add_more_nodes()
+{
+    // todo implement me
+
+    int i;
+    for (i = 0; i < 500; i++) {
+        rs_add_node();
+    }
+}
+
 void rs_rem_all_nodes()
 {
     node_t **node_list;
@@ -131,15 +199,34 @@ void rs_rem_all_nodes()
     }
 }
 
-void rs_load_params(char *filename)
+void rs_wake_all_nodes()
 {
-    // todo: implement this
+    node_t **node_list;
+    uint16 node_count, index;
+
+    node_list = rs_system_get_node_list(&node_count);
+
+    for (index = 0; index < node_count; index++) {
+        node_t *node = node_list[index];
+        if (!node->alive && !node_wake(node, TRUE)) {
+            rs_error("failed to wake node '%s'", phy_node_get_name(node));
+        }
+    }
 }
 
-void rs_quit()
+void rs_kill_all_nodes()
 {
-    // todo: ask "are you sure" stupid question
-    gtk_main_quit();
+    node_t **node_list;
+    uint16 node_count, index;
+
+    node_list = rs_system_get_node_list(&node_count);
+
+    for (index = 0; index < node_count; index++) {
+        node_t *node = node_list[index];
+        if (node->alive && !node_kill(node)) {
+            rs_error("failed to kill node '%s'", phy_node_get_name(node));
+        }
+    }
 }
 
 

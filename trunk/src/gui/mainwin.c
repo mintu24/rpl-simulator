@@ -12,6 +12,8 @@
 #define signals_disable()       { signals_disabled = TRUE; }
 #define signals_enable()        { signals_disabled = FALSE; }
 
+// todo check for duplicate node names
+// todo add node life core sleep as a display param
 
     /**** global variables ****/
 
@@ -39,6 +41,8 @@ static GtkWidget *              params_nodes_bat_level_spin = NULL;
 static GtkWidget *              params_nodes_mains_powered_check = NULL;
 static GtkWidget *              params_nodes_mac_address_entry = NULL;
 static GtkWidget *              params_nodes_ip_address_entry = NULL;
+static GtkWidget *              params_nodes_rank_spin = NULL;
+static GtkWidget *              params_nodes_seq_num_spin = NULL;
 
 static GtkWidget *              params_display_button = NULL;
 static GtkWidget *              params_display_vbox = NULL;
@@ -57,9 +61,12 @@ static GtkWidget *              start_menu_item = NULL;
 static GtkWidget *              stop_menu_item = NULL;
 static GtkWidget *              add_menu_item = NULL;
 static GtkWidget *              rem_menu_item = NULL;
-static GtkWidget *              clear_all_menu_item = NULL;
 static GtkWidget *              wake_menu_item = NULL;
 static GtkWidget *              kill_menu_item = NULL;
+static GtkWidget *              add_all_menu_item = NULL;
+static GtkWidget *              remove_all_menu_item = NULL;
+static GtkWidget *              wake_all_menu_item = NULL;
+static GtkWidget *              kill_all_menu_item = NULL;
 static GtkWidget *              about_menu_item = NULL;
 
 static GtkWidget *              add_node_toolbar_item = NULL;
@@ -87,13 +94,16 @@ void                cb_gui_display_updated(GtkWidget *widget, gpointer data);
 static void         cb_open_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_save_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
-static void         cb_add_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_start_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_clear_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_add_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_wake_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_kill_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_add_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_remove_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_wake_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_kill_all_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_about_menu_item_activate(GtkWidget *widget, gpointer *data);
 
 static void         cb_main_window_delete();
@@ -231,6 +241,10 @@ void main_win_node_to_gui(node_t *node)
     /* ip */
     gtk_entry_set_text(GTK_ENTRY(params_nodes_ip_address_entry), ip_node_get_address(node));
 
+    /* rpl */
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), rpl_node_get_rank(node));
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), rpl_node_get_seq_num(node));
+
     signals_enable();
 }
 
@@ -359,6 +373,9 @@ static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
 
     rs_debug(NULL);
 
+    sim_field_redraw();
+    update_sensitivity();
+
     signal_leave();
 }
 
@@ -367,6 +384,9 @@ static void cb_save_menu_item_activate(GtkWidget *widget, gpointer *data)
     signal_enter();
 
     rs_debug(NULL);
+
+    sim_field_redraw();
+    update_sensitivity();
 
     signal_leave();
 }
@@ -377,6 +397,34 @@ static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data)
 
     rs_debug(NULL);
     rs_quit();
+
+    signal_leave();
+}
+
+static void cb_start_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    rs_start();
+
+    sim_field_redraw();
+    update_sensitivity();
+
+    signal_leave();
+}
+
+static void cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    rs_stop();
+
+    sim_field_redraw();
+    update_sensitivity();
 
     signal_leave();
 }
@@ -406,61 +454,8 @@ static void cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data)
     rs_rem_node(selected_node);
 
     main_win_set_selected_node(NULL);
+
     sim_field_redraw();
-
-    update_sensitivity();
-
-    signal_leave();
-}
-
-static void cb_start_menu_item_activate(GtkWidget *widget, gpointer *data)
-{
-    signal_enter();
-
-    rs_debug(NULL);
-
-    /** fixme test **********************/
-    node_t *a = rs_system_find_node_by_name("A");
-    node_t *b = rs_system_find_node_by_name("B");
-    node_t *c = rs_system_find_node_by_name("C");
-
-    if (a == NULL || b == NULL || c == NULL) {
-        signal_leave();
-        return;
-    }
-
-    if (a->alive && b->alive)
-        rpl_send_dis(a, b);
-
-    rpl_node_add_parent(a, b);
-    rpl_node_add_sibling(a, c);
-    rpl_node_add_sibling(c, a);
-
-    /************************************/
-
-    signal_leave();
-}
-
-static void cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data)
-{
-    signal_enter();
-
-    rs_debug(NULL);
-
-    signal_leave();
-}
-
-static void cb_clear_all_menu_item_activate(GtkWidget *widget, gpointer *data)
-{
-    signal_enter();
-
-    rs_debug(NULL);
-
-    rs_rem_all_nodes();
-
-    main_win_set_selected_node(NULL);
-    sim_field_redraw();
-
     update_sensitivity();
 
     signal_leave();
@@ -473,7 +468,7 @@ static void cb_wake_menu_item_activate(GtkWidget *widget, gpointer *data)
     rs_debug(NULL);
     rs_assert(selected_node != NULL);
 
-    node_wake(selected_node);
+    rs_wake_node(selected_node);
 
     update_sensitivity();
     sim_field_redraw();
@@ -488,10 +483,68 @@ static void cb_kill_menu_item_activate(GtkWidget *widget, gpointer *data)
     rs_debug(NULL);
     rs_assert(selected_node != NULL);
 
-    node_kill(selected_node);
+    rs_kill_node(selected_node);
 
     update_sensitivity();
     sim_field_redraw();
+
+    signal_leave();
+}
+
+static void cb_add_all_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    rs_add_more_nodes();
+
+    sim_field_redraw();
+    update_sensitivity();
+
+    signal_leave();
+}
+
+static void cb_remove_all_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    rs_rem_all_nodes();
+
+    main_win_set_selected_node(NULL);
+
+    sim_field_redraw();
+    update_sensitivity();
+
+    signal_leave();
+}
+
+static void cb_wake_all_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    rs_wake_all_nodes();
+
+    sim_field_redraw();
+    update_sensitivity();
+
+    signal_leave();
+}
+
+static void cb_kill_all_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(NULL);
+
+    rs_kill_all_nodes();
+
+    sim_field_redraw();
+    update_sensitivity();
 
     signal_leave();
 }
@@ -579,6 +632,8 @@ GtkWidget *create_params_widget()
     params_nodes_mains_powered_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mains_powered_check");
     params_nodes_mac_address_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mac_address_entry");
     params_nodes_ip_address_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ip_address_entry");
+    params_nodes_rank_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_rank_spin");
+    params_nodes_seq_num_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_seq_num_spin");
 
     params_display_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_button");
     params_display_vbox = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_vbox");
@@ -657,22 +712,37 @@ GtkWidget *create_menu_bar()
 
     gtk_menu_append(node_menu, gtk_separator_menu_item_new());
 
-    clear_all_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_CLEAR, NULL);
-    gtk_menu_item_set_label(GTK_MENU_ITEM(clear_all_menu_item), "_Clear All");
-    gtk_signal_connect(GTK_OBJECT(clear_all_menu_item), "activate", GTK_SIGNAL_FUNC(cb_clear_all_menu_item_activate), NULL);
-    gtk_menu_append(node_menu, clear_all_menu_item);
-
-    gtk_menu_append(node_menu, gtk_separator_menu_item_new());
-
     wake_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_APPLY, NULL);
     gtk_menu_item_set_label(GTK_MENU_ITEM(wake_menu_item), "_Wake Node");
     gtk_signal_connect(GTK_OBJECT(wake_menu_item), "activate", GTK_SIGNAL_FUNC(cb_wake_menu_item_activate), NULL);
     gtk_menu_append(node_menu, wake_menu_item);
 
     kill_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_CANCEL, NULL);
-    gtk_menu_item_set_label(GTK_MENU_ITEM(wake_menu_item), "_Kill Node");
+    gtk_menu_item_set_label(GTK_MENU_ITEM(kill_menu_item), "_Kill Node");
     gtk_signal_connect(GTK_OBJECT(kill_menu_item), "activate", GTK_SIGNAL_FUNC(cb_kill_menu_item_activate), NULL);
     gtk_menu_append(node_menu, kill_menu_item);
+
+    gtk_menu_append(node_menu, gtk_separator_menu_item_new());
+
+    add_all_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_ADD, NULL);
+    gtk_menu_item_set_label(GTK_MENU_ITEM(add_all_menu_item), "Add _More...");
+    gtk_signal_connect(GTK_OBJECT(add_all_menu_item), "activate", GTK_SIGNAL_FUNC(cb_add_all_menu_item_activate), NULL);
+    gtk_menu_append(node_menu, add_all_menu_item);
+
+    remove_all_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_CLEAR, NULL);
+    gtk_menu_item_set_label(GTK_MENU_ITEM(remove_all_menu_item), "R_emove All");
+    gtk_signal_connect(GTK_OBJECT(remove_all_menu_item), "activate", GTK_SIGNAL_FUNC(cb_remove_all_menu_item_activate), NULL);
+    gtk_menu_append(node_menu, remove_all_menu_item);
+
+    wake_all_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_APPLY, NULL);
+    gtk_menu_item_set_label(GTK_MENU_ITEM(wake_all_menu_item), "Wa_ke All");
+    gtk_signal_connect(GTK_OBJECT(wake_all_menu_item), "activate", GTK_SIGNAL_FUNC(cb_wake_all_menu_item_activate), NULL);
+    gtk_menu_append(node_menu, wake_all_menu_item);
+
+    kill_all_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_CANCEL, NULL);
+    gtk_menu_item_set_label(GTK_MENU_ITEM(kill_all_menu_item), "Ki_ll All");
+    gtk_signal_connect(GTK_OBJECT(kill_all_menu_item), "activate", GTK_SIGNAL_FUNC(cb_kill_all_menu_item_activate), NULL);
+    gtk_menu_append(node_menu, kill_all_menu_item);
 
     GtkWidget *node_menu_item = gtk_menu_item_new_with_mnemonic("_Node");
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(node_menu_item), node_menu);
@@ -809,11 +879,15 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_mains_powered_check, node_selected);
     gtk_widget_set_sensitive(params_nodes_mac_address_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_ip_address_entry, node_selected);
+    gtk_widget_set_sensitive(params_nodes_rank_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_seq_num_spin, node_selected);
 
     gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected);
     gtk_widget_set_sensitive(rem_menu_item, node_selected);
 
-    gtk_widget_set_sensitive(clear_all_menu_item, has_nodes);
+    gtk_widget_set_sensitive(remove_all_menu_item, has_nodes);
+    gtk_widget_set_sensitive(kill_all_menu_item, has_nodes);
+    gtk_widget_set_sensitive(wake_all_menu_item, has_nodes);
 
     gtk_widget_set_sensitive(wake_menu_item, node_selected && !node_alive);
     gtk_widget_set_sensitive(wake_toolbar_item, node_selected && !node_alive);
@@ -864,6 +938,10 @@ static void gui_to_node(node_t *node)
 
     /* ip */
     ip_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_ip_address_entry)));
+
+    /* rpl */
+    rpl_node_set_rank(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_rank_spin)));
+    rpl_node_set_seq_num(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin)));
 }
 
 static void gui_to_display()
