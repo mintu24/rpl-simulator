@@ -7,6 +7,8 @@
 #include "../main.h"
 #include "../system.h"
 
+// todo: node image legend
+
 #define EXPAND_COLOR(color, r, g, b, a) {   \
         r = (((color) & 0x00FF0000) >> 16) / 255.0;  \
         g = (((color) & 0x0000FF00) >> 8) / 255.0;  \
@@ -19,10 +21,9 @@
 static GdkWindow *          sim_field_window = NULL;
 static GdkGC *              sim_field_gc = NULL;
 
-static cairo_surface_t *    normal_node_images[TX_POWER_STEP_COUNT];
-static cairo_surface_t *    hover_node_images[TX_POWER_STEP_COUNT];
-static cairo_surface_t *    selected_node_images[TX_POWER_STEP_COUNT];
-static cairo_surface_t *    hover_selected_node_images[TX_POWER_STEP_COUNT];
+static char *               node_colors[SIM_FIELD_NODE_COLOR_COUNT] = {"blue", "green", "red", "magenta", "brown", "gray"};
+static cairo_surface_t *    node_round_images[SIM_FIELD_NODE_COLOR_COUNT][SIM_FIELD_TX_POWER_STEP_COUNT];
+static cairo_surface_t *    node_square_images[SIM_FIELD_NODE_COLOR_COUNT][SIM_FIELD_TX_POWER_STEP_COUNT];
 
 static GtkWidget *          sim_field_drawing_area = NULL;
 static GtkWidget *          sim_field_vruler = NULL;
@@ -40,12 +41,15 @@ static gboolean             cb_sim_field_drawing_area_button_release(GtkDrawingA
 static gboolean             cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, GdkEventMotion *event, gpointer data);
 static gboolean             cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *event, gpointer data);
 
-static void                 draw_arrow_line(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color);
-static void                 draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_color, uint32 bg_color);
-static void                 draw_node(node_t *node, cairo_t *cr, float scale_x, float scale_y);
 static gboolean             draw_sim_field(void *data);
+static void                 draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y);
+static void                 draw_parent_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y);
+static void                 draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, bool draw_line);
 
-static node_t *             find_node_under_coords(gint x, gint y, gint pixel_width, gint pixel_height, float scale_x, float scale_y);
+static void                 draw_arrow(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color, bool draw_line, bool dashed);
+static void                 draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_color, uint32 bg_color);
+
+static node_t *             find_node_under_coords(gint x, gint y, float scale_x, float scale_y);
 
 
     /**** exported functions ****/
@@ -54,42 +58,41 @@ GtkWidget *sim_field_create()
 {
     /* load node images */
     char filename[256];
-    int power_step;
+    int power_step, color_index;
 
-    for (power_step = 0; power_step < TX_POWER_STEP_COUNT; power_step++) {
-        snprintf(filename, sizeof(filename), "%s/node-normal-%d.png", RES_DIR, power_step * (100 / (TX_POWER_STEP_COUNT - 1)));
-        cairo_surface_t *image = cairo_image_surface_create_from_png(filename);
-        if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
-            rs_error("failed to load png image '%s': %s", filename, cairo_status_to_string(cairo_surface_status(image)));
-            return NULL;
-        }
-        normal_node_images[power_step] = image;
+    for (power_step = 0; power_step < SIM_FIELD_TX_POWER_STEP_COUNT; power_step++) {
+        for (color_index = 0; color_index < SIM_FIELD_NODE_COLOR_COUNT; color_index++) {
+            /* round images */
+            snprintf(filename, sizeof(filename),
+                    "%s/node-round-%s-%d.png",
+                    RES_DIR,
+                    node_colors[color_index],
+                    power_step * (100 / (SIM_FIELD_TX_POWER_STEP_COUNT - 1)));
 
-        snprintf(filename, sizeof(filename), "%s/node-hover-%d.png", RES_DIR, power_step * (100 / (TX_POWER_STEP_COUNT - 1)));
-        image = cairo_image_surface_create_from_png(filename);
-        if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
-            rs_error("failed to load png image '%s': %s", filename, cairo_status_to_string(cairo_surface_status(image)));
-            return NULL;
-        }
-        hover_node_images[power_step] = image;
+            cairo_surface_t *image = cairo_image_surface_create_from_png(filename);
+            if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
+                rs_error("failed to load png image '%s': %s", filename, cairo_status_to_string(cairo_surface_status(image)));
+                return NULL;
+            }
 
-        snprintf(filename, sizeof(filename), "%s/node-selected-%d.png", RES_DIR, power_step * (100 / (TX_POWER_STEP_COUNT - 1)));
-        image = cairo_image_surface_create_from_png(filename);
-        if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
-            rs_error("failed to load png image '%s': %s", filename, cairo_status_to_string(cairo_surface_status(image)));
-            return NULL;
-        }
-        selected_node_images[power_step] = image;
+            node_round_images[color_index][power_step] = image;
 
-        snprintf(filename, sizeof(filename), "%s/node-hover-selected-%d.png", RES_DIR, power_step * (100 / (TX_POWER_STEP_COUNT - 1)));
-        image = cairo_image_surface_create_from_png(filename);
-        if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
-            rs_error("failed to load png image '%s': %s", filename, cairo_status_to_string(cairo_surface_status(image)));
-            return NULL;
+            /* square images */
+            snprintf(filename, sizeof(filename),
+                    "%s/node-square-%s-%d.png",
+                    RES_DIR,
+                    node_colors[color_index],
+                    power_step * (100 / (SIM_FIELD_TX_POWER_STEP_COUNT - 1)));
+
+            image = cairo_image_surface_create_from_png(filename);
+            if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
+                rs_error("failed to load png image '%s': %s", filename, cairo_status_to_string(cairo_surface_status(image)));
+                return NULL;
+            }
+
+            node_square_images[color_index][power_step] = image;
         }
-        hover_selected_node_images[power_step] = image;
     }
-
 
     GtkWidget *table = gtk_table_new(2, 2, FALSE);
 
@@ -116,12 +119,6 @@ GtkWidget *sim_field_create()
 void sim_field_redraw()
 {
     rs_assert(rs_system != NULL);
-
-    coord_t width = rs_system_get_width();
-    coord_t height = rs_system_get_height();
-
-    gtk_ruler_set_range(GTK_RULER(sim_field_hruler), 0, width, width / 2, width);
-    gtk_ruler_set_range(GTK_RULER(sim_field_vruler), 0, height, height / 2, height);
 
     /* assure thread safety, performing all the drawing ops in the GUI thread */
     gdk_threads_add_idle(draw_sim_field, NULL);
@@ -180,7 +177,7 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
     float scale_x = pixel_width / system_width;
     float scale_y = pixel_height / system_height;
 
-    node_t *node = find_node_under_coords(event->x, event->y, pixel_width, pixel_height, scale_x, scale_y);
+    node_t *node = find_node_under_coords(event->x, event->y, scale_x, scale_y);
     if (node == NULL && moving_node != NULL) {  /* if we're moving a node but the mouse went out of its area... */
         node = moving_node;
     }
@@ -198,8 +195,6 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
         gdk_cursor_destroy(cursor);
     }
 
-    sim_field_redraw();
-
     coord_t current_x = event->x / scale_x;
     coord_t current_y = event->y / scale_y;
 
@@ -207,8 +202,9 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
         phy_node_set_xy(moving_node, current_x, current_y);
 
         main_win_node_to_gui(moving_node);
-        sim_field_redraw();
     }
+
+    draw_sim_field(NULL);
 
     gtk_ruler_set_range(GTK_RULER(sim_field_hruler), 0, system_width, current_x, system_width);
     gtk_ruler_set_range(GTK_RULER(sim_field_vruler), 0, system_height, current_y, system_height);
@@ -245,7 +241,219 @@ static gboolean cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEven
     return TRUE;
 }
 
-static void draw_arrow_line(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color)
+static gboolean draw_sim_field(void *data)
+{
+    if (sim_field_drawing_area == NULL || sim_field_drawing_area->window == NULL) {
+        return FALSE;
+    }
+
+    if (sim_field_window == NULL) {
+        sim_field_window = sim_field_drawing_area->window;
+        sim_field_gc = sim_field_drawing_area->style->fg_gc[GTK_STATE_NORMAL];
+    }
+
+    gint pixel_width, pixel_height;
+    gdk_drawable_get_size(sim_field_window, &pixel_width, &pixel_height);
+
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, pixel_width, pixel_height);
+    cairo_t *cr = cairo_create(surface);
+
+    /* background */
+    double r, g, b, a;
+    EXPAND_COLOR(SIM_FIELD_BG_COLOR, r, g, b, a);
+
+
+    cairo_set_source_rgba(cr, r, g, b, a);
+    cairo_rectangle(cr, 0, 0, pixel_width, pixel_height);
+    cairo_fill(cr);
+
+    /* nodes */
+    uint16 node_count, parent_count, sibling_count, node_index, parent_index, sibling_index;
+    node_t **node_list, **parent_list, **sibling_list;
+    node_list = rs_system_get_node_list(&node_count);
+
+    float scale_x = pixel_width / rs_system_get_width();
+    float scale_y = pixel_height / rs_system_get_height();
+
+    int pixel_x, start_pixel_x, end_pixel_x;
+    int pixel_y, start_pixel_y, end_pixel_y;
+
+    for (node_index = 0; node_index < node_count; node_index++) {
+        node_t *node = node_list[node_index];
+
+        pixel_x = phy_node_get_x(node) * scale_x;
+        pixel_y = phy_node_get_y(node) * scale_y;
+
+        draw_node(node, cr, pixel_x, pixel_y);
+    }
+
+    /* arrows */
+    if (main_win_get_display_params()->show_parent_arrows || main_win_get_display_params()->show_sibling_arrows) {
+        for (node_index = 0; node_index < node_count; node_index++) {
+            node_t *node = node_list[node_index];
+
+            start_pixel_x = phy_node_get_x(node) * scale_x;
+            start_pixel_y = phy_node_get_y(node) * scale_y;
+
+            if (main_win_get_display_params()->show_parent_arrows) {
+                parent_list = rpl_node_get_parent_list(node, &parent_count);
+
+                for (parent_index = 0; parent_index < parent_count; parent_index++) {
+                    node_t *parent = parent_list[parent_index];
+
+                    end_pixel_x = phy_node_get_x(parent) * scale_x;
+                    end_pixel_y = phy_node_get_y(parent) * scale_y;
+
+                    draw_parent_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y);
+                }
+            }
+
+            if (main_win_get_display_params()->show_sibling_arrows) {
+                sibling_list = rpl_node_get_sibling_list(node, &sibling_count);
+
+                for (sibling_index = 0; sibling_index < sibling_count; sibling_index++) {
+                    node_t *sibling = sibling_list[sibling_index];
+
+                    end_pixel_x = phy_node_get_x(sibling) * scale_x;
+                    end_pixel_y = phy_node_get_y(sibling) * scale_y;
+
+                    /* in case of mutual siblingness, only the "lowest" node draws the line */
+                    if (node < sibling) {
+                        draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, TRUE);
+                    }
+                    else {
+                        if (rpl_node_has_sibling(sibling, node)) {
+                            draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, FALSE);
+                        }
+                        else {
+                            draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, TRUE);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /* decorate the hovered node */
+    if (hover_node != NULL) {
+        pixel_x = phy_node_get_x(hover_node) * scale_x;
+        pixel_y = phy_node_get_y(hover_node) * scale_y;
+
+        draw_arrow(cr,
+                pixel_x - SIM_FIELD_NODE_RADIUS * 4, pixel_y, pixel_x - SIM_FIELD_NODE_RADIUS * 1, pixel_y, 0,
+                SIM_FIELD_HOVER_COLOR, TRUE, TRUE);
+        draw_arrow(cr,
+                pixel_x, pixel_y - SIM_FIELD_NODE_RADIUS * 4, pixel_x, pixel_y - SIM_FIELD_NODE_RADIUS * 1, 0,
+                SIM_FIELD_HOVER_COLOR, TRUE, TRUE);
+        draw_arrow(cr,
+                pixel_x + SIM_FIELD_NODE_RADIUS * 4, pixel_y, pixel_x + SIM_FIELD_NODE_RADIUS * 1, pixel_y, 0,
+                SIM_FIELD_HOVER_COLOR, TRUE, TRUE);
+        draw_arrow(cr,
+                pixel_x, pixel_y + SIM_FIELD_NODE_RADIUS * 4, pixel_x, pixel_y + SIM_FIELD_NODE_RADIUS * 1, 0,
+                SIM_FIELD_HOVER_COLOR, TRUE, TRUE);
+    }
+
+    /* decorate the selected node */
+    node_t *selected_node = main_win_get_selected_node();
+    if (selected_node != NULL) {
+        pixel_x = phy_node_get_x(selected_node) * scale_x;
+        pixel_y = phy_node_get_y(selected_node) * scale_y;
+
+        double r, g, b, a;
+        EXPAND_COLOR(SIM_FIELD_SELECTED_COLOR, r, g, b, a);
+
+        static double dashes[] = {5.0, 5.0};
+        static int len = sizeof(dashes) / sizeof(dashes[0]);
+
+        cairo_set_dash(cr, dashes, len, 0.0);
+        cairo_set_source_rgba(cr, r, g, b, a);
+        cairo_set_line_width(cr, 2.0);
+
+        cairo_move_to(cr, pixel_x + SIM_FIELD_NODE_RADIUS * 2, pixel_y);
+        cairo_arc(cr, pixel_x, pixel_y, SIM_FIELD_NODE_RADIUS * 2, 0, M_PI * 2);
+        cairo_stroke(cr);
+    }
+
+    /* do the actual double-buffered paint */
+    cairo_t *sim_field_cr = gdk_cairo_create(sim_field_window);
+    cairo_set_source_surface(sim_field_cr, surface, 0, 0);
+    cairo_paint(sim_field_cr);
+    cairo_destroy(sim_field_cr);
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+
+    return FALSE;
+}
+
+static void draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y)
+{
+    percent_t tx_power = phy_node_get_tx_power(node);
+    uint8 sequence_number = rpl_node_get_seq_num(node);
+
+    cairo_surface_t **images;
+
+    /* node itself */
+    if (!main_win_get_display_params()->show_node_tx_power) {
+        tx_power = 0.0;
+    }
+
+    if (node->alive) {
+        if (RPL_NODE_IS_ROOT(node)) {
+            images = node_square_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
+        }
+        else {
+            images = node_round_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
+        }
+    }
+    else {
+        images = node_round_images[SIM_FIELD_NODE_COLOR_COUNT - 1];
+    }
+
+    cairo_surface_t *image = images[(int) round(tx_power * 10)];
+    int image_width = cairo_image_surface_get_width(image);
+    int image_height = cairo_image_surface_get_height(image);
+
+    cairo_set_source_surface(cr, image, pixel_x - image_width / 2, pixel_y - image_height / 2);
+    cairo_paint(cr);
+
+    /* node name */
+    if (main_win_get_display_params()->show_node_names) {
+        draw_text(cr, phy_node_get_name(node),
+                pixel_x, pixel_y,
+                SIM_FIELD_TEXT_NAME_FG_COLOR,
+                strlen(phy_node_get_name(node)) > 2 ? SIM_FIELD_TEXT_BG_COLOR : 0);
+    }
+
+    /* node address */
+    if (main_win_get_display_params()->show_node_addresses) {
+        draw_text(cr, ip_node_get_address(node),
+                pixel_x, pixel_y + SIM_FIELD_NODE_RADIUS * 2,
+                SIM_FIELD_TEXT_ADDRESS_FG_COLOR, SIM_FIELD_TEXT_BG_COLOR);
+    }
+
+    /* node rank */
+    if (main_win_get_display_params()->show_node_ranks) {
+        char rank_str[256];
+        snprintf(rank_str, sizeof(rank_str), "%d", rpl_node_get_rank(node));
+
+        draw_text(cr, rank_str,
+                pixel_x + SIM_FIELD_NODE_RADIUS * 3, pixel_y,
+                SIM_FIELD_TEXT_RANK_FG_COLOR, SIM_FIELD_TEXT_BG_COLOR);
+    }
+}
+
+static void draw_parent_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y)
+{
+    draw_arrow(cr, start_pixel_x, start_pixel_y, stop_pixel_x, stop_pixel_y, SIM_FIELD_NODE_RADIUS, SIM_FIELD_PARENT_ARROW_COLOR, TRUE, FALSE);
+}
+
+static void draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, bool draw_line)
+{
+    draw_arrow(cr, start_pixel_x, start_pixel_y, stop_pixel_x, stop_pixel_y, SIM_FIELD_NODE_RADIUS, SIM_FIELD_SIBLING_ARROW_COLOR, draw_line, TRUE);
+}
+
+static void draw_arrow(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color, bool draw_line, bool dashed)
 {
     const double arrow_length = 12;
     const double arrow_angle = M_PI / 10;
@@ -261,7 +469,11 @@ static void draw_arrow_line(cairo_t *cr, double start_x, double start_y, double 
     double xd = start_x - radius * cos(angle);
     double yd = start_y - radius * sin(angle);
 
-    // todo use color
+    double r, g, b, a;
+    EXPAND_COLOR(color, r, g, b, a);
+
+    cairo_set_source_rgba(cr, r, g, b, a);
+    cairo_set_line_width(cr, 1.0);
 
     cairo_move_to(cr, xb, yb);
     cairo_line_to(cr, xa, ya);
@@ -269,8 +481,17 @@ static void draw_arrow_line(cairo_t *cr, double start_x, double start_y, double 
 
     cairo_fill(cr);
 
-    cairo_move_to(cr, xa, ya);
-    cairo_line_to(cr, xd, yd);
+    if (draw_line) {
+        if (dashed) {
+            static double dashes[] = {5.0, 5.0};
+            static int len = sizeof(dashes) / sizeof(dashes[0]);
+
+            cairo_set_dash(cr, dashes, len, 0.0);
+        }
+
+        cairo_move_to(cr, xa, ya);
+        cairo_line_to(cr, xd, yd);
+    }
 
     cairo_stroke(cr);
 }
@@ -281,8 +502,8 @@ static void draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_col
     cairo_text_extents_t te;
     double tx, ty, tw, th;
 
-    cairo_select_font_face(cr, TEXT_FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-    cairo_set_font_size(cr, TEXT_SIZE);
+    cairo_select_font_face(cr, SIM_FIELD_TEXT_FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, SIM_FIELD_TEXT_SIZE);
     cairo_text_extents(cr, text, &te);
     tx = x - te.width / 2;
     ty = y - te.height / 2;
@@ -290,6 +511,8 @@ static void draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_col
     th = te.height;
 
     if (bg_color != 0) {
+        cairo_set_dash(cr, NULL, 0, 0);
+
         EXPAND_COLOR(bg_color, r, g, b, a);
         cairo_set_source_rgba(cr, r, g, b, a);
         cairo_rectangle(cr, tx - 2, ty - 2, tw + 5, th + 5);
@@ -310,134 +533,27 @@ static void draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_col
     cairo_show_text(cr, text);
 }
 
-static void draw_node(node_t *node, cairo_t *cr, float scale_x, float scale_y)
-{
-    percent_t tx_power = phy_node_get_tx_power(node);
-    coord_t x = phy_node_get_x(node);
-    coord_t y = phy_node_get_y(node);
-
-    int pixel_x = x * scale_x;
-    int pixel_y = y * scale_y;
-
-    uint32 bg_color;
-    cairo_surface_t **images;
-
-    if (node == main_win_get_selected_node()) {
-        if (node == hover_node) {
-            bg_color = TEXT_HOVER_SELECTED_BG_COLOR;
-            images = hover_selected_node_images;
-        }
-        else {
-            bg_color = TEXT_SELECTED_BG_COLOR;
-            images = selected_node_images;
-        }
-    }
-    else {
-        if (node == hover_node) {
-            bg_color = TEXT_HOVER_BG_COLOR;
-            images = hover_node_images;
-        }
-        else {
-            bg_color = TEXT_NORMAL_BG_COLOR;
-            images = normal_node_images;
-        }
-    }
-
-    /* node itself */
-    if (!main_win_get_display_params()->show_node_tx_power) {
-        tx_power = 0.0;
-    }
-
-    cairo_surface_t *image = images[(int) round(tx_power * 10)];
-
-    int image_width = cairo_image_surface_get_width(image);
-    int image_height = cairo_image_surface_get_height(image);
-
-    cairo_set_source_surface(cr, image, pixel_x - image_width / 2, pixel_y - image_height / 2);
-    cairo_paint(cr);
-
-    /* node name */
-    if (main_win_get_display_params()->show_node_names) {
-        draw_text(cr, phy_node_get_name(node), pixel_x, pixel_y, TEXT_NAME_FG_COLOR,
-                strlen(phy_node_get_name(node)) > 2 ? bg_color : 0);
-    }
-
-    /* node address */
-    if (main_win_get_display_params()->show_node_addresses) {
-        draw_text(cr, ip_node_get_address(node), pixel_x, pixel_y + NODE_RADIUS * 2, TEXT_ADDRESS_FG_COLOR, bg_color);
-    }
-
-    //cairo_set_line_width(cr, 1);
-    //cairo_set_source_rgba(cr, 0, 0, 0, 0.5);
-    //draw_arrow_line(cr, 200, 200, x, y, NODE_RADIUS);
-}
-
-static gboolean draw_sim_field(void *data)
-{
-    if (sim_field_drawing_area == NULL || sim_field_drawing_area->window == NULL) {
-        return FALSE;
-    }
-
-    if (sim_field_window == NULL) {
-        sim_field_window = sim_field_drawing_area->window;
-        sim_field_gc = sim_field_drawing_area->style->fg_gc[GTK_STATE_NORMAL];
-    }
-
-    gint pixel_width, pixel_height;
-    gdk_drawable_get_size(sim_field_window, &pixel_width, &pixel_height);
-
-    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, pixel_width, pixel_height);
-    cairo_t *cr = cairo_create(surface);
-
-    /* background */
-    cairo_set_source_rgb(cr, 30 / 255.0, 30 / 255.0, 30 / 255.0);
-    cairo_rectangle(cr, 0, 0, pixel_width, pixel_height);
-    cairo_fill(cr);
-
-    /* nodes */
-    uint16 node_count, index;
-    node_t **node_list;
-    node_list = rs_system_get_node_list(&node_count);
-
-    float scale_x = pixel_width / rs_system_get_width();
-    float scale_y = pixel_height / rs_system_get_height();
-
-    for (index = 0; index < node_count; index++) {
-        node_t *node = node_list[index];
-        draw_node(node, cr, scale_x, scale_y);
-    }
-
-    /* do the actual double-buffered paint */
-    cairo_t *sim_field_cr = gdk_cairo_create(sim_field_window);
-    cairo_set_source_surface(sim_field_cr, surface, 0, 0);
-    cairo_paint(sim_field_cr);
-    cairo_destroy(sim_field_cr);
-
-    cairo_destroy(cr);
-    cairo_surface_destroy(surface);
-
-    return FALSE;
-}
-
-static node_t *find_node_under_coords(gint x, gint y, gint pixel_width, gint pixel_height, float scale_x, float scale_y)
+static node_t *find_node_under_coords(gint x, gint y, float scale_x, float scale_y)
 {
     uint16 node_count;
     int32 index;
     node_t **node_list;
     node_list = rs_system_get_node_list(&node_count);
 
-    uint16 pixel_x, pixel_y;
+    coord_t system_x = x / scale_x;
+    coord_t system_y = y / scale_y;
+    coord_t system_radius = SIM_FIELD_NODE_RADIUS * 2 / scale_y ;
 
     for (index = node_count - 1; index >= 0; index--) {
         node_t *node = node_list[index];
 
-        pixel_x = phy_node_get_x(node) * scale_x;
-        pixel_y = phy_node_get_y(node) * scale_y;
+        coord_t node_x = phy_node_get_x(node);
+        coord_t node_y = phy_node_get_y(node);
 
-        if ((x > pixel_x - NODE_RADIUS) &&
-            (x < pixel_x + NODE_RADIUS) &&
-            (y > pixel_y - NODE_RADIUS) &&
-            (y < pixel_y + NODE_RADIUS)) {
+        if ((system_x > node_x - system_radius) &&
+            (system_x < node_x + system_radius) &&
+            (system_y > node_y - system_radius) &&
+            (system_y < node_y + system_radius)) {
 
             return node;
         }

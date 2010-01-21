@@ -102,6 +102,11 @@ void rs_rem_node(node_t *node)
 {
     rs_assert(node != NULL);
 
+    rpl_done_node(node);
+    ip_done_node(node);
+    mac_done_node(node);
+    phy_done_node(node);
+
     if (!rs_system_remove_node(node)) {
         rs_error("failed to remove node '%s' from the system", phy_node_get_name(node));
         return;

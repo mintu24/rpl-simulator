@@ -52,6 +52,7 @@ ip_node_info_t *    ip_node_info_create(char *address);
 bool                ip_node_info_destroy(ip_node_info_t *node_info);
 
 bool                ip_init_node(node_t *node, ip_node_info_t *node_info);
+void                ip_done_node(node_t *node);
 
 char *              ip_node_get_address(node_t *node);
 void                ip_node_set_address(node_t *node, const char *address);

@@ -91,22 +91,6 @@ bool node_destroy(node_t *node)
     if (node->pdu_mutex)
         g_mutex_free(node->pdu_mutex);
 
-    if (node->phy_info != NULL) {
-        phy_node_info_destroy(node->phy_info);
-    }
-
-    if (node->mac_info != NULL) {
-        mac_node_info_destroy(node->mac_info);
-    }
-
-    if (node->ip_info != NULL) {
-        ip_node_info_destroy(node->ip_info);
-    }
-
-    if (node->rpl_info != NULL) {
-        rpl_node_info_destroy(node->rpl_info);
-    }
-
     free(node);
 
     return TRUE;

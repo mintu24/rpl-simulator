@@ -35,6 +35,7 @@ phy_node_info_t *       phy_node_info_create(char *name, coord_t cx, coord_t cy)
 bool                    phy_node_info_destroy(phy_node_info_t *node_info);
 
 bool                    phy_init_node(node_t *node, phy_node_info_t *node_info);
+void                    phy_done_node(node_t *node);
 
 char *                  phy_node_get_name(node_t *node);
 void                    phy_node_set_name(node_t *node, const char *name);

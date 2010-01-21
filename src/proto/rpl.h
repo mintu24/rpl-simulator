@@ -5,17 +5,24 @@
 #include "../base.h"
 #include "../node.h"
 
-#define ICMP_TYPE_RPL                   0x9B
+#define ICMP_TYPE_RPL                       0x9B
 
-#define ICMP_RPL_CODE_DIS               0x01
-#define ICMP_RPL_CODE_DIO               0x02
-#define ICMP_RPL_CODE_DAO               0x04
+#define ICMP_RPL_CODE_DIS                   0x01
+#define ICMP_RPL_CODE_DIO                   0x02
+#define ICMP_RPL_CODE_DAO                   0x04
 
 #define RPL_DIO_SUBOPTION_TYPE_DAG_CONFIG   0x04
+
+#define RPL_RANK_ROOT                       1
+
+#define RPL_NODE_IS_ROOT(node)              (rpl_node_get_rank(node) == RPL_RANK_ROOT)
 
 
     /* info that a node supporting RPL should store */
 typedef struct rpl_node_info_t {
+
+    uint8               rank;
+    uint8               seq_num;
 
     node_t **           parent_list;
     uint16              parent_count;
@@ -95,6 +102,13 @@ rpl_node_info_t *   rpl_node_info_create();
 bool                rpl_node_info_destroy(rpl_node_info_t *node_info);
 
 bool                rpl_init_node(node_t *node, rpl_node_info_t *node_info);
+void                rpl_done_node(node_t *node);
+
+uint8               rpl_node_get_rank(node_t *node);
+void                rpl_node_set_rank(node_t *node, uint8 rank);
+
+uint8               rpl_node_get_seq_num(node_t *node);
+void                rpl_node_set_seq_num(node_t *node, uint8 seq_num);
 
 node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
 bool                rpl_node_add_parent(node_t *node, node_t *parent);
