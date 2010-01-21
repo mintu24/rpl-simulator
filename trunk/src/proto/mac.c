@@ -95,6 +95,15 @@ bool mac_init_node(node_t *node, mac_node_info_t *node_info)
     return TRUE;
 }
 
+void mac_done_node(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    if (node->mac_info != NULL) {
+        mac_node_info_destroy(node->mac_info);
+    }
+}
+
 char *mac_node_get_address(node_t *node)
 {
     rs_assert(node != NULL);
@@ -106,10 +115,14 @@ void mac_node_set_address(node_t *node, const char *address)
 {
     rs_assert(node != NULL);
 
+    g_mutex_lock(node->proto_info_mutex);
+
     if (node->mac_info->address != NULL)
         free(node->mac_info->address);
 
     node->mac_info->address = strdup(address);
+
+    g_mutex_unlock(node->proto_info_mutex);
 }
 
 bool mac_send(node_t *src_node, node_t *dst_node, uint16 type, void *sdu)

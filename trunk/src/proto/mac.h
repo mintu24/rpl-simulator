@@ -33,6 +33,7 @@ mac_node_info_t *       mac_node_info_create(char *address);
 bool                    mac_node_info_destroy(mac_node_info_t *node_info);
 
 bool                    mac_init_node(node_t *node, mac_node_info_t *node_info);
+void                    mac_done_node(node_t *node);
 
 char *                  mac_node_get_address(node_t *node);
 void                    mac_node_set_address(node_t *node, const char *address);

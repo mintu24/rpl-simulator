@@ -168,6 +168,15 @@ bool ip_init_node(node_t *node, ip_node_info_t *node_info)
     return TRUE;
 }
 
+void ip_done_node(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    if (node->ip_info != NULL) {
+        ip_node_info_destroy(node->ip_info);
+    }
+}
+
 char *ip_node_get_address(node_t *node)
 {
     rs_assert(node != NULL);
@@ -179,10 +188,14 @@ void ip_node_set_address(node_t *node, const char *address)
 {
     rs_assert(node != NULL);
 
+    g_mutex_lock(node->proto_info_mutex);
+
     if (node->ip_info->address != NULL)
         free(node->ip_info->address);
 
     node->ip_info->address = strdup(address);
+
+    g_mutex_unlock(node->proto_info_mutex);
 }
 
 node_t **ip_node_get_neighbor_list(node_t *node, uint16 *neighbor_count)

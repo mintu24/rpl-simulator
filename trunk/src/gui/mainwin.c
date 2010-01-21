@@ -45,6 +45,9 @@ static GtkWidget *              params_display_vbox = NULL;
 static GtkWidget *              params_display_show_node_names_check = NULL;
 static GtkWidget *              params_display_show_node_addresses_check = NULL;
 static GtkWidget *              params_display_show_node_tx_power_check = NULL;
+static GtkWidget *              params_display_show_node_ranks_check = NULL;
+static GtkWidget *              params_display_show_parent_arrows_check = NULL;
+static GtkWidget *              params_display_show_sibling_arrows_check = NULL;
 
     /* other widgets */
 static GtkWidget *              open_menu_item = NULL;
@@ -112,6 +115,9 @@ void main_win_init()
     display_params->show_node_names = TRUE;
     display_params->show_node_addresses = TRUE;
     display_params->show_node_tx_power = TRUE;
+    display_params->show_node_ranks = TRUE;
+    display_params->show_parent_arrows = TRUE;
+    display_params->show_sibling_arrows = TRUE;
 
     gtk_builder = gtk_builder_new();
 
@@ -229,6 +235,9 @@ void main_win_display_to_gui()
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_names_check), display_params->show_node_names);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_addresses_check), display_params->show_node_addresses);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_tx_power_check), display_params->show_node_tx_power);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_ranks_check), display_params->show_node_ranks);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_parent_arrows_check), display_params->show_parent_arrows);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_sibling_arrows_check), display_params->show_sibling_arrows);
 
     signals_enable();
 }
@@ -375,8 +384,9 @@ static void cb_start_menu_item_activate(GtkWidget *widget, gpointer *data)
     /** fixme test **********************/
     node_t *a = rs_system_find_node_by_name("A");
     node_t *b = rs_system_find_node_by_name("B");
+    node_t *c = rs_system_find_node_by_name("C");
 
-    if (a == NULL || b == NULL) {
+    if (a == NULL || b == NULL || c == NULL) {
         signal_leave();
         return;
     }
@@ -387,7 +397,14 @@ static void cb_start_menu_item_activate(GtkWidget *widget, gpointer *data)
     if (!b->alive)
         node_start(b);
 
+    if (!c->alive)
+        node_start(c);
+
     rpl_send_dis(a, b);
+
+    rpl_node_add_parent(a, b);
+    rpl_node_add_sibling(a, c);
+    rpl_node_add_sibling(c, a);
 
     /************************************/
 
@@ -540,6 +557,9 @@ GtkWidget *create_params_widget()
     params_display_show_node_names_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_names_check");
     params_display_show_node_addresses_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_addresses_check");
     params_display_show_node_tx_power_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_tx_power_check");
+    params_display_show_node_ranks_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_ranks_check");
+    params_display_show_parent_arrows_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_parent_arrows_check");
+    params_display_show_sibling_arrows_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_sibling_arrows_check");
 
     return scrolled_window;
 }
@@ -787,5 +807,8 @@ static void gui_to_display()
     display_params->show_node_names = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_names_check));
     display_params->show_node_addresses = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_addresses_check));
     display_params->show_node_tx_power = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_tx_power_check));
+    display_params->show_node_ranks = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_ranks_check));
+    display_params->show_parent_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_parent_arrows_check));
+    display_params->show_sibling_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_sibling_arrows_check));
 }
 

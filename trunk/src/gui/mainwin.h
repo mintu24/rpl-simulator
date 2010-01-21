@@ -22,6 +22,9 @@ typedef struct display_params_t {
     bool            show_node_names;
     bool            show_node_addresses;
     bool            show_node_tx_power;
+    bool            show_node_ranks;
+    bool            show_parent_arrows;
+    bool            show_sibling_arrows;
 
 } display_params_t;
 

@@ -165,6 +165,8 @@ rpl_node_info_t *rpl_node_info_create()
 {
     rpl_node_info_t *node_info = malloc(sizeof(rpl_node_info_t));
 
+    node_info->rank = rand() % 2;   // todo make this always RPL_RANK_ROOT
+    node_info->seq_num = rand() % 5;   // todo make this always 0 ?
     node_info->parent_list = NULL;
     node_info->parent_count = 0;
     node_info->sibling_list = NULL;
@@ -195,6 +197,43 @@ bool rpl_init_node(node_t *node, rpl_node_info_t *node_info)
     node->rpl_info = node_info;
 
     return TRUE;
+}
+
+void rpl_done_node(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    if (node->rpl_info != NULL) {
+        rpl_node_info_destroy(node->rpl_info);
+    }
+}
+
+uint8 rpl_node_get_rank(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->rpl_info->rank;
+}
+
+void rpl_node_set_rank(node_t *node, uint8 rank)
+{
+    rs_assert(node != NULL);
+
+    node->rpl_info->rank = rank;
+}
+
+uint8 rpl_node_get_seq_num(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->rpl_info->seq_num;
+}
+
+void rpl_node_set_seq_num(node_t *node, uint8 seq_num)
+{
+    rs_assert(node != NULL);
+
+    node->rpl_info->seq_num = seq_num;
 }
 
 node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count)

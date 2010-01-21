@@ -82,6 +82,15 @@ bool phy_init_node(node_t *node, phy_node_info_t *node_info)
     return TRUE;
 }
 
+void phy_done_node(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    if (node->phy_info != NULL) {
+        phy_node_info_destroy(node->phy_info);
+    }
+}
+
 char *phy_node_get_name(node_t *node)
 {
     rs_assert(node != NULL);
