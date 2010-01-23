@@ -16,8 +16,8 @@
 #define DEFAULT_SYS_HEIGHT              100
 
 #define DEFAULT_NODE_NAME               "A"
-#define DEFAULT_NODE_MAC_ADDRESS        "000000000001"
-#define DEFAULT_NODE_IP_ADDRESS         "FF02::0001"
+#define DEFAULT_NODE_MAC_ADDRESS        "0001"
+#define DEFAULT_NODE_IP_ADDRESS         "AA01"
 
 #define GARBAGE_COLLECTOR_INTERVAL      2000000
 
