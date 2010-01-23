@@ -43,25 +43,39 @@ void rs_quit()
     gtk_main_quit();
 }
 
-void rs_start(char *filename)
+void rs_start()
 {
     // todo: implement me
 
     /** fixme test **********************/
-    node_t *a = rs_system_find_node_by_name("A");
-    node_t *b = rs_system_find_node_by_name("B");
-    node_t *c = rs_system_find_node_by_name("C");
-
-    if (a == NULL || b == NULL || c == NULL) {
-        return;
-    }
-
-    if (a->alive && b->alive)
-        rpl_send_dis(a, b);
-
-    rpl_node_add_parent(a, b);
-    rpl_node_add_sibling(a, c);
-    rpl_node_add_sibling(c, a);
+//    rs_add_node();
+//    rs_add_node();
+//    rs_add_node();
+//
+//    rs_wake_all_nodes();
+//
+//    node_t *a = rs_system_find_node_by_name("A");
+//    node_t *b = rs_system_find_node_by_name("B");
+//    node_t *c = rs_system_find_node_by_name("C");
+//
+//    if (a == NULL || b == NULL || c == NULL) {
+//        return;
+//    }
+//
+//    rpl_node_add_parent(a, b);
+//    rpl_node_add_parent(a, c);
+//    rpl_node_set_pref_parent(a, b);
+//
+//    rpl_node_add_sibling(b, c);
+//    rpl_node_add_sibling(c, b);
+//
+//    ip_node_add_route(a, 0, "0000", 0, b, FALSE);
+//    ip_node_add_route(b, 0, "0000", 0, a, FALSE);
+//
+//    if (a->alive && b->alive && c->alive)
+//        rpl_send_dis(a, c);
+//
+//    sim_field_redraw();
 
     /************************************/
 }
@@ -399,6 +413,9 @@ static node_t *create_node(char *name, char *mac_address, char *ip_address, coor
 
 static node_t *find_node_by_thread(GThread *thread)
 {
+    // todo lock the nodes mutex somehow
+    //g_mutex_lock(rs_system->nodes_mutex);
+
     uint16 node_count, index;
     node_t **node_list;
     node_list = rs_system_get_node_list(&node_count);
@@ -410,6 +427,8 @@ static node_t *find_node_by_thread(GThread *thread)
             return node;
         }
     }
+
+    //g_mutex_unlock(rs_system->nodes_mutex);
 
     return NULL;
 }
@@ -423,6 +442,7 @@ int main(int argc, char *argv[])
 	rs_main_thread = g_thread_self();
 
 	rs_system_create();
+	rs_start();
 
     gtk_init(&argc, &argv);
     main_win_init();

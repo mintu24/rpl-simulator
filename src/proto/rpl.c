@@ -169,6 +169,7 @@ bool rpl_node_init(node_t *node)
 
     node->rpl_info->rank = rand() % 2;   // todo make this always RPL_RANK_ROOT
     node->rpl_info->seq_num = rand() % 5;   // todo make this always 0 ?
+    node->rpl_info->pref_parent = NULL;
     node->rpl_info->parent_list = NULL;
     node->rpl_info->parent_count = 0;
     node->rpl_info->sibling_list = NULL;
@@ -218,6 +219,20 @@ void rpl_node_set_seq_num(node_t *node, uint8 seq_num)
     rs_assert(node != NULL);
 
     node->rpl_info->seq_num = seq_num;
+}
+
+node_t *rpl_node_get_pref_parent(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->rpl_info->pref_parent;
+}
+
+void rpl_node_set_pref_parent(node_t *node, node_t *pref_parent)
+{
+    rs_assert(node != NULL);
+
+    node->rpl_info->pref_parent = pref_parent;
 }
 
 node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count)

@@ -209,7 +209,12 @@ bool phy_receive(node_t *node, node_t *src_node, phy_pdu_t *pdu)
 
     mac_pdu_t *mac_pdu = pdu->sdu;
 
-    return mac_receive(node, src_node, mac_pdu);
+    if (!mac_receive(node, src_node, mac_pdu)) {
+        rs_error("failed to receive MAC pdu from node '%s'", phy_node_get_name(src_node));
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 

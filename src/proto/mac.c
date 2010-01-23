@@ -145,7 +145,15 @@ bool mac_receive(node_t *node, node_t *src_node, mac_pdu_t *pdu)
 
         case MAC_TYPE_IP : {
             ip_pdu_t *ip_pdu = pdu->sdu;
-            return ip_receive(node, src_node, ip_pdu);
+            bool all_ok = ip_receive(node, src_node, &ip_pdu);
+            if (ip_pdu == NULL) { /* if the package was forwarded */
+                pdu->sdu = NULL;
+            }
+
+            if (!all_ok) {
+                rs_error("failed to receive IP pdu from node '%s'", phy_node_get_name(src_node));
+                return FALSE;
+            }
 
             break;
         }

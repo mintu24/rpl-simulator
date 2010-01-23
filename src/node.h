@@ -67,6 +67,7 @@ bool                        node_execute(node_t *node, char *name, node_schedule
 void                        node_execute_pdu_event(node_t *node, char *name, node_pdu_event_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking);
 
 bool                        node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode);
+bool                        node_has_pdu_from(node_t *node, node_t *src_node);
 
 
 #endif /* NODE_H_ */

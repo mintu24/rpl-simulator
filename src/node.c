@@ -316,6 +316,27 @@ bool node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode)
     return all_ok;
 }
 
+bool node_has_pdu_from(node_t *node, node_t *src_node)
+{
+    rs_assert(node != NULL);
+
+    g_mutex_lock(node->pdu_mutex);
+
+    uint16 i;
+    for (i = 0; i < g_queue_get_length(node->pdu_queue); i++) {
+        phy_pdu_t *pdu = g_queue_peek_nth(node->pdu_queue, i);
+
+        if (pdu->src_node == src_node) {
+            g_mutex_unlock(node->pdu_mutex);
+            return TRUE;
+        }
+    }
+
+    g_mutex_unlock(node->pdu_mutex);
+
+    return FALSE;
+}
+
 
 static phy_pdu_t *node_dequeue_pdu(node_t *node)
 {

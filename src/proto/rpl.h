@@ -24,6 +24,7 @@ typedef struct rpl_node_info_t {
     uint8               rank;
     uint8               seq_num;
 
+    node_t *            pref_parent;
     node_t **           parent_list;
     uint16              parent_count;
 
@@ -107,6 +108,8 @@ void                rpl_node_set_rank(node_t *node, uint8 rank);
 uint8               rpl_node_get_seq_num(node_t *node);
 void                rpl_node_set_seq_num(node_t *node, uint8 seq_num);
 
+node_t *            rpl_node_get_pref_parent(node_t *node);
+void                rpl_node_set_pref_parent(node_t *node, node_t *pref_parent);
 node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
 bool                rpl_node_add_parent(node_t *node, node_t *parent);
 bool                rpl_node_remove_parent(node_t *node, node_t *parent);
