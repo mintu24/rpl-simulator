@@ -5,16 +5,16 @@
 
     /**** local function prototypes ****/
 
-static void         rpl_event_before_dis_pdu_sent(node_t *src_node, node_t *dst_node, void *data);
-static void         rpl_event_after_dis_pdu_received(node_t *src_node, node_t *dst_node, void *data);
+static void         rpl_event_before_dis_pdu_sent(node_t *node, node_t *dst_node);
+static void         rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node);
 
-static void         rpl_event_before_dio_pdu_sent(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu);
-static void         rpl_event_after_dio_pdu_received(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+static void         rpl_event_before_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+static void         rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu);
 
-static void         rpl_event_before_dao_pdu_sent(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu);
-static void         rpl_event_after_dao_pdu_received(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+static void         rpl_event_before_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+static void         rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu);
 
-static bool         rpl_send(node_t *src_node, node_t *dst_node, uint8 code, void *sdu);
+static bool         rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu);
 
 
     /**** exported functions ****/
@@ -161,50 +161,34 @@ bool rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address)
     return TRUE;
 }
 
-rpl_node_info_t *rpl_node_info_create()
-{
-    rpl_node_info_t *node_info = malloc(sizeof(rpl_node_info_t));
-
-    node_info->rank = rand() % 2;   // todo make this always RPL_RANK_ROOT
-    node_info->seq_num = rand() % 5;   // todo make this always 0 ?
-    node_info->parent_list = NULL;
-    node_info->parent_count = 0;
-    node_info->sibling_list = NULL;
-    node_info->sibling_count = 0;
-
-    return node_info;
-}
-
-bool rpl_node_info_destroy(rpl_node_info_t *node_info)
-{
-    rs_assert(node_info != NULL);
-
-    if (node_info->parent_list != NULL)
-        free(node_info->parent_list);
-    if (node_info->sibling_list != NULL)
-        free(node_info->sibling_list);
-
-    free(node_info);
-
-    return TRUE;
-}
-
-bool rpl_init_node(node_t *node, rpl_node_info_t *node_info)
+bool rpl_node_init(node_t *node)
 {
     rs_assert(node != NULL);
-    rs_assert(node_info != NULL);
 
-    node->rpl_info = node_info;
+    node->rpl_info = malloc(sizeof(rpl_node_info_t));
+
+    node->rpl_info->rank = rand() % 2;   // todo make this always RPL_RANK_ROOT
+    node->rpl_info->seq_num = rand() % 5;   // todo make this always 0 ?
+    node->rpl_info->parent_list = NULL;
+    node->rpl_info->parent_count = 0;
+    node->rpl_info->sibling_list = NULL;
+    node->rpl_info->sibling_count = 0;
 
     return TRUE;
 }
 
-void rpl_done_node(node_t *node)
+void rpl_node_done(node_t *node)
 {
     rs_assert(node != NULL);
 
     if (node->rpl_info != NULL) {
-        rpl_node_info_destroy(node->rpl_info);
+        if (node->rpl_info->parent_list != NULL)
+            free(node->rpl_info->parent_list);
+
+        if (node->rpl_info->sibling_list != NULL)
+            free(node->rpl_info->sibling_list);
+
+        free(node->rpl_info);
     }
 }
 
@@ -424,92 +408,92 @@ bool rpl_node_has_sibling(node_t *node, node_t *sibling)
     return FALSE;
 }
 
-bool rpl_send_dis(node_t *src_node, node_t *dst_node)
+bool rpl_send_dis(node_t *node, node_t *dst_node)
 {
     rs_assert(rs_system != NULL);
-    rs_assert(src_node != NULL);
+    rs_assert(node != NULL);
 
-    node_execute_src_dst(
-            src_node,
+    node_execute_pdu_event(
+            node,
             "rpl_event_before_dis_pdu_sent",
-            (node_event_src_dst_t) rpl_event_before_dis_pdu_sent,
-            src_node, dst_node, NULL,
+            (node_pdu_event_t) rpl_event_before_dis_pdu_sent,
+            node, dst_node, NULL,
             TRUE);
 
-    return rpl_send(src_node, dst_node, ICMP_RPL_CODE_DIS, NULL);
+    return rpl_send(node, dst_node, ICMP_RPL_CODE_DIS, NULL);
 }
 
-bool rpl_receive_dis(node_t *src_node, node_t *dst_node)
+bool rpl_receive_dis(node_t *node, node_t *src_node)
 {
-    rs_assert(dst_node != NULL);
+    rs_assert(node != NULL);
 
-    node_execute_src_dst(
-            dst_node,
+    node_execute_pdu_event(
+            node,
             "rpl_event_after_dis_pdu_received",
-            (node_event_src_dst_t) rpl_event_after_dis_pdu_received,
-            src_node, dst_node, NULL,
+            (node_pdu_event_t) rpl_event_after_dis_pdu_received,
+            src_node, node, NULL,
             TRUE);
 
     return TRUE;
 }
 
-bool rpl_send_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+bool rpl_send_dio(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu)
 {
     rs_assert(rs_system != NULL);
-    rs_assert(src_node != NULL);
+    rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute_src_dst(
-            src_node,
+    node_execute_pdu_event(
+            node,
             "rpl_event_before_dio_pdu_sent",
-            (node_event_src_dst_t) rpl_event_before_dio_pdu_sent,
-            src_node, dst_node, pdu,
+            (node_pdu_event_t) rpl_event_before_dio_pdu_sent,
+            node, dst_node, pdu,
             TRUE);
 
-    return rpl_send(src_node, dst_node, ICMP_RPL_CODE_DIO, pdu);
+    return rpl_send(node, dst_node, ICMP_RPL_CODE_DIO, pdu);
 }
 
-bool rpl_receive_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+bool rpl_receive_dio(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
-    rs_assert(dst_node != NULL);
+    rs_assert(node != NULL);
 
-    node_execute_src_dst(
-            dst_node,
+    node_execute_pdu_event(
+            node,
             "rpl_event_after_dio_pdu_received",
-            (node_event_src_dst_t) rpl_event_after_dio_pdu_received,
-            src_node, dst_node, pdu,
+            (node_pdu_event_t) rpl_event_after_dio_pdu_received,
+            src_node, node, pdu,
             TRUE);
 
     return TRUE;
 }
 
-bool rpl_send_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
+bool rpl_send_dao(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu)
 {
     rs_assert(rs_system != NULL);
-    rs_assert(src_node != NULL);
+    rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute_src_dst(
-            src_node,
+    node_execute_pdu_event(
+            node,
             "rpl_event_before_dao_pdu_sent",
-            (node_event_src_dst_t) rpl_event_before_dao_pdu_sent,
-            src_node, dst_node, pdu,
+            (node_pdu_event_t) rpl_event_before_dao_pdu_sent,
+            node, dst_node, pdu,
             TRUE);
 
-    return rpl_send(src_node, dst_node, ICMP_RPL_CODE_DAO, pdu);
+    return rpl_send(node, dst_node, ICMP_RPL_CODE_DAO, pdu);
 }
 
-bool rpl_receive_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
+bool rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
-    rs_assert(dst_node != NULL);
+    rs_assert(node != NULL);
 
-    node_execute_src_dst(
-            dst_node,
+    node_execute_pdu_event(
+            node,
             "rpl_event_after_dao_pdu_received",
-            (node_event_src_dst_t) rpl_event_after_dao_pdu_received,
-            src_node, dst_node, pdu,
+            (node_pdu_event_t) rpl_event_after_dao_pdu_received,
+            src_node, node, pdu,
             TRUE);
 
     return TRUE;
@@ -518,55 +502,55 @@ bool rpl_receive_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
 
     /**** local functions ****/
 
-static void rpl_event_before_dis_pdu_sent(node_t *src_node, node_t *dst_node, void *data)
+static void rpl_event_before_dis_pdu_sent(node_t *node, node_t *dst_node)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
 }
 
-static void rpl_event_after_dis_pdu_received(node_t *src_node, node_t *dst_node, void *data)
+static void rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
 }
 
-static void rpl_event_before_dio_pdu_sent(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+static void rpl_event_before_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
 }
 
-static void rpl_event_after_dio_pdu_received(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+static void rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
 }
 
-static void rpl_event_before_dao_pdu_sent(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
+static void rpl_event_before_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
 }
 
-static void rpl_event_after_dao_pdu_received(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu)
+static void rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(src_node), phy_node_get_name(dst_node));
+    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
 }
 
-static bool rpl_send(node_t *src_node, node_t *dst_node, uint8 code, void *sdu)
+static bool rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu)
 {
     if (dst_node == NULL) { /* RPL broadcast */
         node_t **neighbor_list;
         uint16 index, neighbor_count;
 
-        neighbor_list = ip_node_get_neighbor_list(src_node, &neighbor_count);
+        neighbor_list = ip_node_get_neighbor_list(node, &neighbor_count);
 
         // fixme this gives temporal priority to nodes at the begining of the neighbor list
         for (index = 0; index < neighbor_count; index++) {
-            node_t *node = neighbor_list[index];
+            node_t *neighbor = neighbor_list[index];
 
-            if (!rpl_send(src_node, node, code, sdu)) {
+            if (!rpl_send(node, neighbor, code, sdu)) {
                 return FALSE;
             }
         }
     }
     else {
-        if (!icmp_send(src_node, dst_node, ICMP_TYPE_RPL, code, sdu)) {
+        if (!icmp_send(node, dst_node, ICMP_TYPE_RPL, code, sdu)) {
             rs_error("failed to send ICMP message");
             return FALSE;
         }

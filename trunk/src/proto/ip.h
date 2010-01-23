@@ -8,11 +8,23 @@
 #define MAC_TYPE_IP                 0x86DD
 #define IP_NEXT_HEADER_ICMP         0x0058
 
+    /* a struct defining a route record */
+typedef struct ip_route_t {
+
+    uint8       type;
+    char *      dst;
+    uint8       prefix_len;
+    node_t *    next_hop;
+
+} ip_route_t;
 
     /* info that a node supporting IP should store */
 typedef struct ip_node_info_t {
 
     char *      address;
+
+    ip_route_t *route_list;
+    uint16      route_count;
 
     node_t **   neighbor_list;
     uint16      neighbor_count;
@@ -48,24 +60,26 @@ icmp_pdu_t *        icmp_pdu_create();
 bool                icmp_pdu_destroy(icmp_pdu_t *pdu);
 bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu);
 
-ip_node_info_t *    ip_node_info_create(char *address);
-bool                ip_node_info_destroy(ip_node_info_t *node_info);
-
-bool                ip_init_node(node_t *node, ip_node_info_t *node_info);
+bool                ip_node_init(node_t *node, char *address);
 void                ip_done_node(node_t *node);
 
 char *              ip_node_get_address(node_t *node);
 void                ip_node_set_address(node_t *node, const char *address);
+
+void                ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop, bool aggregate);
+bool                ip_node_rem_route(node_t *node, ip_route_t *route);
+node_t *            ip_node_best_match_route(node_t *node, char *dst_address);
 
 node_t **           ip_node_get_neighbor_list(node_t *node, uint16 *neighbor_count);
 bool                ip_node_add_neighbor(node_t *node, node_t *neighbor);
 bool                ip_node_remove_neighbor(node_t *node, node_t *neighbor);
 bool                ip_node_has_neighbor(node_t *node, node_t *neighbor);
 
-bool                ip_send(node_t *src_node, node_t *dst_node, uint16 next_header, void *sdu);
-bool                ip_receive(node_t *src_node, node_t *dst_node, ip_pdu_t *pdu);
-bool                icmp_send(node_t *src_node, node_t *dst_node, uint8 type, uint8 code, void *sdu);
-bool                icmp_receive(node_t *src_node, node_t *dst_node, icmp_pdu_t *pdu);
+bool                ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu);
+bool                ip_forward(node_t *node, ip_pdu_t *pdu);
+bool                ip_receive(node_t *node, node_t *src_node, ip_pdu_t *pdu);
+bool                icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu);
+bool                icmp_receive(node_t *node, node_t *src_node, icmp_pdu_t *pdu);
 
 
 #endif /* IP_H_ */

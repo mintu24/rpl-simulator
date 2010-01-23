@@ -348,10 +348,10 @@ void destroy_all_unreferenced_nodes()
         if (!referenced) {
             rs_debug("node '%s' is not referenced anymore, will be destroyed", phy_node_get_name(node));
 
-            rpl_done_node(node);
+            rpl_node_done(node);
             ip_done_node(node);
-            mac_done_node(node);
-            phy_done_node(node);
+            mac_node_done(node);
+            phy_node_done(node);
 
             /* destroy it, once and for all !! */
             if (!node_destroy(node)) {

@@ -12,8 +12,12 @@
 #define signals_disable()       { signals_disabled = TRUE; }
 #define signals_enable()        { signals_disabled = FALSE; }
 
+// todo graphically represent packets in nodes on the sim field
 // todo check for duplicate node names
+// todo rename display to configuration or smtn
 // todo add node life core sleep as a display param
+// todo check for thread count limit
+// todo see why the threads don't actually die
 
     /**** global variables ****/
 
