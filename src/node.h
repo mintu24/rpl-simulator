@@ -41,7 +41,7 @@ typedef struct node_t {
     /* a callback type representing a node's scheduled action */
 typedef void (* node_schedule_func_t) (node_t *node, void *data);
 typedef void (* node_event_t) (node_t *node, void *data);
-typedef void (* node_event_src_dst_t) (node_t *src_node, node_t *dst_node, void *data);
+typedef void (* node_pdu_event_t) (node_t *node, void *data1, void *data2);
 
     /* structure used for scheduling actions to be executed at a certain moment */
 typedef struct node_schedule_t {
@@ -64,7 +64,7 @@ bool                        node_kill(node_t* node);
 
 bool                        node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);
 bool                        node_execute(node_t *node, char *name, node_schedule_func_t func, void *data, bool blocking);
-void                        node_execute_src_dst(node_t *node, char *name, node_event_src_dst_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking);
+void                        node_execute_pdu_event(node_t *node, char *name, node_pdu_event_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking);
 
 bool                        node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode);
 

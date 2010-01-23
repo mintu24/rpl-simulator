@@ -98,11 +98,8 @@ rpl_dao_pdu_t *     rpl_dao_pdu_create(uint16 sequence, uint8 instance_id, uint8
 bool                rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu);
 bool                rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address);
 
-rpl_node_info_t *   rpl_node_info_create();
-bool                rpl_node_info_destroy(rpl_node_info_t *node_info);
-
-bool                rpl_init_node(node_t *node, rpl_node_info_t *node_info);
-void                rpl_done_node(node_t *node);
+bool                rpl_node_init(node_t *node);
+void                rpl_node_done(node_t *node);
 
 uint8               rpl_node_get_rank(node_t *node);
 void                rpl_node_set_rank(node_t *node, uint8 rank);
@@ -120,12 +117,12 @@ bool                rpl_node_add_sibling(node_t *node, node_t *sibling);
 bool                rpl_node_remove_sibling(node_t *node, node_t *sibling);
 bool                rpl_node_has_sibling(node_t *node, node_t *sibling);
 
-bool                rpl_send_dis(node_t *src_node, node_t *dst_node);
-bool                rpl_receive_dis(node_t *src_node, node_t *dst_node);
-bool                rpl_send_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu);
-bool                rpl_receive_dio(node_t *src_node, node_t *dst_node, rpl_dio_pdu_t *pdu);
-bool                rpl_send_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu);
-bool                rpl_receive_dao(node_t *src_node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+bool                rpl_send_dis(node_t *node, node_t *dst_node);
+bool                rpl_receive_dis(node_t *node, node_t *src_node);
+bool                rpl_send_dio(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+bool                rpl_receive_dio(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu);
+bool                rpl_send_dao(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+bool                rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu);
 
 
 #endif /* RPL_H_ */

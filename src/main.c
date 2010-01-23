@@ -21,7 +21,7 @@ static void         get_next_coords(coord_t *x, coord_t *y);
 static char *       get_next_mac_address(char *address);
 static char *       get_next_ip_address(char *address);
 
-static node_t *     create_node(char *name, char *mac, char *ip, coord_t cx, coord_t cy);
+static node_t *     create_node(char *name, char *mac_address, char *ip_address, coord_t cx, coord_t cy);
 static node_t *     find_node_by_thread(GThread *thread);
 
 
@@ -385,24 +385,14 @@ static char *get_next_ip_address(char *address)
 }
 
 
-static node_t *create_node(char *name, char *mac, char *ip, coord_t cx, coord_t cy)
+static node_t *create_node(char *name, char *mac_address, char *ip_address, coord_t cx, coord_t cy)
 {
     node_t *node = node_create();
 
-    phy_node_info_t *phy_node_info = phy_node_info_create(name, cx, cy);
-    phy_node_info->battery_level = 0.5;
-    phy_node_info->mains_powered = FALSE;
-    phy_node_info->tx_power = 0.5;
-    phy_init_node(node, phy_node_info);
-
-    mac_node_info_t *mac_node_info = mac_node_info_create(mac);
-    mac_init_node(node, mac_node_info);
-
-    ip_node_info_t *ip_node_info = ip_node_info_create(ip);
-    ip_init_node(node, ip_node_info);
-
-    rpl_node_info_t *rpl_node_info = rpl_node_info_create();
-    rpl_init_node(node, rpl_node_info);
+    phy_node_init(node, name, cx, cy);
+    mac_node_init(node, mac_address);
+    ip_node_init(node, ip_address);
+    rpl_node_init(node);
 
     return node;
 }

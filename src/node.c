@@ -15,7 +15,7 @@ typedef struct execute_wrapper_data_t {
 
 typedef struct execute_src_dst_wrapper_data_t{
 
-    node_event_src_dst_t    func;
+    node_pdu_event_t    func;
     node_t *                src_node;
     node_t *                dst_node;
     node_t *                data;
@@ -24,8 +24,8 @@ typedef struct execute_src_dst_wrapper_data_t{
 } execute_src_dst_wrapper_data_t;
 
 
-static void *                   node_dequeue_pdu(node_t *node);
-static bool                     node_process_message(node_t *node, phy_pdu_t *message);
+static phy_pdu_t *              node_dequeue_pdu(node_t *node);
+static bool                     node_process_message(node_t *node, node_t *src_node, phy_pdu_t *message);
 
 static void *                   node_life_core(node_t *node);
 
@@ -254,7 +254,7 @@ bool node_execute(node_t *node, char *name, node_schedule_func_t func, void *dat
     return TRUE;
 }
 
-void node_execute_src_dst(node_t *node, char *name, node_event_src_dst_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking)
+void node_execute_pdu_event(node_t *node, char *name, node_pdu_event_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking)
 {
     rs_assert(node->life != NULL);
 
@@ -317,7 +317,7 @@ bool node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode)
 }
 
 
-static void *node_dequeue_pdu(node_t *node)
+static phy_pdu_t *node_dequeue_pdu(node_t *node)
 {
     rs_assert(node != NULL);
 
@@ -335,13 +335,13 @@ static void *node_dequeue_pdu(node_t *node)
     return pdu;
 }
 
-static bool node_process_message(node_t *node, phy_pdu_t *message)
+static bool node_process_message(node_t *node, node_t *src_node, phy_pdu_t *message)
 {
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
     rs_assert(message != NULL);
 
-    if (!phy_receive(node, message)) {
+    if (!phy_receive(node, src_node, message)) {
         rs_error("failed to process message");
     }
 
@@ -413,7 +413,7 @@ static void *node_life_core(node_t *node)
         /* process a possibly received message */
         phy_pdu_t *message = node_dequeue_pdu(node);
         if (message != NULL) {
-            node_process_message(node, message);
+            node_process_message(node, message->src_node, message);
         }
     }
 
