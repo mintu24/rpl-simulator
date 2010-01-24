@@ -48,34 +48,34 @@ void rs_start()
     // todo: implement me
 
     /** fixme test **********************/
-//    rs_add_node();
-//    rs_add_node();
-//    rs_add_node();
-//
-//    rs_wake_all_nodes();
-//
-//    node_t *a = rs_system_find_node_by_name("A");
-//    node_t *b = rs_system_find_node_by_name("B");
-//    node_t *c = rs_system_find_node_by_name("C");
-//
-//    if (a == NULL || b == NULL || c == NULL) {
-//        return;
-//    }
-//
-//    rpl_node_add_parent(a, b);
-//    rpl_node_add_parent(a, c);
-//    rpl_node_set_pref_parent(a, b);
-//
-//    rpl_node_add_sibling(b, c);
-//    rpl_node_add_sibling(c, b);
-//
-//    ip_node_add_route(a, 0, "0000", 0, b, FALSE);
-//    ip_node_add_route(b, 0, "0000", 0, a, FALSE);
-//
-//    if (a->alive && b->alive && c->alive)
-//        rpl_send_dis(a, c);
-//
-//    sim_field_redraw();
+    rs_add_node();
+    rs_add_node();
+    rs_add_node();
+
+    rs_wake_all_nodes();
+
+    node_t *a = rs_system_find_node_by_name("A");
+    node_t *b = rs_system_find_node_by_name("B");
+    node_t *c = rs_system_find_node_by_name("C");
+
+    if (a == NULL || b == NULL || c == NULL) {
+        return;
+    }
+
+    rpl_node_add_parent(a, b);
+    rpl_node_add_parent(a, c);
+    rpl_node_set_pref_parent(a, b);
+
+    rpl_node_add_sibling(b, c);
+    rpl_node_add_sibling(c, b);
+
+    ip_node_add_route(a, 0, "0000", 0, b, FALSE);
+    ip_node_add_route(b, 0, "0000", 0, c, FALSE);
+
+    if (a->alive && b->alive && c->alive)
+        rpl_send_dis(a, c);
+
+    sim_field_redraw();
 
     /************************************/
 }
@@ -442,7 +442,6 @@ int main(int argc, char *argv[])
 	rs_main_thread = g_thread_self();
 
 	rs_system_create();
-	rs_start();
 
     gtk_init(&argc, &argv);
     main_win_init();

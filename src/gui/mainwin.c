@@ -45,6 +45,16 @@ static GtkWidget *              params_nodes_bat_level_spin = NULL;
 static GtkWidget *              params_nodes_mains_powered_check = NULL;
 static GtkWidget *              params_nodes_mac_address_entry = NULL;
 static GtkWidget *              params_nodes_ip_address_entry = NULL;
+static GtkWidget *              params_nodes_route_entry = NULL;
+static GtkWidget *              params_nodes_route_prefix_len_spin = NULL;
+static GtkWidget *              params_nodes_route_next_hop_combo = NULL;
+static GtkListStore *           params_nodes_route_next_hop_store = NULL;
+static GtkWidget *              params_nodes_route_type_combo = NULL;
+static GtkListStore *           params_nodes_route_type_store = NULL;
+static GtkWidget *              params_nodes_route_add_button = NULL;
+static GtkWidget *              params_nodes_route_rem_button = NULL;
+static GtkWidget *              params_nodes_route_tree_view = NULL;
+static GtkListStore *           params_nodes_route_store = NULL;
 static GtkWidget *              params_nodes_rank_spin = NULL;
 static GtkWidget *              params_nodes_seq_num_spin = NULL;
 
@@ -113,7 +123,7 @@ static void         cb_about_menu_item_activate(GtkWidget *widget, gpointer *dat
 static void         cb_main_window_delete();
 
 static GtkWidget *  create_params_widget();
-static GtkWidget *  create_monitoring_widget();
+//static GtkWidget *  create_monitoring_widget();
 static GtkWidget *  create_menu_bar();
 static GtkWidget *  create_tool_bar();
 static GtkWidget *  create_status_bar();
@@ -611,7 +621,7 @@ static void cb_main_window_delete()
 GtkWidget *create_params_widget()
 {
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
-    gtk_widget_set_size_request(scrolled_window, 250, 0);
+    gtk_widget_set_size_request(scrolled_window, 300, 0);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     GtkWidget *params_table = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_table");
@@ -636,6 +646,16 @@ GtkWidget *create_params_widget()
     params_nodes_mains_powered_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mains_powered_check");
     params_nodes_mac_address_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mac_address_entry");
     params_nodes_ip_address_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ip_address_entry");
+    params_nodes_route_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_entry");
+    params_nodes_route_prefix_len_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_prefix_len_spin");
+    params_nodes_route_next_hop_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_next_hop_combo");
+    params_nodes_route_next_hop_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_route_next_hop_store");
+    params_nodes_route_type_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_type_combo");
+    params_nodes_route_type_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_route_type_store");
+    params_nodes_route_add_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_add_button");
+    params_nodes_route_rem_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_rem_button");
+    params_nodes_route_tree_view = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_tree_view");
+    params_nodes_route_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_route_store");
     params_nodes_rank_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_rank_spin");
     params_nodes_seq_num_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_seq_num_spin");
 
@@ -651,12 +671,12 @@ GtkWidget *create_params_widget()
     return scrolled_window;
 }
 
-GtkWidget *create_monitoring_widget()
-{
-    GtkWidget *label = gtk_label_new("Monitoring");
-
-    return label;
-}
+//GtkWidget *create_monitoring_widget()
+//{
+//    GtkWidget *label = gtk_label_new("Monitoring");
+//
+//    return label;
+//}
 
 GtkWidget *create_menu_bar()
 {
@@ -845,8 +865,9 @@ GtkWidget *create_content_widget()
     GtkWidget *sim_field = sim_field_create();
     gtk_box_pack_start(GTK_BOX(hbox), sim_field, TRUE, TRUE, 0);
 
-    GtkWidget *monitoring_widget = create_monitoring_widget();
-    gtk_box_pack_start(GTK_BOX(hbox), monitoring_widget, FALSE, TRUE, 0);
+    // todo this should be a legend
+//    GtkWidget *monitoring_widget = create_monitoring_widget();
+//    gtk_box_pack_start(GTK_BOX(hbox), monitoring_widget, FALSE, TRUE, 0);
 
     return hbox;
 }
@@ -874,6 +895,8 @@ static void update_sensitivity()
     bool node_selected = selected_node != NULL;
     bool has_nodes = node_count > 0;
     bool node_alive = node_selected && selected_node->alive;
+    bool route_selected = gtk_tree_selection_count_selected_rows(
+            gtk_tree_view_get_selection(GTK_TREE_VIEW(params_nodes_route_tree_view))) > 0;
 
     gtk_widget_set_sensitive(params_nodes_name_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_x_spin, node_selected);
@@ -885,6 +908,13 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_ip_address_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_rank_spin, node_selected);
     gtk_widget_set_sensitive(params_nodes_seq_num_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_route_entry, node_selected);
+    gtk_widget_set_sensitive(params_nodes_route_prefix_len_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_route_next_hop_combo, node_selected);
+    gtk_widget_set_sensitive(params_nodes_route_type_combo, node_selected);
+    gtk_widget_set_sensitive(params_nodes_route_add_button, node_selected);
+    gtk_widget_set_sensitive(params_nodes_route_rem_button, node_selected && route_selected);
+    gtk_widget_set_sensitive(params_nodes_route_tree_view, node_selected);
 
     gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected);
     gtk_widget_set_sensitive(rem_menu_item, node_selected);
