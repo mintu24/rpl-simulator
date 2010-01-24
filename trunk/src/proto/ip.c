@@ -69,71 +69,6 @@ bool ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu)
     return TRUE;
 }
 
-icmp_pdu_t *icmp_pdu_create()
-{
-    icmp_pdu_t *pdu = malloc(sizeof(icmp_pdu_t));
-
-    pdu->type = -1;
-    pdu->code = -1;
-    pdu->sdu = NULL;
-
-    return pdu;
-}
-
-bool icmp_pdu_destroy(icmp_pdu_t *pdu)
-{
-    rs_assert(pdu != NULL);
-
-    bool all_ok = TRUE;
-
-    if (pdu->sdu != NULL) {
-
-        switch (pdu->type) {
-
-            case ICMP_TYPE_RPL :
-                switch (pdu->code) {
-
-                    case ICMP_RPL_CODE_DIS :
-                        break;
-
-                    case ICMP_RPL_CODE_DIO:
-                        rpl_dio_pdu_destroy(pdu->sdu);
-                        break;
-
-                    case ICMP_RPL_CODE_DAO:
-                        rpl_dao_pdu_destroy(pdu->sdu);
-                        break;
-
-                    default:
-                        rs_error("unknown icmp code '0x%02X'", pdu->code);
-                        all_ok = FALSE;
-                }
-
-                break;
-
-            default:
-                rs_error("unknown icmp type '0x%02X'", pdu->type);
-                all_ok = FALSE;
-        }
-
-    }
-
-    free(pdu);
-
-    return all_ok;
-}
-
-bool icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu)
-{
-    rs_assert(pdu != NULL);
-
-    pdu->type = type;
-    pdu->code = code;
-    pdu->sdu = sdu;
-
-    return TRUE;
-}
-
 bool ip_node_init(node_t *node, char *address)
 {
     rs_assert(node != NULL);
@@ -493,6 +428,71 @@ bool ip_receive(node_t *node, node_t *src_node, ip_pdu_t **pdu)
 
             return FALSE;
     }
+
+    return TRUE;
+}
+
+icmp_pdu_t *icmp_pdu_create()
+{
+    icmp_pdu_t *pdu = malloc(sizeof(icmp_pdu_t));
+
+    pdu->type = -1;
+    pdu->code = -1;
+    pdu->sdu = NULL;
+
+    return pdu;
+}
+
+bool icmp_pdu_destroy(icmp_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+
+    bool all_ok = TRUE;
+
+    if (pdu->sdu != NULL) {
+
+        switch (pdu->type) {
+
+            case ICMP_TYPE_RPL :
+                switch (pdu->code) {
+
+                    case ICMP_RPL_CODE_DIS :
+                        break;
+
+                    case ICMP_RPL_CODE_DIO:
+                        rpl_dio_pdu_destroy(pdu->sdu);
+                        break;
+
+                    case ICMP_RPL_CODE_DAO:
+                        rpl_dao_pdu_destroy(pdu->sdu);
+                        break;
+
+                    default:
+                        rs_error("unknown icmp code '0x%02X'", pdu->code);
+                        all_ok = FALSE;
+                }
+
+                break;
+
+            default:
+                rs_error("unknown icmp type '0x%02X'", pdu->type);
+                all_ok = FALSE;
+        }
+
+    }
+
+    free(pdu);
+
+    return all_ok;
+}
+
+bool icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu)
+{
+    rs_assert(pdu != NULL);
+
+    pdu->type = type;
+    pdu->code = code;
+    pdu->sdu = sdu;
 
     return TRUE;
 }

@@ -60,10 +60,6 @@ ip_pdu_t *          ip_pdu_create(char *dst_address, char *src_address);
 bool                ip_pdu_destroy(ip_pdu_t *pdu);
 bool                ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu);
 
-icmp_pdu_t *        icmp_pdu_create();
-bool                icmp_pdu_destroy(icmp_pdu_t *pdu);
-bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu);
-
 bool                ip_node_init(node_t *node, char *address);
 void                ip_done_node(node_t *node);
 
@@ -82,6 +78,11 @@ bool                ip_node_has_neighbor(node_t *node, node_t *neighbor);
 bool                ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu);
 bool                ip_forward(node_t *node, ip_pdu_t *pdu);
 bool                ip_receive(node_t *node, node_t *src_node, ip_pdu_t **pdu);
+
+icmp_pdu_t *        icmp_pdu_create();
+bool                icmp_pdu_destroy(icmp_pdu_t *pdu);
+bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu);
+
 bool                icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu);
 bool                icmp_receive(node_t *node, node_t *src_node, icmp_pdu_t *pdu);
 
