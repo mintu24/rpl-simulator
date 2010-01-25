@@ -346,7 +346,7 @@ static gboolean draw_sim_field(void *data)
                         draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet, TRUE);
                     }
                     else {
-                        if (rpl_node_has_sibling(sibling, node) && sibling->alive && rs_system_has_node(sibling)) {
+                        if (rpl_node_has_sibling(sibling, node) && sibling->alive && (rs_system_get_node_pos(sibling) >= 0)) {
                             draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet, FALSE);
                         }
                         else {

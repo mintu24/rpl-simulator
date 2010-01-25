@@ -177,24 +177,24 @@ bool rs_system_remove_node(node_t *node)
     return TRUE;
 }
 
-bool rs_system_has_node(node_t *node)
+int32 rs_system_get_node_pos(node_t *node)
 {
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
 
     g_mutex_lock(rs_system->nodes_mutex);
 
-    int i;
+    uint16 i;
     for (i = 0; i < rs_system->node_count; i++) {
         if (rs_system->node_list[i] == node) {
             g_mutex_unlock(rs_system->nodes_mutex);
-            return TRUE;
+            return i;
         }
     }
 
     g_mutex_unlock(rs_system->nodes_mutex);
 
-    return FALSE;
+    return -1;
 }
 
 node_t *rs_system_find_node_by_name(char *name)

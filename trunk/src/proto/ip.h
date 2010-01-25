@@ -75,7 +75,7 @@ void                ip_node_set_address(node_t *node, const char *address);
 void                ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop, bool aggregate);
 bool                ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len);
 ip_route_t **       ip_node_get_route_list(node_t *node, uint16 *route_count);
-node_t *            ip_node_longest_prefix_match_route(node_t *node, char *dst_address);
+node_t *            ip_node_best_match_route(node_t *node, char *dst_address);
 
 node_t **           ip_node_get_neighbor_list(node_t *node, uint16 *neighbor_count);
 bool                ip_node_add_neighbor(node_t *node, node_t *neighbor);

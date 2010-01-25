@@ -68,7 +68,7 @@ void                        rs_system_set_width_height(coord_t width, coord_t he
     /* nodes */
 bool                        rs_system_add_node(node_t *node);
 bool                        rs_system_remove_node(node_t *node);
-bool                        rs_system_has_node(node_t *node);
+int32                       rs_system_get_node_pos(node_t *node);
 node_t *                    rs_system_find_node_by_name(char *name);
 node_t *                    rs_system_find_node_by_mac_address(char *address);
 node_t *                    rs_system_find_node_by_ip_address(char *address);
