@@ -8,23 +8,29 @@
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkListStore" id="params_nodes_route_store">
-    <columns>
-      <!-- column-name Destination -->
-      <column type="gchararray"/>
-      <!-- column-name Prefix -->
-      <column type="gint"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">Test</col>
-        <col id="1">10</col>
-      </row>
-    </data>
-  </object>
   <object class="GtkListStore" id="params_nodes_route_type_store">
     <columns>
       <!-- column-name Type -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">Manual</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">DAO Mcast</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">DAO Ucast</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">DIO</col>
+      </row>
+    </data>
+  </object>
+  <object class="GtkListStore" id="params_nodes_route_store">
+    <columns>
+      <!-- column-name Destination -->
       <column type="gchararray"/>
     </columns>
     <data>
@@ -700,6 +706,7 @@
                         </child>
                         <child>
                           <object class="GtkScrolledWindow" id="scrolledwindow1">
+                            <property name="height_request">150</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="hscrollbar_policy">automatic</property>
@@ -730,6 +737,7 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <signal name="clicked" handler="cb_params_nodes_route_add_button_clicked"/>
                               </object>
                               <packing>
                                 <property name="position">0</property>
@@ -741,9 +749,22 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <signal name="clicked" handler="cb_params_nodes_route_rem_button_clicked"/>
                               </object>
                               <packing>
                                 <property name="position">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="params_nodes_route_upd_button">
+                                <property name="label" translatable="yes">Update</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <signal name="clicked" handler="cb_params_nodes_route_upd_button_clicked"/>
+                              </object>
+                              <packing>
+                                <property name="position">2</property>
                               </packing>
                             </child>
                           </object>

@@ -211,12 +211,13 @@ ip_route_t **ip_node_get_route_list(node_t *node, uint16 *route_count)
     return list;
 }
 
-node_t *ip_node_longest_prefix_match_route(node_t *node, char *dst_address)
+node_t *ip_node_best_match_route(node_t *node, char *dst_address)
 {
     rs_assert(node != NULL);
 
     uint16 i, j;
     int16 best_prefix_len = -1;
+    int16 best_type = 255;  /* a big number */
     ip_route_t *best_route = NULL;
 
     uint8 dst_len = strlen(dst_address) * 4;
@@ -225,9 +226,13 @@ node_t *ip_node_longest_prefix_match_route(node_t *node, char *dst_address)
     for (i = 0; i < node->ip_info->route_count; i++) {
         ip_route_t *route = node->ip_info->route_list[i];
 
-        /* a route with a shorter prefix than the one found so far is of no interest */
-        if (route->prefix_len <= best_prefix_len) {
+        if (route->type > best_type) {
             continue;
+        }
+        else if (route->type == best_type) {
+            if (route->prefix_len <= best_prefix_len) {
+                continue;
+            }
         }
 
         if (dst_len < route->prefix_len) {
@@ -246,6 +251,7 @@ node_t *ip_node_longest_prefix_match_route(node_t *node, char *dst_address)
         if (match) {
             best_route = route;
             best_prefix_len = route->prefix_len;
+            best_type = route->type;
         }
     }
 
@@ -361,7 +367,7 @@ bool ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu)
                 TRUE);
 
         /* route the packet */
-        node_t *next_hop = ip_node_longest_prefix_match_route(node, ip_node_get_address(dst_node));
+        node_t *next_hop = ip_node_best_match_route(node, ip_node_get_address(dst_node));
 
         if (next_hop == NULL) {
             rs_warn("destination '%s' not reachable by '%s'", ip_node_get_address(dst_node), phy_node_get_name(node));
@@ -390,7 +396,7 @@ bool ip_forward(node_t *node, ip_pdu_t *pdu)
             TRUE);
 
     /* route the packet */
-    node_t *next_hop = ip_node_longest_prefix_match_route(node, pdu->dst_address);
+    node_t *next_hop = ip_node_best_match_route(node, pdu->dst_address);
 
     if (next_hop == NULL) {
         rs_warn("destination '%s' not reachable by '%s'", pdu->dst_address, phy_node_get_name(node));

@@ -7,6 +7,7 @@
 #include "main.h"
 #include "system.h"
 #include "gui/mainwin.h"
+#include "gui/simfield.h"
 
 
     /**** global variables ****/
@@ -153,6 +154,8 @@ node_t *rs_add_node()
     free(new_mac_address);
     free(new_ip_address);
 
+    main_win_system_to_gui();
+
     return node;
 }
 
@@ -164,6 +167,8 @@ void rs_rem_node(node_t *node)
         rs_error("failed to remove node '%s' from the system", phy_node_get_name(node));
         return;
     }
+
+    main_win_system_to_gui();
 
     /* this won't actually destroy the node, but just kill it.
      * instead, a garbage collector thread will check from time to time
