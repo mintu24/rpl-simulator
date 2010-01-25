@@ -197,6 +197,20 @@ bool ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len)
     return TRUE;
 }
 
+ip_route_t **ip_node_get_route_list(node_t *node, uint16 *route_count)
+{
+    rs_assert(node != NULL);
+
+    g_mutex_lock(node->proto_info_mutex);
+
+    ip_route_t **list = node->ip_info->route_list;
+    *route_count = node->ip_info->route_count;
+
+    g_mutex_unlock(node->proto_info_mutex);
+
+    return list;
+}
+
 node_t *ip_node_longest_prefix_match_route(node_t *node, char *dst_address)
 {
     rs_assert(node != NULL);

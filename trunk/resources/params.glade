@@ -2,6 +2,37 @@
 <interface>
   <requires lib="gtk+" version="2.16"/>
   <!-- interface-naming-policy project-wide -->
+  <object class="GtkListStore" id="params_nodes_route_next_hop_store">
+    <columns>
+      <!-- column-name Next -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="params_nodes_route_store">
+    <columns>
+      <!-- column-name Destination -->
+      <column type="gchararray"/>
+      <!-- column-name Prefix -->
+      <column type="gint"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">Test</col>
+        <col id="1">10</col>
+      </row>
+    </data>
+  </object>
+  <object class="GtkListStore" id="params_nodes_route_type_store">
+    <columns>
+      <!-- column-name Type -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">Test</col>
+      </row>
+    </data>
+  </object>
   <object class="GtkTable" id="params_table">
     <property name="visible">True</property>
     <property name="border_width">5</property>
@@ -679,8 +710,6 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="model">params_nodes_route_store</property>
-                                <property name="headers_visible">False</property>
-                                <property name="headers_clickable">False</property>
                               </object>
                             </child>
                           </object>
@@ -763,6 +792,7 @@
                           <object class="GtkComboBox" id="params_nodes_route_type_combo">
                             <property name="visible">True</property>
                             <property name="model">params_nodes_route_type_store</property>
+                            <property name="active">0</property>
                           </object>
                           <packing>
                             <property name="left_attach">3</property>
@@ -1116,24 +1146,6 @@
     <property name="upper">255</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
-  </object>
-  <object class="GtkListStore" id="params_nodes_route_store">
-    <columns>
-      <!-- column-name Destination -->
-      <column type="gchararray"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="params_nodes_route_next_hop_store">
-    <columns>
-      <!-- column-name Next Hop -->
-      <column type="gchararray"/>
-    </columns>
-  </object>
-  <object class="GtkListStore" id="params_nodes_route_type_store">
-    <columns>
-      <!-- column-name Type -->
-      <column type="gchararray"/>
-    </columns>
   </object>
   <object class="GtkAdjustment" id="params_nodes_route_prefix_len_adjustment">
     <property name="upper">255</property>

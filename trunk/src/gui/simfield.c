@@ -214,28 +214,29 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
 
 static gboolean cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEventScroll *event, gpointer data)
 {
-    if (hover_node == NULL) {
+    node_t *node = main_win_get_selected_node();
+    if (node == NULL) {
         return FALSE;
     }
 
     if (event->direction == GDK_SCROLL_UP) {
-        if (phy_node_get_tx_power(hover_node) + 0.1 <= 1.0) {
-            phy_node_set_tx_power(hover_node, phy_node_get_tx_power(hover_node) + 0.1);
+        if (phy_node_get_tx_power(node) + 0.1 <= 1.0) {
+            phy_node_set_tx_power(node, phy_node_get_tx_power(node) + 0.1);
         }
         else {
-            phy_node_set_tx_power(hover_node, 1.0);
+            phy_node_set_tx_power(node, 1.0);
         }
     }
     else /* (event->direction == GDK_SCROLL_DOWN) */{
-        if (phy_node_get_tx_power(hover_node) - 0.1 >= 0.0) {
-            phy_node_set_tx_power(hover_node, phy_node_get_tx_power(hover_node) - 0.1);
+        if (phy_node_get_tx_power(node) - 0.1 >= 0.0) {
+            phy_node_set_tx_power(node, phy_node_get_tx_power(node) - 0.1);
         }
         else {
-            phy_node_set_tx_power(hover_node, 0.0);
+            phy_node_set_tx_power(node, 0.0);
         }
     }
 
-    main_win_node_to_gui(hover_node);
+    main_win_node_to_gui(node);
     sim_field_redraw();
 
     return TRUE;
