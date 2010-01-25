@@ -255,6 +255,18 @@ void main_win_node_to_gui(node_t *node)
     /* ip */
     gtk_entry_set_text(GTK_ENTRY(params_nodes_ip_address_entry), ip_node_get_address(node));
 
+    /* ip route */
+    gtk_list_store_clear(params_nodes_route_store);
+    uint16 route_count, i;
+    ip_route_t **route_list = ip_node_get_route_list(node, &route_count);
+    GtkTreeIter iter;
+    for (i = 0; i < route_count; i++) {
+        ip_route_t *route = route_list[i];
+
+        gtk_list_store_append(params_nodes_route_store, &iter);
+        gtk_list_store_set(params_nodes_route_store, &iter, 0, route->dst, 1, route->prefix_len, -1);
+    }
+
     /* rpl */
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), rpl_node_get_rank(node));
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), rpl_node_get_seq_num(node));
@@ -877,11 +889,6 @@ static void initialize_widgets()
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_button), TRUE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_button), FALSE);
-
-//    /* force a visibility update in the params panel */
-//    gtk_signal_emit_by_name(GTK_OBJECT(params_system_button), "clicked");
-//    gtk_signal_emit_by_name(GTK_OBJECT(params_nodes_button), "clicked");
-//    gtk_signal_emit_by_name(GTK_OBJECT(params_display_button), "clicked");
 
     update_sensitivity();
 }

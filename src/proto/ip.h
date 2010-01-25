@@ -8,6 +8,12 @@
 #define MAC_TYPE_IP                 0x86DD
 #define IP_NEXT_HEADER_ICMP         0x0058
 
+#define IP_ROUTE_TYPE_MANUAL        0
+#define IP_ROUTE_TYPE_RPL_DAO_MCAS  1
+#define IP_ROUTE_TYPE_RPL_DAO_UCAST 2
+#define IP_ROUTE_TYPE_RPL_DIO       3
+
+
     /* a struct defining a route record */
 typedef struct ip_route_t {
 
@@ -68,6 +74,7 @@ void                ip_node_set_address(node_t *node, const char *address);
 
 void                ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop, bool aggregate);
 bool                ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len);
+ip_route_t **       ip_node_get_route_list(node_t *node, uint16 *route_count);
 node_t *            ip_node_longest_prefix_match_route(node_t *node, char *dst_address);
 
 node_t **           ip_node_get_neighbor_list(node_t *node, uint16 *neighbor_count);
