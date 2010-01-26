@@ -17,45 +17,40 @@
     /* a node in the simulated network */
 typedef struct node_t {
 
-    struct phy_node_info_t *phy_info;
-    struct mac_node_info_t *mac_info;
-    struct ip_node_info_t * ip_info;
-    struct icmp_node_info_t *
-                            icmp_info;
-    struct rpl_node_info_t *rpl_info;
+    struct phy_node_info_t *    phy_info;
+    struct mac_node_info_t *    mac_info;
+    struct ip_node_info_t *     ip_info;
+    struct icmp_node_info_t *   icmp_info;
+    struct rpl_node_info_t *    rpl_info;
 
-    GQueue *                pdu_queue;
+    GQueue *                    pdu_queue;
 
-    GThread *               life;
-    bool                    alive;
+    GThread *                   life;
+    bool                        alive;
 
-    GHashTable *            schedules;
-    GTimer *                schedule_timer;
+    GHashTable *                schedules;
+    GTimer *                    schedule_timer;
 
-    GMutex *                life_mutex;
-    GMutex *                schedule_mutex;
-    GMutex *                proto_info_mutex;
-    GMutex *                pdu_mutex;
-    GMutex *                measure_mutex;
+    GMutex *                    life_mutex;
+    GMutex *                    pdu_mutex;
 
-    GCond *                 pdu_cond;
+    GCond *                     pdu_cond;
 
 } node_t;
 
     /* a callback type representing a node's scheduled action */
 typedef void (* node_schedule_func_t) (node_t *node, void *data);
-typedef void (* node_event_t) (node_t *node, void *data);
-typedef void (* node_pdu_event_t) (node_t *node, void *data1, void *data2);
+typedef void (* node_event_t) (node_t *node, void *data1, void *data2);
 
     /* structure used for scheduling actions to be executed at a certain moment */
 typedef struct node_schedule_t {
 
-    char *                  name;
-    node_schedule_func_t    func;
-    void *                  data;
-    uint32                  usecs;
-    uint32                  remaining_usecs;
-    bool                    recurrent;
+    char *                      name;
+    node_schedule_func_t        func;
+    void *                      data;
+    uint32                      usecs;
+    uint32                      remaining_usecs;
+    bool                        recurrent;
 
 } node_schedule_t;
 
@@ -67,8 +62,7 @@ bool                        node_wake(node_t* node);
 bool                        node_kill(node_t* node);
 
 bool                        node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);
-bool                        node_execute(node_t *node, char *name, node_schedule_func_t func, void *data, bool blocking);
-void                        node_execute_pdu_event(node_t *node, char *name, node_pdu_event_t func, node_t *src_node, node_t *dst_node, void *data, bool blocking);
+void                        node_execute_event(node_t *node, char *name, node_event_t func, void *data1, void *data2, bool blocking);
 
 bool                        node_enqueue_pdu(node_t *node, void *pdu, uint8 phy_transmit_mode);
 bool                        node_has_pdu_from(node_t *node, node_t *src_node);

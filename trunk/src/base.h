@@ -15,8 +15,6 @@
 
     /**** configuration ****/
 
-#define DEBUG
-
 #define RS_VERSION          "0.1"
 
 
@@ -49,11 +47,26 @@
 
 #define RES_DIR             "resources"
 
+#define DEBUG_MAIN          (1 << 0)
+#define DEBUG_SYSTEM        (1 << 1)
+#define DEBUG_NODE          (1 << 2)
+#define DEBUG_PHY           (1 << 3)
+#define DEBUG_MAC           (1 << 4)
+#define DEBUG_IP            (1 << 5)
+#define DEBUG_ICMP          (1 << 6)
+#define DEBUG_RPL           (1 << 7)
+#define DEBUG_GUI           (1 << 8)
+
+#define DEBUG_MINIMAL       (DEBUG_MAIN | DEBUG_SYSTEM | DEBUG_NODE)
+#define DEBUG_PROTO         (DEBUG_PHY | DEBUG_MAC | DEBUG_IP | DEBUG_ICMP | DEBUG_RPL)
+#define DEBUG_ALL           (DEBUG_MINIMAL | DEBUG_PROTO | DEBUG_GUI)
+
+#define DEBUG               DEBUG_ICMP
 
 #define rs_info(args...)                rs_print(stdout, "* ", NULL, 0, NULL, args)
 
 #ifdef DEBUG
-#define rs_debug(args...)               rs_print(stderr, "@ ", __FILE__, __LINE__, __FUNCTION__, args)
+#define rs_debug(cat, args...)          { if (cat & DEBUG) rs_print(stderr, "@ ", __FILE__, __LINE__, __FUNCTION__, args); }
 #else
 #define rs_debug(args...)
 #endif  /* DEBUG */

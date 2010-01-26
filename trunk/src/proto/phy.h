@@ -5,6 +5,9 @@
 #include "../base.h"
 #include "../node.h"
 
+#define phy_node_lock(node)             g_static_rec_mutex_lock(&node->phy_info->mutex)
+#define phy_node_unlock(node)           g_static_rec_mutex_unlock(&node->phy_info->mutex)
+
 
     /* info that a node supporting PHY layer should store */
 typedef struct phy_node_info_t {
@@ -16,6 +19,8 @@ typedef struct phy_node_info_t {
     percent_t       battery_level;
     percent_t       tx_power;
     bool            mains_powered;
+
+    GStaticRecMutex mutex;
 
 } phy_node_info_t;
 

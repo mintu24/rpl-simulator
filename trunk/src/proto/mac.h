@@ -5,22 +5,27 @@
 #include "../base.h"
 #include "../node.h"
 
+#define mac_node_lock(node)             g_static_rec_mutex_lock(&node->mac_info->mutex)
+#define mac_node_unlock(node)           g_static_rec_mutex_unlock(&node->mac_info->mutex)
+
 
     /* info that a node supporting MAC layer should store */
 typedef struct mac_node_info_t {
 
-    char *address;
+    char *          address;
+
+    GStaticRecMutex mutex;
 
 } mac_node_info_t;
 
     /* fields contained in a MAC frame */
 typedef struct mac_pdu_t {
 
-	char *dst_address;
-	char *src_address;
+	char *         dst_address;
+	char *         src_address;
 
-	uint16 type;
-	void *sdu;
+	uint16         type;
+	void *         sdu;
 
 } mac_pdu_t;
 

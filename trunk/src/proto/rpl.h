@@ -17,6 +17,9 @@
 
 #define RPL_NODE_IS_ROOT(node)              (rpl_node_get_rank(node) == RPL_RANK_ROOT)
 
+#define rpl_node_lock(node)                 g_static_rec_mutex_lock(&node->rpl_info->mutex)
+#define rpl_node_unlock(node)               g_static_rec_mutex_unlock(&node->rpl_info->mutex)
+
 
     /* info that a node supporting RPL should store */
 typedef struct rpl_node_info_t {
@@ -30,6 +33,8 @@ typedef struct rpl_node_info_t {
 
     node_t **           sibling_list;
     uint16              sibling_count;
+
+    GStaticRecMutex     mutex;
 
 } rpl_node_info_t;
 
@@ -88,7 +93,7 @@ typedef struct rpl_dao_pdu_t {
 
 
 rpl_dio_pdu_t *     rpl_dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id);
-bool                rpl_dio_pdu_destroy(rpl_dio_pdu_t *pdu);
+void                rpl_dio_pdu_destroy(rpl_dio_pdu_t *pdu);
 
 rpl_dio_suboption_t *
                     rpl_dio_suboption_dag_config_create(int8 interval_doublings, int8 interval_min, int8 redundancy_constant, int8 max_rank_increase);
@@ -96,7 +101,7 @@ bool                rpl_dio_suboption_destroy(rpl_dio_suboption_t *suboption);
 bool                rpl_dio_pdu_add_suboption(rpl_dio_pdu_t *pdu, rpl_dio_suboption_t *suboption);
 
 rpl_dao_pdu_t *     rpl_dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32 dao_lifetime, char *prefix, uint8 prefix_len);
-bool                rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu);
+void                rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu);
 bool                rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address);
 
 bool                rpl_node_init(node_t *node);
@@ -110,12 +115,12 @@ void                rpl_node_set_seq_num(node_t *node, uint8 seq_num);
 
 node_t *            rpl_node_get_pref_parent(node_t *node);
 void                rpl_node_set_pref_parent(node_t *node, node_t *pref_parent);
-node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count); // todo lock proto_info_mutex
+node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
 bool                rpl_node_add_parent(node_t *node, node_t *parent);
 bool                rpl_node_remove_parent(node_t *node, node_t *parent);
 bool                rpl_node_has_parent(node_t *node, node_t *parent);
 
-node_t **           rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count); // todo lock proto_info_mutex
+node_t **           rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count);
 bool                rpl_node_add_sibling(node_t *node, node_t *sibling);
 bool                rpl_node_remove_sibling(node_t *node, node_t *sibling);
 bool                rpl_node_has_sibling(node_t *node, node_t *sibling);

@@ -25,6 +25,8 @@ display_params_t *              display_params = NULL;
 
 static GtkBuilder *             gtk_builder = NULL;
 
+static GtkWidget *              main_window = NULL;
+
     /* params widgets */
 static GtkWidget *              params_system_button = NULL;
 static GtkWidget *              params_system_vbox = NULL;
@@ -56,6 +58,9 @@ static GtkWidget *              params_nodes_route_rem_button = NULL;
 static GtkWidget *              params_nodes_route_upd_button = NULL;
 static GtkWidget *              params_nodes_route_tree_view = NULL;
 static GtkListStore *           params_nodes_route_store = NULL;
+static GtkWidget *              params_nodes_enable_ping_measurements_check = NULL;
+static GtkWidget *              params_nodes_ping_interval_spin = NULL;
+static GtkWidget *              params_nodes_ping_timeout_spin = NULL;
 static GtkWidget *              params_nodes_rank_spin = NULL;
 static GtkWidget *              params_nodes_seq_num_spin = NULL;
 
@@ -101,11 +106,10 @@ static bool                     signals_disabled = FALSE;
 void                cb_params_system_button_clicked(GtkWidget *button, gpointer data);
 void                cb_params_nodes_button_clicked(GtkWidget *button, gpointer data);
 void                cb_params_display_button_clicked(GtkWidget *button, gpointer data);
-void                cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data);
-void                cb_width_height_spin_value_changed(GtkSpinButton *spin, gpointer data);
+void                cb_gui_system_updated(GtkSpinButton *spin, gpointer data);
 void                cb_gui_node_updated(GtkWidget *widget, gpointer data);
 void                cb_gui_display_updated(GtkWidget *widget, gpointer data);
-void                cb_routes_tree_view_cursor_changed(GtkTreeView *tree_view, gpointer data);
+void                cb_params_nodes_route_tree_view_cursor_changed(GtkTreeView *tree_view, gpointer data);
 void                cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data);
 void                cb_params_nodes_route_rem_button_clicked(GtkButton *button, gpointer data);
 void                cb_params_nodes_route_upd_button_clicked(GtkButton *button, gpointer data);
@@ -164,7 +168,7 @@ void main_win_init()
         return;
     }
 
-    GtkWidget *main_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    main_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_default_size(GTK_WINDOW(main_window), MAIN_WIN_WIDTH, MAIN_WIN_HEIGHT);
     gtk_window_set_title(GTK_WINDOW(main_window), "RPL Simulator");
     gtk_signal_connect(GTK_OBJECT(main_window), "delete-event", GTK_SIGNAL_FUNC(cb_main_window_delete), NULL);
@@ -237,6 +241,8 @@ void main_win_system_to_gui()
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_height_spin), rs_system_get_height());
 
     /* add all the current possible next-hops */
+    system_lock();
+
     uint16 node_count, i;
     node_t **node_list = rs_system_get_node_list(&node_count);
     gtk_list_store_clear(params_nodes_route_next_hop_store);
@@ -246,6 +252,8 @@ void main_win_system_to_gui()
         gtk_list_store_insert_with_values(params_nodes_route_next_hop_store, NULL, -1, 0, phy_node_get_name(node), -1);
     }
 
+    system_unlock();
+
     signals_enable();
 }
 
@@ -254,6 +262,8 @@ void main_win_node_to_gui(node_t *node)
     signals_disable();
 
     /* phy */
+    phy_node_lock(node);
+
     gtk_entry_set_text(GTK_ENTRY(params_nodes_name_entry), phy_node_get_name(node));
 
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_x_spin), phy_node_get_x(node));
@@ -265,10 +275,18 @@ void main_win_node_to_gui(node_t *node)
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check), phy_node_is_mains_powered(node));
 
+    phy_node_unlock(node);
+
     /* mac */
+    mac_node_lock(node);
+
     gtk_entry_set_text(GTK_ENTRY(params_nodes_mac_address_entry), mac_node_get_address(node));
 
+    mac_node_unlock(node);
+
     /* ip */
+    ip_node_lock(node);
+
     gtk_entry_set_text(GTK_ENTRY(params_nodes_ip_address_entry), ip_node_get_address(node));
 
     /* ip route */
@@ -290,11 +308,26 @@ void main_win_node_to_gui(node_t *node)
     GtkTreePath *path = gtk_tree_path_new_first();
     gtk_tree_selection_select_path(selection, path);
     gtk_tree_path_free(path);
-    cb_routes_tree_view_cursor_changed(GTK_TREE_VIEW(params_nodes_route_tree_view), NULL);
+    cb_params_nodes_route_tree_view_cursor_changed(GTK_TREE_VIEW(params_nodes_route_tree_view), NULL);
+
+    ip_node_unlock(node);
+
+    /* icmp */
+    icmp_node_lock(node);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check), icmp_node_is_enabled_ping_measurement(node));
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_interval_spin), icmp_node_get_ping_interval(node) / 1000);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin), icmp_node_get_ping_timeout(node) / 1000);
+
+    icmp_node_unlock(node);
 
     /* rpl */
+    rpl_node_lock(node);
+
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), rpl_node_get_rank(node));
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), rpl_node_get_seq_num(node));
+
+    rpl_node_unlock(node);
 
     update_sensitivity();
 
@@ -320,6 +353,22 @@ display_params_t *main_win_get_display_params()
     return display_params;
 }
 
+void main_win_event_after_node_wake(node_t *node)
+{
+    sim_field_redraw();
+
+    if (main_window != NULL)
+        update_sensitivity();
+}
+
+void main_win_event_before_node_kill(node_t *node)
+{
+    sim_field_redraw();
+
+    if (main_window != NULL)
+        update_sensitivity();
+}
+
 
     /**** local functions ****/
 
@@ -327,7 +376,7 @@ void cb_params_system_button_clicked(GtkWidget *widget, gpointer data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     gtk_widget_set_visible(params_system_vbox, TRUE);
     gtk_widget_set_visible(params_nodes_vbox, FALSE);
@@ -344,7 +393,7 @@ void cb_params_nodes_button_clicked(GtkWidget *widget, gpointer data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     gtk_widget_set_visible(params_system_vbox, FALSE);
     gtk_widget_set_visible(params_nodes_vbox, TRUE);
@@ -361,7 +410,7 @@ void cb_params_display_button_clicked(GtkWidget *widget, gpointer data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     gtk_widget_set_visible(params_system_vbox, FALSE);
     gtk_widget_set_visible(params_nodes_vbox, FALSE);
@@ -374,17 +423,7 @@ void cb_params_display_button_clicked(GtkWidget *widget, gpointer data)
     signal_leave();
 }
 
-void cb_mains_powered_check_button_toggled(GtkToggleButton *button, gpointer data)
-{
-    signal_enter();
-
-    rs_debug(NULL);
-    update_sensitivity();
-
-    signal_leave();
-}
-
-void cb_width_height_spin_value_changed(GtkSpinButton *spin, gpointer data)
+void cb_gui_system_updated(GtkSpinButton *spin, gpointer data)
 {
     signal_enter();
 
@@ -398,11 +437,11 @@ void cb_gui_node_updated(GtkWidget *widget, gpointer data)
 {
     signal_enter();
 
-    rs_debug(NULL);
     rs_assert(selected_node != NULL);
 
     gui_to_node(selected_node);
     sim_field_redraw();
+    update_sensitivity();
 
     signal_leave();
 }
@@ -411,15 +450,13 @@ void cb_gui_display_updated(GtkWidget *widget, gpointer data)
 {
     signal_enter();
 
-    rs_debug(NULL);
-
     gui_to_display();
     sim_field_redraw();
 
     signal_leave();
 }
 
-void cb_routes_tree_view_cursor_changed(GtkTreeView *tree_view, gpointer data)
+void cb_params_nodes_route_tree_view_cursor_changed(GtkTreeView *tree_view, gpointer data)
 {
     int32 index = route_tree_viee_get_selected_index();
 
@@ -432,6 +469,8 @@ void cb_routes_tree_view_cursor_changed(GtkTreeView *tree_view, gpointer data)
         return;
     }
     else {
+        ip_node_lock(selected_node);
+
         uint16 route_count;
         ip_route_t **route_list = ip_node_get_route_list(selected_node, &route_count);
         ip_route_t *route = route_list[index];
@@ -444,6 +483,8 @@ void cb_routes_tree_view_cursor_changed(GtkTreeView *tree_view, gpointer data)
         if (route->next_hop != NULL)
             pos = rs_system_get_node_pos(route->next_hop);
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_next_hop_combo), pos);
+
+        ip_node_unlock(selected_node);
     }
 }
 
@@ -454,7 +495,7 @@ void cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data)
     // todo check for duplicates & validity
 
     rs_assert(selected_node != NULL);
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     const char *dst = gtk_entry_get_text(GTK_ENTRY(params_nodes_route_entry));
     uint8 prefix_len = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_route_prefix_len_spin));
@@ -467,6 +508,8 @@ void cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data)
         type = IP_ROUTE_TYPE_MANUAL;
     }
 
+    system_lock();
+
     uint16 node_count;
     node_t **node_list = rs_system_get_node_list(&node_count);
     node_t *next_hop = NULL;
@@ -475,6 +518,8 @@ void cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data)
     if (next_hop_pos >= 0) {
         next_hop = node_list[next_hop_pos];
     }
+
+    system_unlock();
 
     ip_node_add_route(selected_node, type, (char *) dst, prefix_len, next_hop, FALSE);
 
@@ -488,9 +533,11 @@ void cb_params_nodes_route_rem_button_clicked(GtkButton *button, gpointer data)
     signal_enter();
 
     rs_assert(selected_node != NULL);
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     int32 index = route_tree_viee_get_selected_index();
+
+    ip_node_lock(selected_node);
 
     uint16 route_count;
     ip_route_t **route_list = ip_node_get_route_list(selected_node, &route_count);
@@ -498,8 +545,9 @@ void cb_params_nodes_route_rem_button_clicked(GtkButton *button, gpointer data)
     rs_assert(index >= 0);
 
     ip_route_t *route = route_list[index];
-
     ip_node_rem_route(selected_node, route->dst, route->prefix_len);
+
+    ip_node_unlock(selected_node);
 
     signal_leave();
 
@@ -511,12 +559,14 @@ void cb_params_nodes_route_upd_button_clicked(GtkButton *button, gpointer data)
     signal_enter();
 
     rs_assert(selected_node != NULL);
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     const char *dst = gtk_entry_get_text(GTK_ENTRY(params_nodes_route_entry));
     uint8 prefix_len = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_route_prefix_len_spin));
     uint8 type = gtk_combo_box_get_active(GTK_COMBO_BOX(params_nodes_route_type_combo));
     int32 next_hop_pos = gtk_combo_box_get_active(GTK_COMBO_BOX(params_nodes_route_next_hop_combo));
+
+    system_lock();
 
     uint16 node_count;
     node_t **node_list = rs_system_get_node_list(&node_count);
@@ -527,7 +577,11 @@ void cb_params_nodes_route_upd_button_clicked(GtkButton *button, gpointer data)
         next_hop = node_list[next_hop_pos];
     }
 
+    system_unlock();
+
     int32 index = route_tree_viee_get_selected_index();
+
+    ip_node_lock(selected_node);
 
     uint16 route_count;
     ip_route_t **route_list = ip_node_get_route_list(selected_node, &route_count);
@@ -536,6 +590,7 @@ void cb_params_nodes_route_upd_button_clicked(GtkButton *button, gpointer data)
 
     ip_route_t *route = route_list[index];
 
+
     if (route->dst != NULL)
         free(route->dst);
     route->dst = strdup(dst);
@@ -543,9 +598,22 @@ void cb_params_nodes_route_upd_button_clicked(GtkButton *button, gpointer data)
     route->next_hop = next_hop;
     route->type = type;
 
+    ip_node_unlock(selected_node);
+
     signal_leave();
 
     main_win_node_to_gui(selected_node);
+}
+
+void cb_params_nodes_ping_timeout_spin_changed(GtkSpinButton *spin, gpointer data)
+{
+    signal_enter();
+
+    rs_debug(DEBUG_GUI, NULL);
+
+    update_sensitivity();
+
+    signal_leave();
 }
 
 
@@ -553,7 +621,7 @@ static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     sim_field_redraw();
     update_sensitivity();
@@ -565,7 +633,7 @@ static void cb_save_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     sim_field_redraw();
     update_sensitivity();
@@ -577,7 +645,7 @@ static void cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
     rs_quit();
 
     signal_leave();
@@ -587,7 +655,7 @@ static void cb_start_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     rs_start();
 
@@ -601,7 +669,7 @@ static void cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     rs_stop();
 
@@ -615,7 +683,7 @@ static void cb_add_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     node_t *node = rs_add_node();
     main_win_set_selected_node(node);
@@ -630,7 +698,7 @@ static void cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
     rs_assert(selected_node != NULL);
 
     rs_rem_node(selected_node);
@@ -647,7 +715,7 @@ static void cb_wake_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
     rs_assert(selected_node != NULL);
 
     rs_wake_node(selected_node);
@@ -662,7 +730,7 @@ static void cb_kill_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
     rs_assert(selected_node != NULL);
 
     rs_kill_node(selected_node);
@@ -677,7 +745,7 @@ static void cb_add_all_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     rs_add_more_nodes();
 
@@ -691,7 +759,7 @@ static void cb_remove_all_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     rs_rem_all_nodes();
 
@@ -707,7 +775,7 @@ static void cb_wake_all_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     rs_wake_all_nodes();
 
@@ -721,7 +789,7 @@ static void cb_kill_all_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     rs_kill_all_nodes();
 
@@ -735,7 +803,7 @@ static void cb_about_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
 
     GtkWidget *about_dialog = gtk_about_dialog_new();
 
@@ -777,7 +845,9 @@ static void cb_main_window_delete()
 {
     signal_enter();
 
-    rs_debug(NULL);
+    rs_debug(DEBUG_GUI, NULL);
+
+    main_window = NULL;
     rs_quit();
 
     signal_leave();
@@ -825,6 +895,9 @@ GtkWidget *create_params_widget()
     params_nodes_route_upd_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_upd_button");
     params_nodes_route_tree_view = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_route_tree_view");
     params_nodes_route_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_route_store");
+    params_nodes_enable_ping_measurements_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_enable_ping_measurements_check");
+    params_nodes_ping_interval_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_interval_spin");
+    params_nodes_ping_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_timeout_spin");
     params_nodes_rank_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_rank_spin");
     params_nodes_seq_num_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_seq_num_spin");
 
@@ -853,8 +926,6 @@ GtkWidget *create_params_widget()
             renderer,
             "text", 0,
             NULL);
-
-    gtk_signal_connect(GTK_OBJECT(params_nodes_route_tree_view), "cursor-changed", G_CALLBACK(cb_routes_tree_view_cursor_changed), NULL);
 
     return scrolled_window;
 }
@@ -1080,6 +1151,7 @@ static void update_sensitivity()
     bool node_alive = node_selected && selected_node->alive;
     bool route_selected = gtk_tree_selection_count_selected_rows(
             gtk_tree_view_get_selection(GTK_TREE_VIEW(params_nodes_route_tree_view))) > 0;
+    bool ping_enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check));
 
     gtk_widget_set_sensitive(params_nodes_name_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_x_spin, node_selected);
@@ -1089,8 +1161,6 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_mains_powered_check, node_selected);
     gtk_widget_set_sensitive(params_nodes_mac_address_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_ip_address_entry, node_selected);
-    gtk_widget_set_sensitive(params_nodes_rank_spin, node_selected);
-    gtk_widget_set_sensitive(params_nodes_seq_num_spin, node_selected);
     gtk_widget_set_sensitive(params_nodes_route_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_route_prefix_len_spin, node_selected);
     gtk_widget_set_sensitive(params_nodes_route_next_hop_combo, node_selected);
@@ -1099,6 +1169,11 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_route_rem_button, node_selected && route_selected);
     gtk_widget_set_sensitive(params_nodes_route_upd_button, node_selected && route_selected);
     gtk_widget_set_sensitive(params_nodes_route_tree_view, node_selected);
+    gtk_widget_set_sensitive(params_nodes_enable_ping_measurements_check, node_selected);
+    gtk_widget_set_sensitive(params_nodes_ping_interval_spin, node_selected && ping_enabled);
+    gtk_widget_set_sensitive(params_nodes_ping_timeout_spin, node_selected && ping_enabled);
+    gtk_widget_set_sensitive(params_nodes_rank_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_seq_num_spin, node_selected);
 
     gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected);
     gtk_widget_set_sensitive(rem_menu_item, node_selected);
@@ -1156,7 +1231,10 @@ static void gui_to_system()
 static void gui_to_node(node_t *node)
 {
     /* phy */
+    phy_node_lock(node);
+
     phy_node_set_name(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_name_entry)));
+
 
     phy_node_set_xy(node,
             gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_x_spin)),
@@ -1169,15 +1247,38 @@ static void gui_to_node(node_t *node)
 
     phy_node_set_mains_powered(node, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check)));
 
+    phy_node_unlock(node);
+
     /* mac */
+    mac_node_lock(node);
+
     mac_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_mac_address_entry)));
 
+    mac_node_unlock(node);
+
     /* ip */
+    ip_node_lock(node);
+
     ip_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_ip_address_entry)));
 
+    ip_node_unlock(node);
+
+    /* icmp */
+    icmp_node_lock(node);
+
+    icmp_node_set_enable_ping_measurement(node, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check)));
+    icmp_node_set_ping_interval(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_interval_spin)) * 1000);
+    icmp_node_set_ping_timeout(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin)) * 1000);
+
+    icmp_node_unlock(node);
+
     /* rpl */
+    rpl_node_lock(node);
+
     rpl_node_set_rank(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_rank_spin)));
     rpl_node_set_seq_num(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin)));
+
+    rpl_node_unlock(node);
 }
 
 static void gui_to_display()

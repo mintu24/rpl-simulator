@@ -31,12 +31,12 @@ bool rs_system_create()
     rs_system->width = DEFAULT_SYS_WIDTH;
     rs_system->height = DEFAULT_SYS_HEIGHT;
 
-    rs_system->nodes_mutex = g_mutex_new();
-
     rs_system->gc_list = NULL;
     rs_system->gc_count = 0;
     rs_system->gc_running = FALSE;
     rs_system->gc_mutex = g_mutex_new();
+
+    g_static_rec_mutex_init(&rs_system->mutex);
 
     /* start the garbage collector */
     GError *error;
@@ -65,7 +65,7 @@ bool rs_system_destroy()
     if (rs_system->node_list != NULL)
         free(rs_system->node_list);
 
-    g_mutex_free(rs_system->nodes_mutex);
+    g_static_rec_mutex_free(&rs_system->mutex);
 
     free(rs_system);
 
@@ -126,12 +126,12 @@ bool rs_system_add_node(node_t *node)
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
 
-    g_mutex_lock(rs_system->nodes_mutex);
+    system_lock();
 
     rs_system->node_list = realloc(rs_system->node_list, (++rs_system->node_count) * sizeof(node_t *));
     rs_system->node_list[rs_system->node_count - 1] = node;
 
-    g_mutex_unlock(rs_system->nodes_mutex);
+    system_unlock();
 
     return TRUE;
 }
@@ -141,7 +141,7 @@ bool rs_system_remove_node(node_t *node)
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
 
-    g_mutex_lock(rs_system->nodes_mutex);
+    system_lock();
 
     int i, pos = -1;
     for (i = 0; i < rs_system->node_count; i++) {
@@ -153,7 +153,8 @@ bool rs_system_remove_node(node_t *node)
 
     if (pos == -1) {
         rs_error("node '%s' not found", rs_system->node_list[i]);
-        g_mutex_unlock(rs_system->nodes_mutex);
+        system_unlock();
+
         return FALSE;
     }
 
@@ -164,14 +165,12 @@ bool rs_system_remove_node(node_t *node)
     rs_system->node_count--;
     rs_system->node_list = realloc(rs_system->node_list, (rs_system->node_count) * sizeof(node_t *));
 
-    g_mutex_unlock(rs_system->nodes_mutex);
+    system_unlock();
 
     /* add the removed node to the garbge collector's list */
     g_mutex_lock(rs_system->gc_mutex);
-
     rs_system->gc_list = realloc(rs_system->gc_list, sizeof(node_t *) * rs_system->gc_count + 1);
     rs_system->gc_list[rs_system->gc_count++] = node;
-
     g_mutex_unlock(rs_system->gc_mutex);
 
     return TRUE;
@@ -182,17 +181,17 @@ int32 rs_system_get_node_pos(node_t *node)
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
 
-    g_mutex_lock(rs_system->nodes_mutex);
+    system_lock();
 
     uint16 i;
     for (i = 0; i < rs_system->node_count; i++) {
         if (rs_system->node_list[i] == node) {
-            g_mutex_unlock(rs_system->nodes_mutex);
+            system_unlock();
             return i;
         }
     }
 
-    g_mutex_unlock(rs_system->nodes_mutex);
+    system_unlock();
 
     return -1;
 }
@@ -202,7 +201,7 @@ node_t *rs_system_find_node_by_name(char *name)
     rs_assert(rs_system != NULL);
     rs_assert(name != NULL);
 
-    g_mutex_lock(rs_system->nodes_mutex);
+    system_lock();
 
     int i;
     node_t *node = NULL;
@@ -213,7 +212,7 @@ node_t *rs_system_find_node_by_name(char *name)
         }
     }
 
-    g_mutex_unlock(rs_system->nodes_mutex);
+    system_unlock();
 
     return node;
 }
@@ -223,7 +222,7 @@ node_t *rs_system_find_node_by_mac_address(char *address)
     rs_assert(rs_system != NULL);
     rs_assert(address != NULL);
 
-    g_mutex_lock(rs_system->nodes_mutex);
+    system_lock();
 
     int i;
     node_t *node = NULL;
@@ -234,7 +233,7 @@ node_t *rs_system_find_node_by_mac_address(char *address)
         }
     }
 
-    g_mutex_unlock(rs_system->nodes_mutex);
+    system_unlock();
 
     return node;
 }
@@ -244,7 +243,7 @@ node_t *rs_system_find_node_by_ip_address(char *address)
     rs_assert(rs_system != NULL);
     rs_assert(address != NULL);
 
-    g_mutex_lock(rs_system->nodes_mutex);
+    system_lock();
 
     int i;
     node_t *node = NULL;
@@ -255,7 +254,7 @@ node_t *rs_system_find_node_by_ip_address(char *address)
         }
     }
 
-    g_mutex_unlock(rs_system->nodes_mutex);
+    system_unlock();
 
     return node;
 }
@@ -264,17 +263,10 @@ node_t **rs_system_get_node_list(uint16 *node_count)
 {
     rs_assert(rs_system != NULL);
 
-    //g_mutex_lock(rs_system->nodes_mutex);
-
-    if (node_count != NULL) {
+    if (node_count != NULL)
         *node_count = rs_system->node_count;
-    }
 
-    node_t **list = rs_system->node_list;
-
-    //g_mutex_unlock(rs_system->nodes_mutex);
-
-    return list;
+    return rs_system->node_list;
 }
 
 percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
@@ -299,7 +291,7 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
 
 void *garbage_collector_core(void *data)
 {
-    rs_debug("garbage collector started");
+    rs_debug(DEBUG_SYSTEM, "garbage collector started");
 
     rs_system->gc_running = TRUE;
 
@@ -309,7 +301,7 @@ void *garbage_collector_core(void *data)
         destroy_all_unreferenced_nodes();
     }
 
-    rs_debug("garbage collector stopped");
+    rs_debug(DEBUG_SYSTEM, "garbage collector stopped");
 
     g_thread_exit(NULL);
 
@@ -346,7 +338,7 @@ void destroy_all_unreferenced_nodes()
         }
 
         if (!referenced) {
-            rs_debug("node '%s' is not referenced anymore, will be destroyed", phy_node_get_name(node));
+            rs_debug(DEBUG_SYSTEM, "node '%s' is not referenced anymore, will be destroyed", phy_node_get_name(node));
 
             rpl_node_done(node);
             icmp_node_done(node);

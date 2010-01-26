@@ -205,7 +205,7 @@
                     <property name="digits">2</property>
                     <property name="numeric">True</property>
                     <property name="update_policy">if-valid</property>
-                    <signal name="value_changed" handler="cb_width_height_spin_value_changed"/>
+                    <signal name="value_changed" handler="cb_gui_system_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -253,7 +253,7 @@
                     <property name="digits">2</property>
                     <property name="numeric">True</property>
                     <property name="update_policy">if-valid</property>
-                    <signal name="value_changed" handler="cb_width_height_spin_value_changed"/>
+                    <signal name="value_changed" handler="cb_gui_system_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -415,7 +415,7 @@
                     <property name="digits">2</property>
                     <property name="numeric">True</property>
                     <property name="update_policy">if-valid</property>
-                    <signal name="changed" handler="cb_gui_node_updated"/>
+                    <signal name="value_changed" handler="cb_gui_node_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -461,7 +461,7 @@
                     <property name="digits">2</property>
                     <property name="numeric">True</property>
                     <property name="update_policy">if-valid</property>
-                    <signal name="changed" handler="cb_gui_node_updated"/>
+                    <signal name="value_changed" handler="cb_gui_node_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -515,7 +515,7 @@
                     <property name="can_focus">True</property>
                     <property name="invisible_char">&#x25CF;</property>
                     <property name="adjustment">params_tx_power_adjustment</property>
-                    <signal name="changed" handler="cb_gui_node_updated"/>
+                    <signal name="value_changed" handler="cb_gui_node_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -559,7 +559,7 @@
                     <property name="can_focus">True</property>
                     <property name="invisible_char">&#x25CF;</property>
                     <property name="adjustment">params_bat_level_adjustment</property>
-                    <signal name="changed" handler="cb_gui_node_updated"/>
+                    <signal name="value_changed" handler="cb_gui_node_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -575,7 +575,7 @@
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="cb_mains_powered_check_button_toggled"/>
+                    <signal name="toggled" handler="cb_gui_node_updated"/>
                     <signal name="toggled" handler="cb_gui_node_updated"/>
                   </object>
                   <packing>
@@ -717,6 +717,7 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="model">params_nodes_route_store</property>
+                                <signal name="cursor_changed" handler="cb_params_nodes_route_tree_view_cursor_changed"/>
                               </object>
                             </child>
                           </object>
@@ -886,6 +887,136 @@
           </packing>
         </child>
         <child>
+          <object class="GtkFrame" id="frame11">
+            <property name="visible">True</property>
+            <property name="label_xalign">0</property>
+            <child>
+              <object class="GtkTable" id="table8">
+                <property name="visible">True</property>
+                <property name="border_width">5</property>
+                <property name="n_rows">3</property>
+                <property name="n_columns">3</property>
+                <property name="column_spacing">2</property>
+                <property name="row_spacing">2</property>
+                <child>
+                  <object class="GtkLabel" id="label36">
+                    <property name="visible">True</property>
+                    <property name="xalign">1</property>
+                    <property name="label" translatable="yes">Ping Interval: </property>
+                  </object>
+                  <packing>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="x_options">GTK_FILL</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label37">
+                    <property name="visible">True</property>
+                    <property name="xalign">1</property>
+                    <property name="label" translatable="yes">Ping Timeout: </property>
+                  </object>
+                  <packing>
+                    <property name="top_attach">2</property>
+                    <property name="bottom_attach">3</property>
+                    <property name="x_options">GTK_FILL</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="params_nodes_ping_interval_spin">
+                    <property name="width_request">20</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="invisible_char">&#x25CF;</property>
+                    <property name="adjustment">params_nodes_ping_interval_adjustment</property>
+                    <property name="climb_rate">10.050000000000001</property>
+                    <property name="numeric">True</property>
+                    <property name="update_policy">if-valid</property>
+                    <signal name="value_changed" handler="cb_gui_node_updated"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">2</property>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="params_nodes_ping_timeout_spin">
+                    <property name="width_request">20</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="invisible_char">&#x25CF;</property>
+                    <property name="adjustment">params_nodes_ping_timeout_adjustment</property>
+                    <property name="climb_rate">10.050000000000001</property>
+                    <property name="numeric">True</property>
+                    <property name="update_policy">if-valid</property>
+                    <signal name="value_changed" handler="cb_gui_node_updated"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">2</property>
+                    <property name="top_attach">2</property>
+                    <property name="bottom_attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="params_nodes_enable_ping_measurements_check">
+                    <property name="label" translatable="yes">Enable Ping Measurements</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="draw_indicator">True</property>
+                    <signal name="toggled" handler="cb_gui_node_updated"/>
+                  </object>
+                  <packing>
+                    <property name="right_attach">3</property>
+                    <property name="x_options">GTK_FILL</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label39">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">ms</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">2</property>
+                    <property name="right_attach">3</property>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="x_options">GTK_FILL</property>
+                    <property name="x_padding">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label40">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">ms</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">2</property>
+                    <property name="right_attach">3</property>
+                    <property name="top_attach">2</property>
+                    <property name="bottom_attach">3</property>
+                    <property name="x_options">GTK_FILL</property>
+                    <property name="x_padding">2</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+            <child type="label">
+              <object class="GtkLabel" id="label38">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes"> ICMP </property>
+                <property name="use_markup">True</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="position">3</property>
+          </packing>
+        </child>
+        <child>
           <object class="GtkFrame" id="frame8">
             <property name="visible">True</property>
             <property name="label_xalign">0</property>
@@ -929,7 +1060,7 @@
                     <property name="climb_rate">10.050000000000001</property>
                     <property name="numeric">True</property>
                     <property name="update_policy">if-valid</property>
-                    <signal name="changed" handler="cb_gui_node_updated"/>
+                    <signal name="value_changed" handler="cb_gui_node_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -946,7 +1077,7 @@
                     <property name="climb_rate">10.050000000000001</property>
                     <property name="numeric">True</property>
                     <property name="update_policy">if-valid</property>
-                    <signal name="changed" handler="cb_gui_node_updated"/>
+                    <signal name="value_changed" handler="cb_gui_node_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -966,7 +1097,7 @@
             </child>
           </object>
           <packing>
-            <property name="position">3</property>
+            <property name="position">4</property>
           </packing>
         </child>
       </object>
@@ -1172,5 +1303,15 @@
     <property name="upper">255</property>
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
+  </object>
+  <object class="GtkAdjustment" id="params_nodes_ping_interval_adjustment">
+    <property name="upper">100000</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="params_nodes_ping_timeout_adjustment">
+    <property name="upper">100000</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">100</property>
   </object>
 </interface>
