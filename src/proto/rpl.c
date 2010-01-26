@@ -29,7 +29,7 @@ rpl_dio_pdu_t *rpl_dio_pdu_create(bool grounded, bool da_trigger, bool da_suppor
     return pdu;
 }
 
-bool rpl_dio_pdu_destroy(rpl_dio_pdu_t *pdu)
+void rpl_dio_pdu_destroy(rpl_dio_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
 
@@ -40,8 +40,6 @@ bool rpl_dio_pdu_destroy(rpl_dio_pdu_t *pdu)
         rpl_dio_suboption_destroy(pdu->suboptions);
 
     free(pdu);
-
-    return TRUE;
 }
 
 rpl_dio_suboption_t *rpl_dio_suboption_dag_config_create(int8 interval_doublings, int8 interval_min, int8 redundancy_constant, int8 max_rank_increase)
@@ -126,7 +124,7 @@ rpl_dao_pdu_t *rpl_dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank
     return pdu;
 }
 
-bool rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu)
+void rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
 
@@ -137,8 +135,6 @@ bool rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu)
     free(pdu->rr_stack);
 
     free(pdu);
-
-    return TRUE;
 }
 
 bool rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address)
@@ -158,13 +154,15 @@ bool rpl_node_init(node_t *node)
 
     node->rpl_info = malloc(sizeof(rpl_node_info_t));
 
-    node->rpl_info->rank = rand() % 2;   // todo make this always RPL_RANK_ROOT
-    node->rpl_info->seq_num = rand() % 5;   // todo make this always 0 ?
+    node->rpl_info->rank = 0;
+    node->rpl_info->seq_num = 0;
     node->rpl_info->pref_parent = NULL;
     node->rpl_info->parent_list = NULL;
     node->rpl_info->parent_count = 0;
     node->rpl_info->sibling_list = NULL;
     node->rpl_info->sibling_count = 0;
+
+    g_static_rec_mutex_init(&node->rpl_info->mutex);
 
     return TRUE;
 }
@@ -179,6 +177,8 @@ void rpl_node_done(node_t *node)
 
         if (node->rpl_info->sibling_list != NULL)
             free(node->rpl_info->sibling_list);
+
+        g_static_rec_mutex_free(&node->rpl_info->mutex);
 
         free(node->rpl_info);
     }
@@ -230,14 +230,10 @@ node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count)
 {
     rs_assert(node != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    if (parent_count != NULL)
+        *parent_count = node->rpl_info->parent_count;
 
-    node_t **list = node->rpl_info->parent_list;
-    *parent_count = node->rpl_info->parent_count;
-
-    g_mutex_unlock(node->proto_info_mutex);
-
-    return list;
+    return node->rpl_info->parent_list;
 }
 
 bool rpl_node_add_parent(node_t *node, node_t *parent)
@@ -245,13 +241,13 @@ bool rpl_node_add_parent(node_t *node, node_t *parent)
     rs_assert(node != NULL);
     rs_assert(parent != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    rpl_node_lock(node);
 
     int i;
     for (i = 0; i < node->rpl_info->parent_count; i++) {
         if (node->rpl_info->parent_list[i] == parent) {
             rs_error("node '%s' already has node '%s' as a parent", phy_node_get_name(node), phy_node_get_name(parent));
-            g_mutex_unlock(node->proto_info_mutex);
+            rpl_node_unlock(node);
 
             return FALSE;
         }
@@ -260,7 +256,7 @@ bool rpl_node_add_parent(node_t *node, node_t *parent)
     node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, (node->rpl_info->parent_count + 1) * sizeof(node_t *));
     node->rpl_info->parent_list[node->rpl_info->parent_count++] = parent;
 
-    g_mutex_unlock(node->proto_info_mutex);
+    rpl_node_unlock(node);
 
     return TRUE;
 }
@@ -270,7 +266,7 @@ bool rpl_node_remove_parent(node_t *node, node_t *parent)
     rs_assert(node != NULL);
     rs_assert(parent != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    rpl_node_lock(node);
 
     int pos = -1, i;
     for (i = 0; i < node->rpl_info->parent_count; i++) {
@@ -282,7 +278,7 @@ bool rpl_node_remove_parent(node_t *node, node_t *parent)
 
     if (pos == -1) {
         rs_error("node '%s' does not have node '%s' as a parent", phy_node_get_name(node), phy_node_get_name(parent));
-        g_mutex_unlock(node->proto_info_mutex);
+        rpl_node_unlock(node);
 
         return FALSE;
     }
@@ -294,7 +290,7 @@ bool rpl_node_remove_parent(node_t *node, node_t *parent)
     node->rpl_info->parent_count--;
     node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, node->rpl_info->parent_count * sizeof(node_t *));
 
-    g_mutex_unlock(node->proto_info_mutex);
+    rpl_node_unlock(node);
 
     return TRUE;
 }
@@ -304,18 +300,18 @@ bool rpl_node_has_parent(node_t *node, node_t *parent)
     rs_assert(node != NULL);
     rs_assert(parent != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    rpl_node_lock(node);
 
     int i;
     for (i = 0; i < node->rpl_info->parent_count; i++) {
         if (node->rpl_info->parent_list[i] == parent) {
-            g_mutex_unlock(node->proto_info_mutex);
+            rpl_node_unlock(node);
 
             return TRUE;
         }
     }
 
-    g_mutex_unlock(node->proto_info_mutex);
+    rpl_node_unlock(node);
 
     return FALSE;
 }
@@ -324,14 +320,10 @@ node_t **rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count)
 {
     rs_assert(node != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    if (sibling_count != NULL)
+        *sibling_count = node->rpl_info->sibling_count;
 
-    node_t **list = node->rpl_info->sibling_list;
-    *sibling_count = node->rpl_info->sibling_count;
-
-    g_mutex_unlock(node->proto_info_mutex);
-
-    return list;
+    return node->rpl_info->sibling_list;
 }
 
 bool rpl_node_add_sibling(node_t *node, node_t *sibling)
@@ -339,13 +331,13 @@ bool rpl_node_add_sibling(node_t *node, node_t *sibling)
     rs_assert(node != NULL);
     rs_assert(sibling != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    rpl_node_lock(node);
 
     int i;
     for (i = 0; i < node->rpl_info->sibling_count; i++) {
         if (node->rpl_info->sibling_list[i] == sibling) {
             rs_error("node '%s' already has node '%s' as a sibling", phy_node_get_name(node), phy_node_get_name(sibling));
-            g_mutex_unlock(node->proto_info_mutex);
+            rpl_node_unlock(node);
 
             return FALSE;
         }
@@ -354,7 +346,7 @@ bool rpl_node_add_sibling(node_t *node, node_t *sibling)
     node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, (node->rpl_info->sibling_count + 1) * sizeof(node_t *));
     node->rpl_info->sibling_list[node->rpl_info->sibling_count++] = sibling;
 
-    g_mutex_unlock(node->proto_info_mutex);
+    rpl_node_unlock(node);
 
     return TRUE;
 }
@@ -364,7 +356,7 @@ bool rpl_node_remove_sibling(node_t *node, node_t *sibling)
     rs_assert(node != NULL);
     rs_assert(sibling != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    rpl_node_lock(node);
 
     int pos = -1, i;
     for (i = 0; i < node->rpl_info->sibling_count; i++) {
@@ -376,7 +368,7 @@ bool rpl_node_remove_sibling(node_t *node, node_t *sibling)
 
     if (pos == -1) {
         rs_error("node '%s' does not have node '%s' as a sibling", phy_node_get_name(node), phy_node_get_name(sibling));
-        g_mutex_unlock(node->proto_info_mutex);
+        rpl_node_unlock(node);
 
         return FALSE;
     }
@@ -388,7 +380,7 @@ bool rpl_node_remove_sibling(node_t *node, node_t *sibling)
     node->rpl_info->sibling_count--;
     node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, node->rpl_info->sibling_count * sizeof(node_t *));
 
-    g_mutex_unlock(node->proto_info_mutex);
+    rpl_node_unlock(node);
 
     return TRUE;
 }
@@ -398,18 +390,18 @@ bool rpl_node_has_sibling(node_t *node, node_t *sibling)
     rs_assert(node != NULL);
     rs_assert(sibling != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    rpl_node_lock(node);
 
     int i;
     for (i = 0; i < node->rpl_info->sibling_count; i++) {
         if (node->rpl_info->sibling_list[i] == sibling) {
-            g_mutex_unlock(node->proto_info_mutex);
+            rpl_node_unlock(node);
 
             return TRUE;
         }
     }
 
-    g_mutex_unlock(node->proto_info_mutex);
+    rpl_node_unlock(node);
 
     return FALSE;
 }
@@ -419,11 +411,11 @@ bool rpl_send_dis(node_t *node, node_t *dst_node)
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "rpl_event_before_dis_pdu_sent",
-            (node_pdu_event_t) rpl_event_before_dis_pdu_sent,
-            node, dst_node, NULL,
+            (node_event_t) rpl_event_before_dis_pdu_sent,
+            dst_node, NULL,
             TRUE);
 
     return rpl_send(node, dst_node, ICMP_RPL_CODE_DIS, NULL);
@@ -433,11 +425,11 @@ bool rpl_receive_dis(node_t *node, node_t *src_node)
 {
     rs_assert(node != NULL);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "rpl_event_after_dis_pdu_received",
-            (node_pdu_event_t) rpl_event_after_dis_pdu_received,
-            src_node, node, NULL,
+            (node_event_t) rpl_event_after_dis_pdu_received,
+            src_node, NULL,
             TRUE);
 
     return TRUE;
@@ -449,11 +441,11 @@ bool rpl_send_dio(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu)
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "rpl_event_before_dio_pdu_sent",
-            (node_pdu_event_t) rpl_event_before_dio_pdu_sent,
-            node, dst_node, pdu,
+            (node_event_t) rpl_event_before_dio_pdu_sent,
+            dst_node, pdu,
             TRUE);
 
     return rpl_send(node, dst_node, ICMP_RPL_CODE_DIO, pdu);
@@ -464,12 +456,14 @@ bool rpl_receive_dio(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
     rs_assert(pdu != NULL);
     rs_assert(node != NULL);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "rpl_event_after_dio_pdu_received",
-            (node_pdu_event_t) rpl_event_after_dio_pdu_received,
-            src_node, node, pdu,
+            (node_event_t) rpl_event_after_dio_pdu_received,
+            src_node, pdu,
             TRUE);
+
+    rpl_dio_pdu_destroy(pdu);
 
     return TRUE;
 }
@@ -480,11 +474,11 @@ bool rpl_send_dao(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu)
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "rpl_event_before_dao_pdu_sent",
-            (node_pdu_event_t) rpl_event_before_dao_pdu_sent,
-            node, dst_node, pdu,
+            (node_event_t) rpl_event_before_dao_pdu_sent,
+            dst_node, pdu,
             TRUE);
 
     return rpl_send(node, dst_node, ICMP_RPL_CODE_DAO, pdu);
@@ -495,54 +489,54 @@ bool rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
     rs_assert(pdu != NULL);
     rs_assert(node != NULL);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "rpl_event_after_dao_pdu_received",
-            (node_pdu_event_t) rpl_event_after_dao_pdu_received,
-            src_node, node, pdu,
+            (node_event_t) rpl_event_after_dao_pdu_received,
+            src_node, pdu,
             TRUE);
+
+    rpl_dao_pdu_destroy(pdu);
 
     return TRUE;
 }
 
 void rpl_event_after_node_wake(node_t *node)
 {
-    rs_debug(NULL);
 }
 
 void rpl_event_before_node_kill(node_t *node)
 {
-    rs_debug(NULL);
 }
 
 void rpl_event_before_dis_pdu_sent(node_t *node, node_t *dst_node)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
+    rs_debug(DEBUG_RPL, "'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
 }
 
 void rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node)
 {
-    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
+    rs_debug(DEBUG_RPL, "'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
 }
 
 void rpl_event_before_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
+    rs_debug(DEBUG_RPL, "'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
 }
 
 void rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
 {
-    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
+    rs_debug(DEBUG_RPL, "'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
 }
 
 void rpl_event_before_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu)
 {
-    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
+    rs_debug(DEBUG_RPL, "'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
 }
 
 void rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 {
-    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
+    rs_debug(DEBUG_RPL, "'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
 }
 
 
@@ -551,6 +545,8 @@ void rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pd
 static bool rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu)
 {
     if (dst_node == NULL) { /* RPL broadcast */
+        ip_node_lock(node);
+
         node_t **neighbor_list;
         uint16 index, neighbor_count;
 
@@ -561,9 +557,13 @@ static bool rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu)
             node_t *neighbor = neighbor_list[index];
 
             if (!rpl_send(node, neighbor, code, sdu)) {
+                ip_node_unlock(node);
+
                 return FALSE;
             }
         }
+
+        ip_node_unlock(node);
     }
     else {
         if (!icmp_send(node, dst_node, ICMP_TYPE_RPL, code, sdu)) {

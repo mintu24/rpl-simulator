@@ -22,7 +22,6 @@ static void         get_next_coords(coord_t *x, coord_t *y);
 static char *       get_next_mac_address(char *address);
 static char *       get_next_ip_address(char *address);
 
-static node_t *     create_node(char *name, char *mac_address, char *ip_address, coord_t cx, coord_t cy);
 static node_t *     find_node_by_thread(GThread *thread);
 
 
@@ -40,7 +39,6 @@ void rs_save(char *filename)
 
 void rs_quit()
 {
-    // todo: ask "are you sure" stupid question
     gtk_main_quit();
 }
 
@@ -93,6 +91,8 @@ node_t *rs_add_node()
     char *new_ip_address = NULL;
     coord_t new_x, new_y;
 
+    system_lock();
+
     uint16 node_count;
     int32 index;
     node_t **node_list = rs_system_get_node_list(&node_count);
@@ -124,6 +124,8 @@ node_t *rs_add_node()
         }
     }
 
+    system_unlock();
+
     if (new_name == NULL) {
         new_name = get_next_name(NULL);
     }
@@ -147,8 +149,29 @@ node_t *rs_add_node()
 
     get_next_coords(&new_x, &new_y);
 
-    node_t *node = create_node(new_name, new_mac_address, new_ip_address, new_x, new_y);
+    node_t *node = node_create();
+
+    phy_node_init(node, new_name, new_x, new_y);
+    mac_node_init(node, new_mac_address);
+    ip_node_init(node, new_ip_address);
+    icmp_node_init(node);
+    rpl_node_init(node);
+
+    /* add routes to everyone */
+
+    system_lock();
+
+    for (index = 0; index < node_count; index++) {
+        node_t *dst_node = node_list[index];
+
+        ip_node_add_route(node, IP_ROUTE_TYPE_MANUAL, ip_node_get_address(dst_node), 16, dst_node, FALSE);
+        ip_node_add_route(dst_node, IP_ROUTE_TYPE_MANUAL, ip_node_get_address(node), 16, node, FALSE);
+    }
+
+    system_unlock();
+
     rs_system_add_node(node);
+
 
     free(new_name);
     free(new_mac_address);
@@ -205,6 +228,8 @@ void rs_add_more_nodes()
 
 void rs_rem_all_nodes()
 {
+    system_lock();
+
     node_t **node_list;
     uint16 node_count;
 
@@ -213,13 +238,16 @@ void rs_rem_all_nodes()
         node_t *node = node_list[node_count - 1];
 
         rs_rem_node(node);
-
         node_list = rs_system_get_node_list(&node_count);
     }
+
+    system_unlock();
 }
 
 void rs_wake_all_nodes()
 {
+    system_lock();
+
     node_t **node_list;
     uint16 node_count, index;
 
@@ -231,10 +259,14 @@ void rs_wake_all_nodes()
             rs_error("failed to wake node '%s'", phy_node_get_name(node));
         }
     }
+
+    system_unlock();
 }
 
 void rs_kill_all_nodes()
 {
+    system_lock();
+
     node_t **node_list;
     uint16 node_count, index;
 
@@ -246,6 +278,8 @@ void rs_kill_all_nodes()
             rs_error("failed to kill node '%s'", phy_node_get_name(node));
         }
     }
+
+    system_unlock();
 }
 
 
@@ -404,23 +438,9 @@ static char *get_next_ip_address(char *address)
 }
 
 
-static node_t *create_node(char *name, char *mac_address, char *ip_address, coord_t cx, coord_t cy)
-{
-    node_t *node = node_create();
-
-    phy_node_init(node, name, cx, cy);
-    mac_node_init(node, mac_address);
-    ip_node_init(node, ip_address);
-    icmp_node_init(node);
-    rpl_node_init(node);
-
-    return node;
-}
-
 static node_t *find_node_by_thread(GThread *thread)
 {
-    // todo lock the nodes mutex somehow
-    //g_mutex_lock(rs_system->nodes_mutex);
+    system_lock();
 
     uint16 node_count, index;
     node_t **node_list;
@@ -430,11 +450,13 @@ static node_t *find_node_by_thread(GThread *thread)
         node_t *node = node_list[index];
 
         if (node->life == thread) {
+            system_unlock();
+
             return node;
         }
     }
 
-    //g_mutex_unlock(rs_system->nodes_mutex);
+    system_unlock();
 
     return NULL;
 }

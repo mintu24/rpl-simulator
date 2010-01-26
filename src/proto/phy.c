@@ -22,10 +22,6 @@ bool phy_pdu_destroy(phy_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
 
-    if (pdu->sdu != NULL) {
-        mac_pdu_destroy(pdu->sdu);
-    }
-
     free(pdu);
 
     return TRUE;
@@ -53,8 +49,10 @@ bool phy_node_init(node_t *node, char *name, coord_t cx, coord_t cy)
     node->phy_info->cy = cy;
 
     node->phy_info->mains_powered = FALSE;
-    node->phy_info->tx_power = 0;
-    node->phy_info->battery_level = 0;
+    node->phy_info->tx_power = 0.5;
+    node->phy_info->battery_level = 0.5;
+
+    g_static_rec_mutex_init(&node->phy_info->mutex);
 
     return TRUE;
 }
@@ -67,28 +65,26 @@ void phy_node_done(node_t *node)
         if (node->phy_info->name != NULL)
             free(node->phy_info->name);
 
+        g_static_rec_mutex_free(&node->phy_info->mutex);
+
         free(node->phy_info);
     }
 }
 
 void phy_event_after_node_wake(node_t *node)
 {
-//    rs_debug(NULL);
 }
 
 void phy_event_before_node_kill(node_t *node)
 {
-//    rs_debug(NULL);
 }
 
 void phy_event_before_pdu_sent(node_t *node, node_t *dst_node, phy_pdu_t *pdu)
 {
-//    rs_debug(NULL);
 }
 
 void phy_event_after_pdu_received(node_t *node, node_t *src_node, phy_pdu_t *pdu)
 {
-//    rs_debug(NULL);
 }
 
 char *phy_node_get_name(node_t *node)
@@ -102,10 +98,14 @@ void phy_node_set_name(node_t *node, const char *name)
 {
     rs_assert(node != NULL);
 
+    phy_node_lock(node);
+
     if (node->phy_info->name != NULL)
         free(node->phy_info->name);
 
     node->phy_info->name = strdup(name);
+
+    phy_node_unlock(node);
 }
 
 coord_t phy_node_get_x(node_t *node)
@@ -178,6 +178,8 @@ bool phy_send(node_t *node, node_t *dst_node, void *sdu)
     rs_assert(sdu != NULL);
 
     if (dst_node == NULL) {
+        system_lock();
+
         node_t **node_list;
         uint16 index, node_count;
 
@@ -188,19 +190,23 @@ bool phy_send(node_t *node, node_t *dst_node, void *sdu)
             dst_node = node_list[index];
 
             if (!phy_send(node, dst_node, sdu)) {
+                system_unlock();
+
                 return FALSE;
             }
         }
+
+        system_unlock();
     }
     else {
         phy_pdu_t *phy_pdu = phy_pdu_create();
         phy_pdu_set_sdu(phy_pdu, node, sdu);
 
-        node_execute_pdu_event(
+        node_execute_event(
                 node,
                 "phy_event_before_pdu_sent",
-                (node_pdu_event_t) phy_event_before_pdu_sent,
-                node, dst_node, phy_pdu,
+                (node_event_t) phy_event_before_pdu_sent,
+                dst_node, phy_pdu,
                 TRUE);
 
         if (!node_enqueue_pdu(dst_node, phy_pdu, rs_system_get_transmit_mode())) {
@@ -217,21 +223,24 @@ bool phy_receive(node_t *node, node_t *src_node, phy_pdu_t *pdu)
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "phy_event_after_pdu_received",
-            (node_pdu_event_t) phy_event_after_pdu_received,
-            node, src_node, pdu,
+            (node_event_t) phy_event_after_pdu_received,
+            src_node, pdu,
             TRUE);
 
     mac_pdu_t *mac_pdu = pdu->sdu;
 
+    bool all_ok = TRUE;
     if (!mac_receive(node, src_node, mac_pdu)) {
         rs_error("failed to receive MAC pdu from node '%s'", phy_node_get_name(src_node));
-        return FALSE;
+        all_ok = FALSE;
     }
 
-    return TRUE;
+    phy_pdu_destroy(pdu);
+
+    return all_ok;
 }
 
 

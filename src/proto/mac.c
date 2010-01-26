@@ -36,14 +36,6 @@ bool mac_pdu_destroy(mac_pdu_t *pdu)
     if (pdu->src_address != NULL)
         free(pdu->src_address);
 
-    if (pdu->sdu != NULL) {
-        switch (pdu->type) {
-            case MAC_TYPE_IP:
-                ip_pdu_destroy(pdu->sdu);
-                break;
-        }
-    }
-
     free(pdu);
 
     return TRUE;
@@ -68,6 +60,8 @@ bool mac_node_init(node_t *node, char *address)
 
     node->mac_info->address = strdup(address);
 
+    g_static_rec_mutex_init(&node->mac_info->mutex);
+
     return TRUE;
 }
 
@@ -78,6 +72,8 @@ void mac_node_done(node_t *node)
     if (node->mac_info != NULL) {
         if (node->mac_info->address != NULL)
             free(node->mac_info->address);
+
+        g_static_rec_mutex_free(&node->mac_info->mutex);
 
         free(node->mac_info);
     }
@@ -94,14 +90,14 @@ void mac_node_set_address(node_t *node, const char *address)
 {
     rs_assert(node != NULL);
 
-    g_mutex_lock(node->proto_info_mutex);
+    mac_node_lock(node);
 
     if (node->mac_info->address != NULL)
         free(node->mac_info->address);
 
     node->mac_info->address = strdup(address);
 
-    g_mutex_unlock(node->proto_info_mutex);
+    mac_node_lock(node);
 }
 
 bool mac_send(node_t *node, node_t *dst_node, uint16 type, void *sdu)
@@ -111,11 +107,11 @@ bool mac_send(node_t *node, node_t *dst_node, uint16 type, void *sdu)
     mac_pdu_t *mac_pdu = mac_pdu_create(mac_node_get_address(dst_node), mac_node_get_address(node));
     mac_pdu_set_sdu(mac_pdu, type, sdu);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "mac_event_before_pdu_sent",
-            (node_pdu_event_t) mac_event_before_pdu_sent,
-            node, dst_node, mac_pdu,
+            (node_event_t) mac_event_before_pdu_sent,
+            dst_node, mac_pdu,
             TRUE);
 
     if (!phy_send(node, dst_node, mac_pdu)) {
@@ -131,25 +127,23 @@ bool mac_receive(node_t *node, node_t *src_node, mac_pdu_t *pdu)
     rs_assert(pdu!= NULL);
     rs_assert(node != NULL);
 
-    node_execute_pdu_event(
+    node_execute_event(
             node,
             "mac_event_after_pdu_received",
-            (node_pdu_event_t) mac_event_after_pdu_received,
-            node, src_node, pdu,
+            (node_event_t) mac_event_after_pdu_received,
+            src_node, pdu,
             TRUE);
+
+    bool all_ok = TRUE;
 
     switch (pdu->type) {
 
         case MAC_TYPE_IP : {
             ip_pdu_t *ip_pdu = pdu->sdu;
-            bool all_ok = ip_receive(node, src_node, &ip_pdu);
-            if (ip_pdu == NULL) { /* if the package was forwarded */
-                pdu->sdu = NULL;
-            }
 
-            if (!all_ok) {
+            if (!ip_receive(node, src_node, ip_pdu)) {
                 rs_error("failed to receive IP pdu from node '%s'", phy_node_get_name(src_node));
-                return FALSE;
+                all_ok = FALSE;
             }
 
             break;
@@ -157,31 +151,28 @@ bool mac_receive(node_t *node, node_t *src_node, mac_pdu_t *pdu)
 
         default:
             rs_error("unknown MAC type '0x%04X'", pdu->type);
-
-            return FALSE;
+            all_ok = FALSE;
     }
 
-    return TRUE;
+    mac_pdu_destroy(pdu);
+
+    return all_ok;
 }
 
 void mac_event_after_node_wake(node_t *node)
 {
-//    rs_debug(NULL);
 }
 
 void mac_event_before_node_kill(node_t *node)
 {
-//    rs_debug(NULL);
 }
 
 void mac_event_before_pdu_sent(node_t *node, node_t *dst_node, mac_pdu_t *pdu)
 {
-//    rs_debug("'%s' -> '%s'", pdu->src_address, pdu->dst_address);
 }
 
 void mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu)
 {
-//    rs_debug("'%s' -> '%s'", pdu->src_address, pdu->dst_address);
 }
 
     /**** local functions ****/

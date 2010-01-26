@@ -45,6 +45,7 @@ static gboolean             draw_sim_field(void *data);
 static void                 draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y);
 static void                 draw_parent_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, uint32 color, bool packet);
 static void                 draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, uint32 color, bool packet, bool draw_line);
+static gboolean             update_rulers_wrapper(void *data);
 
 static void                 draw_arrow(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color, bool draw_line, double thickness, bool dashed);
 static void                 draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_color, uint32 bg_color);
@@ -122,6 +123,8 @@ void sim_field_redraw()
 
     /* assure thread safety, performing all the drawing ops in the GUI thread */
     gdk_threads_add_idle(draw_sim_field, NULL);
+
+    gdk_threads_add_idle(update_rulers_wrapper, NULL);
 }
 
 
@@ -129,7 +132,7 @@ void sim_field_redraw()
 
 static gboolean cb_sim_field_drawing_area_expose(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-    sim_field_redraw(); // todo: is this a good idea?
+    draw_sim_field(NULL);
 
     return TRUE;
 }
@@ -268,6 +271,8 @@ static gboolean draw_sim_field(void *data)
     cairo_rectangle(cr, 0, 0, pixel_width, pixel_height);
     cairo_fill(cr);
 
+    system_lock();
+
     /* nodes */
     uint16 node_count, parent_count, sibling_count, node_index, parent_index, sibling_index;
     node_t **node_list, **parent_list, **sibling_list;
@@ -282,10 +287,22 @@ static gboolean draw_sim_field(void *data)
     for (node_index = 0; node_index < node_count; node_index++) {
         node_t *node = node_list[node_index];
 
+        phy_node_lock(node);
+        mac_node_lock(node);
+        ip_node_lock(node);
+        icmp_node_lock(node);
+        rpl_node_lock(node);
+
         pixel_x = phy_node_get_x(node) * scale_x;
         pixel_y = phy_node_get_y(node) * scale_y;
 
         draw_node(node, cr, pixel_x, pixel_y);
+
+        rpl_node_unlock(node);
+        icmp_node_unlock(node);
+        ip_node_unlock(node);
+        mac_node_unlock(node);
+        phy_node_unlock(node);
     }
 
     /* arrows */
@@ -297,6 +314,12 @@ static gboolean draw_sim_field(void *data)
             if (!node->alive) {
                 continue;
             }
+
+            phy_node_lock(node);
+            mac_node_lock(node);
+            ip_node_lock(node);
+            icmp_node_lock(node);
+            rpl_node_lock(node);
 
             start_pixel_x = phy_node_get_x(node) * scale_x;
             start_pixel_y = phy_node_get_y(node) * scale_y;
@@ -355,8 +378,16 @@ static gboolean draw_sim_field(void *data)
                     }
                 }
             }
+
+            rpl_node_unlock(node);
+            icmp_node_unlock(node);
+            ip_node_unlock(node);
+            mac_node_unlock(node);
+            phy_node_unlock(node);
         }
     }
+
+    system_unlock();
 
     /* decorate the hovered node */
     if (hover_node != NULL) {
@@ -479,6 +510,17 @@ static void draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_p
     draw_arrow(cr, start_pixel_x, start_pixel_y, stop_pixel_x, stop_pixel_y, SIM_FIELD_NODE_RADIUS, color, draw_line, thickness, TRUE);
 }
 
+static gboolean update_rulers_wrapper(void *data)
+{
+    coord_t width = rs_system_get_width();
+    coord_t height = rs_system_get_height();
+
+    gtk_ruler_set_range(GTK_RULER(sim_field_hruler), 0, width, 0, width);
+    gtk_ruler_set_range(GTK_RULER(sim_field_vruler), 0, height, 0, height);
+
+    return FALSE;
+}
+
 static void draw_arrow(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color, bool draw_line, double thickness, bool dashed)
 {
     const double arrow_length = 12;
@@ -563,6 +605,8 @@ static void draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_col
 
 static node_t *find_node_under_coords(gint x, gint y, float scale_x, float scale_y)
 {
+    system_lock();
+
     uint16 node_count;
     int32 index;
     node_t **node_list;
@@ -583,9 +627,13 @@ static node_t *find_node_under_coords(gint x, gint y, float scale_x, float scale
             (system_y > node_y - system_radius) &&
             (system_y < node_y + system_radius)) {
 
+            system_unlock();
+
             return node;
         }
     }
+
+    system_unlock();
 
     return NULL;
 }
