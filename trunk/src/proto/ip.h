@@ -13,6 +13,12 @@
 #define IP_ROUTE_TYPE_RPL_DAO_UCAST 2
 #define IP_ROUTE_TYPE_RPL_DIO       3
 
+#define ICMP_DEFAULT_PING_INTERVAL  2000000
+#define ICMP_DEFAULT_PING_TIMEOUT   1000000
+
+#define ICMP_TYPE_ECHO_REQUEST      0x80
+#define ICMP_TYPE_ECHO_REPLY        0x81
+
 
     /* a struct defining a route record */
 typedef struct ip_route_t {
@@ -52,6 +58,24 @@ typedef struct ip_pdu_t {
 
 } ip_pdu_t;
 
+typedef struct node_ping_measure_t {
+
+    node_t *                dst_node;
+    uint32                  total_count;
+    uint32                  failed_count;
+
+} icmp_ping_measure_t;
+
+typedef struct icmp_node_info_t {
+
+    icmp_ping_measure_t **  ping_measures;
+    uint32                  ping_measure_count;
+    uint32                  ping_interval;
+    uint32                  ping_timeout;
+    node_t *                ping_current_node;
+
+} icmp_node_info_t;
+
     /* fields contained in a ICMP message */
 typedef struct icmp_pdu_t {
 
@@ -66,18 +90,18 @@ ip_pdu_t *          ip_pdu_create(char *dst_address, char *src_address);
 bool                ip_pdu_destroy(ip_pdu_t *pdu);
 bool                ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu);
 
-bool                ip_node_init(node_t *node, char *address);
-void                ip_done_node(node_t *node);
+void                ip_node_init(node_t *node, char *address);
+void                ip_node_done(node_t *node);
 
 char *              ip_node_get_address(node_t *node);
 void                ip_node_set_address(node_t *node, const char *address);
 
 void                ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop, bool aggregate);
 bool                ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len);
-ip_route_t **       ip_node_get_route_list(node_t *node, uint16 *route_count);
+ip_route_t **       ip_node_get_route_list(node_t *node, uint16 *route_count); // todo lock proto_info_mutex
 node_t *            ip_node_best_match_route(node_t *node, char *dst_address);
 
-node_t **           ip_node_get_neighbor_list(node_t *node, uint16 *neighbor_count);
+node_t **           ip_node_get_neighbor_list(node_t *node, uint16 *neighbor_count); // todo lock proto_info_mutex
 bool                ip_node_add_neighbor(node_t *node, node_t *neighbor);
 bool                ip_node_remove_neighbor(node_t *node, node_t *neighbor);
 bool                ip_node_has_neighbor(node_t *node, node_t *neighbor);
@@ -86,12 +110,34 @@ bool                ip_send(node_t *node, node_t *dst_node, uint16 next_header, 
 bool                ip_forward(node_t *node, ip_pdu_t *pdu);
 bool                ip_receive(node_t *node, node_t *src_node, ip_pdu_t **pdu);
 
+
 icmp_pdu_t *        icmp_pdu_create();
 bool                icmp_pdu_destroy(icmp_pdu_t *pdu);
 bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu);
 
+void                icmp_node_init(node_t *node);
+void                icmp_node_done(node_t *node);
+
+icmp_ping_measure_t *
+                    icmp_get_ping_measure(node_t *node, node_t *dst_node);
+icmp_ping_measure_t **
+                    icmp_get_ping_measure_list(node_t *node, uint32 *ping_measure_count);
+
 bool                icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu);
 bool                icmp_receive(node_t *node, node_t *src_node, icmp_pdu_t *pdu);
+
+    /* events */
+void                ip_event_after_node_wake(node_t *node);
+void                ip_event_before_node_kill(node_t *node);
+
+void                ip_event_before_pdu_sent(node_t *node, node_t *dst_node, ip_pdu_t *pdu);
+void                ip_event_after_pdu_received(node_t *node, node_t *src_node, ip_pdu_t *pdu);
+
+void                icmp_event_after_node_wake(node_t *node);
+void                icmp_event_before_node_kill(node_t *node);
+
+void                icmp_event_before_pdu_sent(node_t *node, node_t *dst_node, icmp_pdu_t *pdu);
+void                icmp_event_after_pdu_received(node_t *node, node_t *src_node, icmp_pdu_t *pdu);
 
 
 #endif /* IP_H_ */

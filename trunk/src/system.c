@@ -264,7 +264,7 @@ node_t **rs_system_get_node_list(uint16 *node_count)
 {
     rs_assert(rs_system != NULL);
 
-    g_mutex_lock(rs_system->nodes_mutex);
+    //g_mutex_lock(rs_system->nodes_mutex);
 
     if (node_count != NULL) {
         *node_count = rs_system->node_count;
@@ -272,7 +272,7 @@ node_t **rs_system_get_node_list(uint16 *node_count)
 
     node_t **list = rs_system->node_list;
 
-    g_mutex_unlock(rs_system->nodes_mutex);
+    //g_mutex_unlock(rs_system->nodes_mutex);
 
     return list;
 }
@@ -349,7 +349,8 @@ void destroy_all_unreferenced_nodes()
             rs_debug("node '%s' is not referenced anymore, will be destroyed", phy_node_get_name(node));
 
             rpl_node_done(node);
-            ip_done_node(node);
+            icmp_node_done(node);
+            ip_node_done(node);
             mac_node_done(node);
             phy_node_done(node);
 

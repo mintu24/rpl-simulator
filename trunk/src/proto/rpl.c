@@ -5,15 +5,6 @@
 
     /**** local function prototypes ****/
 
-static void         rpl_event_before_dis_pdu_sent(node_t *node, node_t *dst_node);
-static void         rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node);
-
-static void         rpl_event_before_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu);
-static void         rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu);
-
-static void         rpl_event_before_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu);
-static void         rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu);
-
 static bool         rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu);
 
 
@@ -514,38 +505,48 @@ bool rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
     return TRUE;
 }
 
+void rpl_event_after_node_wake(node_t *node)
+{
+    rs_debug(NULL);
+}
+
+void rpl_event_before_node_kill(node_t *node)
+{
+    rs_debug(NULL);
+}
+
+void rpl_event_before_dis_pdu_sent(node_t *node, node_t *dst_node)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
+}
+
+void rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node)
+{
+    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
+}
+
+void rpl_event_before_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
+}
+
+void rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
+}
+
+void rpl_event_before_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
+}
+
+void rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
+{
+    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
+}
+
 
     /**** local functions ****/
-
-static void rpl_event_before_dis_pdu_sent(node_t *node, node_t *dst_node)
-{
-    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
-}
-
-static void rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node)
-{
-    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
-}
-
-static void rpl_event_before_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu)
-{
-    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
-}
-
-static void rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
-{
-    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
-}
-
-static void rpl_event_before_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu)
-{
-    rs_debug("'%s' -> '%s'", phy_node_get_name(node), (dst_node != NULL ? phy_node_get_name(dst_node) : "*"));
-}
-
-static void rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
-{
-    rs_debug("'%s' -> '%s'", (src_node != NULL ? phy_node_get_name(src_node) : "?"), phy_node_get_name(node));
-}
 
 static bool rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu)
 {

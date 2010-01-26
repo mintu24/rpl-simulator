@@ -38,5 +38,12 @@ void                    mac_node_set_address(node_t *node, const char *address);
 bool                    mac_send(node_t *node, node_t *dst_node, uint16 type, void *sdu);
 bool                    mac_receive(node_t *node, node_t *src_node, mac_pdu_t *pdu);
 
+    /* events */
+void                    mac_event_after_node_wake(node_t *node);
+void                    mac_event_before_node_kill(node_t *node);
+
+void                    mac_event_before_pdu_sent(node_t *node, node_t *dst_node, mac_pdu_t *pdu);
+void                    mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu);
+
 
 #endif /* MAC_H_ */
