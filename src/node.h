@@ -7,6 +7,7 @@
 #include "base.h"
 
 #define NODE_LIFE_CORE_SLEEP            10000
+#define NODE_MAX_SCHEDULES_TO_EXEC      100
 
 #define PHY_TRANSMIT_MODE_BLOCK         0
 #define PHY_TRANSMIT_MODE_REJECT        1
@@ -19,6 +20,8 @@ typedef struct node_t {
     struct phy_node_info_t *phy_info;
     struct mac_node_info_t *mac_info;
     struct ip_node_info_t * ip_info;
+    struct icmp_node_info_t *
+                            icmp_info;
     struct rpl_node_info_t *rpl_info;
 
     GQueue *                pdu_queue;
@@ -33,6 +36,7 @@ typedef struct node_t {
     GMutex *                schedule_mutex;
     GMutex *                proto_info_mutex;
     GMutex *                pdu_mutex;
+    GMutex *                measure_mutex;
 
     GCond *                 pdu_cond;
 
@@ -59,7 +63,7 @@ typedef struct node_schedule_t {
 node_t *                    node_create();
 bool                        node_destroy(node_t* node);
 
-bool                        node_wake(node_t* node, bool wait);
+bool                        node_wake(node_t* node);
 bool                        node_kill(node_t* node);
 
 bool                        node_schedule(node_t *node, char *name, node_schedule_func_t func, void *data, uint32 usecs, bool recurrent);

@@ -7,9 +7,6 @@
 
     /**** local function prototypes ****/
 
-static void             mac_event_before_pdu_sent(node_t *node, node_t *dst_node, mac_pdu_t *pdu);
-static void             mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu);
-
 
     /**** exported functions ****/
 
@@ -167,15 +164,25 @@ bool mac_receive(node_t *node, node_t *src_node, mac_pdu_t *pdu)
     return TRUE;
 }
 
+void mac_event_after_node_wake(node_t *node)
+{
+//    rs_debug(NULL);
+}
+
+void mac_event_before_node_kill(node_t *node)
+{
+//    rs_debug(NULL);
+}
+
+void mac_event_before_pdu_sent(node_t *node, node_t *dst_node, mac_pdu_t *pdu)
+{
+//    rs_debug("'%s' -> '%s'", pdu->src_address, pdu->dst_address);
+}
+
+void mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu)
+{
+//    rs_debug("'%s' -> '%s'", pdu->src_address, pdu->dst_address);
+}
 
     /**** local functions ****/
 
-static void mac_event_before_pdu_sent(node_t *node, node_t *dst_node, mac_pdu_t *pdu)
-{
-    rs_debug("'%s' -> '%s'", pdu->src_address, pdu->dst_address);
-}
-
-static void mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu)
-{
-    rs_debug("'%s' -> '%s'", pdu->src_address, pdu->dst_address);
-}

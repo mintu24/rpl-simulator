@@ -54,5 +54,12 @@ void                    phy_node_set_mains_powered(node_t *node, bool value);
 bool                    phy_send(node_t *node, node_t *dst_node, void *sdu);
 bool                    phy_receive(node_t *node, node_t *src_node, phy_pdu_t *pdu);
 
+    /* events */
+void                    phy_event_after_node_wake(node_t *node);
+void                    phy_event_before_node_kill(node_t *node);
+
+void                    phy_event_before_pdu_sent(node_t *node, node_t *dst_node, phy_pdu_t *pdu);
+void                    phy_event_after_pdu_received(node_t *node, node_t *src_node, phy_pdu_t *pdu);
+
 
 #endif /* PHY_H_ */

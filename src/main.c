@@ -181,7 +181,7 @@ void rs_rem_node(node_t *node)
 
 void rs_wake_node(node_t *node)
 {
-    if (!node_wake(node, TRUE)) {
+    if (!node_wake(node)) {
         rs_error("failed to wake node '%s'", phy_node_get_name(node));
     }
 }
@@ -227,7 +227,7 @@ void rs_wake_all_nodes()
 
     for (index = 0; index < node_count; index++) {
         node_t *node = node_list[index];
-        if (!node->alive && !node_wake(node, TRUE)) {
+        if (!node->alive && !node_wake(node)) {
             rs_error("failed to wake node '%s'", phy_node_get_name(node));
         }
     }
@@ -411,6 +411,7 @@ static node_t *create_node(char *name, char *mac_address, char *ip_address, coor
     phy_node_init(node, name, cx, cy);
     mac_node_init(node, mac_address);
     ip_node_init(node, ip_address);
+    icmp_node_init(node);
     rpl_node_init(node);
 
     return node;

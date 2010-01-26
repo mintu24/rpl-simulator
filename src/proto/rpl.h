@@ -110,12 +110,12 @@ void                rpl_node_set_seq_num(node_t *node, uint8 seq_num);
 
 node_t *            rpl_node_get_pref_parent(node_t *node);
 void                rpl_node_set_pref_parent(node_t *node, node_t *pref_parent);
-node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
+node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count); // todo lock proto_info_mutex
 bool                rpl_node_add_parent(node_t *node, node_t *parent);
 bool                rpl_node_remove_parent(node_t *node, node_t *parent);
 bool                rpl_node_has_parent(node_t *node, node_t *parent);
 
-node_t **           rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count);
+node_t **           rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count); // todo lock proto_info_mutex
 bool                rpl_node_add_sibling(node_t *node, node_t *sibling);
 bool                rpl_node_remove_sibling(node_t *node, node_t *sibling);
 bool                rpl_node_has_sibling(node_t *node, node_t *sibling);
@@ -126,6 +126,19 @@ bool                rpl_send_dio(node_t *node, node_t *dst_node, rpl_dio_pdu_t *
 bool                rpl_receive_dio(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu);
 bool                rpl_send_dao(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu);
 bool                rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu);
+
+    /* events */
+void                rpl_event_after_node_wake(node_t *node);
+void                rpl_event_before_node_kill(node_t *node);
+
+void                rpl_event_before_dis_pdu_sent(node_t *node, node_t *dst_node);
+void                rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node);
+
+void                rpl_event_before_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+void                rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu);
+
+void                rpl_event_before_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+void                rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu);
 
 
 #endif /* RPL_H_ */

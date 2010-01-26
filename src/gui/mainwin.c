@@ -296,6 +296,8 @@ void main_win_node_to_gui(node_t *node)
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), rpl_node_get_rank(node));
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), rpl_node_get_seq_num(node));
 
+    update_sensitivity();
+
     signals_enable();
 }
 
