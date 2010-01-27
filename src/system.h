@@ -11,7 +11,8 @@
 #include "proto/icmp.h"
 #include "proto/rpl.h"
 
-#define DEFAULT_NO_LINK_DIST_THRESH     10
+#define DEFAULT_NO_LINK_DIST_THRESH     50
+#define DEFAULT_NO_LINK_QUALITY_THRESH  0.2
 #define DEFAULT_PHY_TRANSMIT_MODE       PHY_TRANSMIT_MODE_BLOCK
 #define DEFAULT_SYS_WIDTH               100
 #define DEFAULT_SYS_HEIGHT              100
@@ -25,11 +26,14 @@
 #define system_lock()                   g_static_rec_mutex_lock(&rs_system->mutex)
 #define system_unlock()                 g_static_rec_mutex_unlock(&rs_system->mutex)
 
+#define rs_system_has_node(node)        (rs_system_get_node_pos(node) >= 0)
+
 
 typedef struct rs_system_t {
 
     /* params */
     coord_t             no_link_dist_thresh;
+    percent_t           no_link_quality_thresh;
     uint8               phy_transmit_mode;
 
     coord_t             width;
@@ -59,6 +63,9 @@ bool                        rs_system_destroy();
     /* params */
 coord_t                     rs_system_get_no_link_dist_thresh();
 void                        rs_system_set_no_link_dist_thresh(coord_t thresh);
+
+percent_t                   rs_system_get_no_link_quality_thresh();
+void                        rs_system_set_no_link_quality_thresh(percent_t thresh);
 
 uint8                       rs_system_get_transmit_mode();
 void                        rs_system_set_transmit_mode(uint8 mode);

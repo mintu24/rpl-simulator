@@ -61,13 +61,6 @@ void rs_start()
         return;
     }
 
-    rpl_node_add_parent(a, b);
-    rpl_node_add_parent(a, c);
-    rpl_node_set_pref_parent(a, b);
-
-    rpl_node_add_sibling(b, c);
-    rpl_node_add_sibling(c, b);
-
     ip_node_add_route(a, 0, "0000", 0, b, FALSE);
     ip_node_add_route(b, 0, "0000", 0, c, FALSE);
 

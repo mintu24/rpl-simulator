@@ -26,6 +26,7 @@ bool rs_system_create()
     rs_system->node_count = 0;
 
     rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
+    rs_system->no_link_quality_thresh = DEFAULT_NO_LINK_QUALITY_THRESH;
     rs_system->phy_transmit_mode = DEFAULT_PHY_TRANSMIT_MODE;
 
     rs_system->width = DEFAULT_SYS_WIDTH;
@@ -83,6 +84,21 @@ void rs_system_set_no_link_dist_thresh(coord_t thresh)
 {
     rs_assert(rs_system != NULL);
 
+    rs_system->no_link_dist_thresh = thresh;
+}
+
+percent_t rs_system_get_no_link_quality_thresh()
+{
+    rs_assert(rs_system != NULL);
+
+    return rs_system->no_link_quality_thresh;
+}
+
+void rs_system_set_no_link_quality_thresh(percent_t thresh)
+{
+    rs_assert(rs_system != NULL);
+
+    rs_system->no_link_quality_thresh = thresh;
 }
 
 uint8 rs_system_get_transmit_mode()
@@ -275,7 +291,7 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
     rs_assert(src_node != NULL);
     rs_assert(dst_node != NULL);
 
-    coord_t distance = sqrt(pow(phy_node_get_x(src_node) - phy_node_get_x(dst_node), 2) + pow(phy_node_get_y(src_node) - phy_node_get_x(dst_node), 2));
+    coord_t distance = sqrt(pow(phy_node_get_x(src_node) - phy_node_get_x(dst_node), 2) + pow(phy_node_get_y(src_node) - phy_node_get_y(dst_node), 2));
     if (distance > rs_system_get_no_link_dist_thresh()) {
         distance = rs_system_get_no_link_dist_thresh();
     }
@@ -321,19 +337,12 @@ void destroy_all_unreferenced_nodes()
         for (ref_node_index = 0; ref_node_index < rs_system->node_count; ref_node_index++) {
             node_t *ref_node = rs_system->node_list[ref_node_index];
 
-            if (ip_node_has_neighbor(ref_node, node)) {
-                referenced = TRUE;
-                break;
-            }
-
             if (rpl_node_has_parent(ref_node, node)) {
                 referenced = TRUE;
-                break;
             }
 
             if (rpl_node_has_sibling(ref_node, node)) {
                 referenced = TRUE;
-                break;
             }
         }
 

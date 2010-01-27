@@ -54,7 +54,7 @@ void icmp_node_init(node_t *node)
     node->icmp_info->ping_interval = ICMP_DEFAULT_PING_INTERVAL;
     node->icmp_info->ping_timeout = ICMP_DEFAULT_PING_TIMEOUT;
     node->icmp_info->ping_current_seq = 0;
-    node->icmp_info->ping_current_node = NULL;
+    node->icmp_info->ping_node = NULL;
 
     g_static_rec_mutex_init(&node->icmp_info->mutex);
 }
@@ -115,6 +115,20 @@ uint32 icmp_node_get_ping_timeout(node_t *node)
     rs_assert(node != NULL);
 
     return node->icmp_info->ping_timeout;
+}
+
+void icmp_node_set_ping_node(node_t *node, node_t *ping_node)
+{
+    rs_assert(node != NULL);
+
+    node->icmp_info->ping_node = ping_node;
+}
+
+node_t *icmp_node_get_ping_node(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    return node->icmp_info->ping_node;
 }
 
 icmp_ping_measure_t *icmp_node_get_ping_measure(node_t *node, node_t *dst_node)
@@ -336,28 +350,34 @@ static void icmp_do_ping(node_t *node)
     if (!icmp_node_is_enabled_ping_measurement(node))
         return;
 
-    system_lock();
+    node_t *dst_node = NULL;
 
-    uint16 node_count;
-    node_t **node_list = rs_system_get_node_list(&node_count);
+    if (node->icmp_info->ping_node == NULL) {
+        system_lock();
 
-    /* nothing to ping if 0 or 1 node in the system */
-    if (node_count < 2) {
+        uint16 node_count;
+        node_t **node_list = rs_system_get_node_list(&node_count);
+
+        /* nothing to ping if 0 or 1 node in the system */
+        if (node_count < 2) {
+            system_unlock();
+
+            return;
+        }
+
+        uint16 pos = rand() % node_count;
+        dst_node = node_list[pos];
+
         system_unlock();
-
-        return;
     }
-
-    uint16 pos = rand() % node_count;
-    node_t *dst_node = node_list[pos];
-
-    system_unlock();
+    else {
+        dst_node = node->icmp_info->ping_node;
+    }
 
     if (dst_node == node || !dst_node->alive) {
         return;
     }
 
-    node->icmp_info->ping_current_node = dst_node;
     uint32 *seq = malloc(sizeof(uint32));
     *seq = node->icmp_info->ping_current_seq++;
 

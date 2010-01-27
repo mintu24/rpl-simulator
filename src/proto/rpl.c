@@ -5,12 +5,15 @@
 
     /**** local function prototypes ****/
 
-static bool         rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu);
+static rpl_remote_node_t *  rpl_remote_node_info_create(node_t *node, rpl_dio_pdu_t *dio_message);
+static void                 rpl_remote_node_info_destroy(rpl_remote_node_t *remote_node_info);
+
+static bool                 rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu);
 
 
     /**** exported functions ****/
 
-rpl_dio_pdu_t *rpl_dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id)
+rpl_dio_pdu_t *rpl_dio_pdu_create(bool grounded, bool da_trigger, bool da_support, uint8 dag_pref, uint8 seq_number, uint8 instance_id, uint8 rank, char *dag_id)
 {
     rs_assert(dag_id != NULL);
 
@@ -172,11 +175,23 @@ void rpl_node_done(node_t *node)
     rs_assert(node != NULL);
 
     if (node->rpl_info != NULL) {
-        if (node->rpl_info->parent_list != NULL)
-            free(node->rpl_info->parent_list);
+        if (node->rpl_info->parent_list != NULL) {
+            int i;
+            for (i = 0; i < node->rpl_info->parent_count; i++) {
+                rpl_remote_node_info_destroy(node->rpl_info->parent_list[i]);
+            }
 
-        if (node->rpl_info->sibling_list != NULL)
+            free(node->rpl_info->parent_list);
+        }
+
+        if (node->rpl_info->sibling_list != NULL) {
+            int i;
+            for (i = 0; i < node->rpl_info->sibling_count; i++) {
+                rpl_remote_node_info_destroy(node->rpl_info->sibling_list[i]);
+            }
+
             free(node->rpl_info->sibling_list);
+        }
 
         g_static_rec_mutex_free(&node->rpl_info->mutex);
 
@@ -212,21 +227,75 @@ void rpl_node_set_seq_num(node_t *node, uint8 seq_num)
     node->rpl_info->seq_num = seq_num;
 }
 
-node_t *rpl_node_get_pref_parent(node_t *node)
+rpl_remote_node_t *rpl_node_get_pref_parent(node_t *node)
 {
     rs_assert(node != NULL);
 
     return node->rpl_info->pref_parent;
 }
 
-void rpl_node_set_pref_parent(node_t *node, node_t *pref_parent)
+void rpl_node_set_pref_parent(node_t *node, rpl_remote_node_t *parent)
 {
     rs_assert(node != NULL);
 
-    node->rpl_info->pref_parent = pref_parent;
+    node->rpl_info->pref_parent = parent;
 }
 
-node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count)
+bool rpl_node_add_parent(node_t *node, node_t *parent_node, rpl_dio_pdu_t *dio_message)
+{
+    rs_assert(node != NULL);
+    rs_assert(parent_node != NULL);
+    rs_assert(dio_message != NULL);
+
+    rpl_remote_node_t *remote_node_info = rpl_remote_node_info_create(parent_node, dio_message);
+
+    rpl_node_lock(node);
+
+    node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, (node->rpl_info->parent_count + 1) * sizeof(rpl_remote_node_t *));
+    node->rpl_info->parent_list[node->rpl_info->parent_count++] = remote_node_info;
+
+    rpl_node_unlock(node);
+
+    return TRUE;
+}
+
+bool rpl_node_remove_parent(node_t *node, rpl_remote_node_t *parent)
+{
+    rs_assert(node != NULL);
+    rs_assert(parent != NULL);
+
+    rpl_node_lock(node);
+
+    int pos = -1, i;
+    for (i = 0; i < node->rpl_info->parent_count; i++) {
+        if (node->rpl_info->parent_list[i] == parent) {
+            pos = i;
+            break;
+        }
+    }
+
+    if (pos == -1) {
+        rs_error("node '%s' does not have node '%s' as a parent", phy_node_get_name(node), phy_node_get_name(parent->node));
+        rpl_node_unlock(node);
+
+        return FALSE;
+    }
+
+    rpl_remote_node_info_destroy(node->rpl_info->parent_list[pos]);
+
+    for (i = pos; i < node->rpl_info->parent_count - 1; i++) {
+        node->rpl_info->parent_list[i] = node->rpl_info->parent_list[i + 1];
+    }
+
+    node->rpl_info->parent_count--;
+    node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, node->rpl_info->parent_count * sizeof(rpl_remote_node_t *));
+
+    rpl_node_unlock(node);
+
+    return TRUE;
+}
+
+rpl_remote_node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count)
 {
     rs_assert(node != NULL);
 
@@ -236,87 +305,82 @@ node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count)
     return node->rpl_info->parent_list;
 }
 
-bool rpl_node_add_parent(node_t *node, node_t *parent)
+rpl_remote_node_t *rpl_node_find_parent_by_node(node_t *node, node_t *parent_node)
 {
     rs_assert(node != NULL);
-    rs_assert(parent != NULL);
+    rs_assert(parent_node != NULL);
 
     rpl_node_lock(node);
 
     int i;
     for (i = 0; i < node->rpl_info->parent_count; i++) {
-        if (node->rpl_info->parent_list[i] == parent) {
-            rs_error("node '%s' already has node '%s' as a parent", phy_node_get_name(node), phy_node_get_name(parent));
+        if (node->rpl_info->parent_list[i]->node == parent_node) {
             rpl_node_unlock(node);
 
-            return FALSE;
+            return node->rpl_info->parent_list[i];
         }
     }
 
-    node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, (node->rpl_info->parent_count + 1) * sizeof(node_t *));
-    node->rpl_info->parent_list[node->rpl_info->parent_count++] = parent;
+    rpl_node_unlock(node);
+
+    return NULL;
+}
+
+bool rpl_node_add_sibling(node_t *node, node_t *sibling_node, rpl_dio_pdu_t *dio_message)
+{
+    rs_assert(node != NULL);
+    rs_assert(sibling_node != NULL);
+    rs_assert(dio_message != NULL);
+
+    rpl_remote_node_t *remote_node_info = rpl_remote_node_info_create(sibling_node, dio_message);
+
+    rpl_node_lock(node);
+
+    node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, (node->rpl_info->sibling_count + 1) * sizeof(rpl_remote_node_t *));
+    node->rpl_info->sibling_list[node->rpl_info->sibling_count++] = remote_node_info;
 
     rpl_node_unlock(node);
 
     return TRUE;
 }
 
-bool rpl_node_remove_parent(node_t *node, node_t *parent)
+bool rpl_node_remove_sibling(node_t *node, rpl_remote_node_t *sibling)
 {
     rs_assert(node != NULL);
-    rs_assert(parent != NULL);
+    rs_assert(sibling != NULL);
 
     rpl_node_lock(node);
 
     int pos = -1, i;
-    for (i = 0; i < node->rpl_info->parent_count; i++) {
-        if (node->rpl_info->parent_list[i] == parent) {
+    for (i = 0; i < node->rpl_info->sibling_count; i++) {
+        if (node->rpl_info->sibling_list[i] == sibling) {
             pos = i;
             break;
         }
     }
 
     if (pos == -1) {
-        rs_error("node '%s' does not have node '%s' as a parent", phy_node_get_name(node), phy_node_get_name(parent));
+        rs_error("node '%s' does not have node '%s' as a sibling", phy_node_get_name(node), phy_node_get_name(sibling->node));
         rpl_node_unlock(node);
 
         return FALSE;
     }
 
-    for (i = pos; i < node->rpl_info->parent_count - 1; i++) {
-        node->rpl_info->parent_list[i] = node->rpl_info->parent_list[i + 1];
+    rpl_remote_node_info_destroy(node->rpl_info->sibling_list[pos]);
+
+    for (i = pos; i < node->rpl_info->sibling_count - 1; i++) {
+        node->rpl_info->sibling_list[i] = node->rpl_info->sibling_list[i + 1];
     }
 
-    node->rpl_info->parent_count--;
-    node->rpl_info->parent_list = realloc(node->rpl_info->parent_list, node->rpl_info->parent_count * sizeof(node_t *));
+    node->rpl_info->sibling_count--;
+    node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, node->rpl_info->sibling_count * sizeof(rpl_remote_node_t *));
 
     rpl_node_unlock(node);
 
     return TRUE;
 }
 
-bool rpl_node_has_parent(node_t *node, node_t *parent)
-{
-    rs_assert(node != NULL);
-    rs_assert(parent != NULL);
-
-    rpl_node_lock(node);
-
-    int i;
-    for (i = 0; i < node->rpl_info->parent_count; i++) {
-        if (node->rpl_info->parent_list[i] == parent) {
-            rpl_node_unlock(node);
-
-            return TRUE;
-        }
-    }
-
-    rpl_node_unlock(node);
-
-    return FALSE;
-}
-
-node_t **rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count)
+rpl_remote_node_t **rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count)
 {
     rs_assert(node != NULL);
 
@@ -326,84 +390,25 @@ node_t **rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count)
     return node->rpl_info->sibling_list;
 }
 
-bool rpl_node_add_sibling(node_t *node, node_t *sibling)
+rpl_remote_node_t *rpl_node_find_sibling_by_node(node_t *node, node_t *sibling_node)
 {
     rs_assert(node != NULL);
-    rs_assert(sibling != NULL);
+    rs_assert(sibling_node != NULL);
 
     rpl_node_lock(node);
 
     int i;
     for (i = 0; i < node->rpl_info->sibling_count; i++) {
-        if (node->rpl_info->sibling_list[i] == sibling) {
-            rs_error("node '%s' already has node '%s' as a sibling", phy_node_get_name(node), phy_node_get_name(sibling));
+        if (node->rpl_info->sibling_list[i]->node == sibling_node) {
             rpl_node_unlock(node);
 
-            return FALSE;
-        }
-    }
-
-    node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, (node->rpl_info->sibling_count + 1) * sizeof(node_t *));
-    node->rpl_info->sibling_list[node->rpl_info->sibling_count++] = sibling;
-
-    rpl_node_unlock(node);
-
-    return TRUE;
-}
-
-bool rpl_node_remove_sibling(node_t *node, node_t *sibling)
-{
-    rs_assert(node != NULL);
-    rs_assert(sibling != NULL);
-
-    rpl_node_lock(node);
-
-    int pos = -1, i;
-    for (i = 0; i < node->rpl_info->sibling_count; i++) {
-        if (node->rpl_info->sibling_list[i] == sibling) {
-            pos = i;
-            break;
-        }
-    }
-
-    if (pos == -1) {
-        rs_error("node '%s' does not have node '%s' as a sibling", phy_node_get_name(node), phy_node_get_name(sibling));
-        rpl_node_unlock(node);
-
-        return FALSE;
-    }
-
-    for (i = pos; i < node->rpl_info->sibling_count - 1; i++) {
-        node->rpl_info->sibling_list[i] = node->rpl_info->sibling_list[i + 1];
-    }
-
-    node->rpl_info->sibling_count--;
-    node->rpl_info->sibling_list = realloc(node->rpl_info->sibling_list, node->rpl_info->sibling_count * sizeof(node_t *));
-
-    rpl_node_unlock(node);
-
-    return TRUE;
-}
-
-bool rpl_node_has_sibling(node_t *node, node_t *sibling)
-{
-    rs_assert(node != NULL);
-    rs_assert(sibling != NULL);
-
-    rpl_node_lock(node);
-
-    int i;
-    for (i = 0; i < node->rpl_info->sibling_count; i++) {
-        if (node->rpl_info->sibling_list[i] == sibling) {
-            rpl_node_unlock(node);
-
-            return TRUE;
+            return node->rpl_info->sibling_list[i];
         }
     }
 
     rpl_node_unlock(node);
 
-    return FALSE;
+    return NULL;
 }
 
 bool rpl_send_dis(node_t *node, node_t *dst_node)
@@ -542,34 +547,43 @@ void rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pd
 
     /**** local functions ****/
 
+static rpl_remote_node_t *rpl_remote_node_info_create(node_t *node, rpl_dio_pdu_t *message)
+{
+    rs_assert(node != NULL);
+    rs_assert(message != NULL);
+
+    rpl_remote_node_t *remote_node_info = malloc(sizeof(rpl_remote_node_t));
+
+    remote_node_info->node = node;
+    remote_node_info->last_dio_message = rpl_dio_pdu_create(
+            message->grounded,
+            message->da_trigger,
+            message->da_support,
+            message->dag_pref,
+            message->seq_number,
+            message->instance_id,
+            message->rank,
+            message->dag_id);
+
+    return remote_node_info;
+}
+
+static void rpl_remote_node_info_destroy(rpl_remote_node_t *remote_node_info)
+{
+    rs_assert(remote_node_info != NULL);
+
+    if (remote_node_info->last_dio_message != NULL)
+        rpl_dio_pdu_destroy(remote_node_info->last_dio_message);
+
+    free(remote_node_info);
+}
+
+
 static bool rpl_send(node_t *node, node_t *dst_node, uint8 code, void *sdu)
 {
-    if (dst_node == NULL) { /* RPL broadcast */
-        ip_node_lock(node);
-
-        node_t **neighbor_list;
-        uint16 index, neighbor_count;
-
-        neighbor_list = ip_node_get_neighbor_list(node, &neighbor_count);
-
-        // fixme this gives temporal priority to nodes at the begining of the neighbor list
-        for (index = 0; index < neighbor_count; index++) {
-            node_t *neighbor = neighbor_list[index];
-
-            if (!rpl_send(node, neighbor, code, sdu)) {
-                ip_node_unlock(node);
-
-                return FALSE;
-            }
-        }
-
-        ip_node_unlock(node);
-    }
-    else {
-        if (!icmp_send(node, dst_node, ICMP_TYPE_RPL, code, sdu)) {
-            rs_error("failed to send ICMP message");
-            return FALSE;
-        }
+    if (!icmp_send(node, dst_node, ICMP_TYPE_RPL, code, sdu)) {
+        rs_error("failed to send ICMP message");
+        return FALSE;
     }
 
     return TRUE;

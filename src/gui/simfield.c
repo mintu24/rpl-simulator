@@ -275,7 +275,8 @@ static gboolean draw_sim_field(void *data)
 
     /* nodes */
     uint16 node_count, parent_count, sibling_count, node_index, parent_index, sibling_index;
-    node_t **node_list, **parent_list, **sibling_list;
+    node_t **node_list;
+    rpl_remote_node_t **parent_list, **sibling_list;
     node_list = rs_system_get_node_list(&node_count);
 
     float scale_x = pixel_width / rs_system_get_width();
@@ -328,14 +329,14 @@ static gboolean draw_sim_field(void *data)
                 parent_list = rpl_node_get_parent_list(node, &parent_count);
 
                 for (parent_index = 0; parent_index < parent_count; parent_index++) {
-                    node_t *parent = parent_list[parent_index];
+                    node_t *parent = parent_list[parent_index]->node;
 
                     end_pixel_x = phy_node_get_x(parent) * scale_x;
                     end_pixel_y = phy_node_get_y(parent) * scale_y;
 
                     uint32 color;
                     if (parent->alive) {
-                        if (rpl_node_get_pref_parent(node) == parent) {
+                        if (rpl_node_get_pref_parent(node) == parent_list[parent_index]) {
                             color = SIM_FIELD_PREF_PARENT_ARROW_COLOR;
                         }
                         else {
@@ -355,7 +356,7 @@ static gboolean draw_sim_field(void *data)
                 sibling_list = rpl_node_get_sibling_list(node, &sibling_count);
 
                 for (sibling_index = 0; sibling_index < sibling_count; sibling_index++) {
-                    node_t *sibling = sibling_list[sibling_index];
+                    node_t *sibling = sibling_list[sibling_index]->node;
 
                     end_pixel_x = phy_node_get_x(sibling) * scale_x;
                     end_pixel_y = phy_node_get_y(sibling) * scale_y;
@@ -369,7 +370,9 @@ static gboolean draw_sim_field(void *data)
                         draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet, TRUE);
                     }
                     else {
-                        if (rpl_node_has_sibling(sibling, node) && sibling->alive && (rs_system_get_node_pos(sibling) >= 0)) {
+                        if (rpl_node_has_sibling(sibling, node) &&
+                                sibling->alive &&
+                                rs_system_has_node(sibling)) {
                             draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet, FALSE);
                         }
                         else {

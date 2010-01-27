@@ -35,7 +35,7 @@ typedef struct icmp_node_info_t {
     uint32                  ping_interval;
     uint32                  ping_timeout;
     uint32                  ping_current_seq;
-    node_t *                ping_current_node;
+    node_t *                ping_node;
 
     GStaticRecMutex         mutex;
 
@@ -66,6 +66,9 @@ uint32              icmp_node_get_ping_interval(node_t *node);
 
 void                icmp_node_set_ping_timeout(node_t *node, uint32 timeout);
 uint32              icmp_node_get_ping_timeout(node_t *node);
+
+void                icmp_node_set_ping_node(node_t *node, node_t *ping_node);
+node_t *            icmp_node_get_ping_node(node_t *node);
 
 icmp_ping_measure_t *
                     icmp_node_get_ping_measure(node_t *node, node_t *dst_node);

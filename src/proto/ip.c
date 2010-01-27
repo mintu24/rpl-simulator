@@ -62,9 +62,6 @@ void ip_node_init(node_t *node, char *address)
     node->ip_info->route_list = NULL;
     node->ip_info->route_count = 0;
 
-    node->ip_info->neighbor_list = NULL;
-    node->ip_info->neighbor_count = 0;
-
     g_static_rec_mutex_init(&node->ip_info->mutex);
 }
 
@@ -89,9 +86,6 @@ void ip_node_done(node_t *node)
 
             free(node->ip_info->route_list);
         }
-
-        if (node->ip_info->neighbor_list != NULL)
-            free(node->ip_info->neighbor_list);
 
         g_static_rec_mutex_free(&node->ip_info->mutex);
 
@@ -246,105 +240,27 @@ node_t *ip_node_best_match_route(node_t *node, char *dst_address)
     }
 }
 
-bool ip_node_add_neighbor(node_t *node, node_t *neighbor)
-{
-    rs_assert(node != NULL);
-    rs_assert(neighbor != NULL);
-
-    ip_node_lock(node);
-
-    node->ip_info->neighbor_list = realloc(node->ip_info->neighbor_list, (node->ip_info->neighbor_count + 1) * sizeof(node_t *));
-    node->ip_info->neighbor_list[node->ip_info->neighbor_count++] = neighbor;
-
-    ip_node_unlock(node);
-
-    return TRUE;
-}
-
-bool ip_node_remove_neighbor(node_t *node, node_t *neighbor)
-{
-    rs_assert(node != NULL);
-    rs_assert(neighbor != NULL);
-
-    ip_node_lock(node);
-
-    int pos = -1, i;
-    for (i = 0; i < node->ip_info->neighbor_count; i++) {
-        if (node->ip_info->neighbor_list[i] == neighbor) {
-            pos = i;
-            break;
-        }
-    }
-
-    if (pos == -1) {
-        rs_error("node '%s' does not have node '%s' as a neighbor", phy_node_get_name(node), phy_node_get_name(neighbor));
-        ip_node_unlock(node);
-
-        return FALSE;
-    }
-
-    for (i = pos; i < node->ip_info->neighbor_count - 1; i++) {
-        node->ip_info->neighbor_list[i] = node->ip_info->neighbor_list[i + 1];
-    }
-
-    node->ip_info->neighbor_count--;
-    node->ip_info->neighbor_list = realloc(node->ip_info->neighbor_list, node->ip_info->neighbor_count * sizeof(node_t *));
-
-    ip_node_unlock(node);
-
-    return TRUE;
-}
-
-node_t **ip_node_get_neighbor_list(node_t *node, uint16 *neighbor_count)
-{
-    rs_assert(node != NULL);
-
-    if (neighbor_count != NULL)
-        *neighbor_count = node->ip_info->neighbor_count;
-
-    return node->ip_info->neighbor_list;
-}
-
-bool ip_node_has_neighbor(node_t *node, node_t *neighbor)
-{
-    rs_assert(node != NULL);
-    rs_assert(neighbor != NULL);
-
-    ip_node_lock(node);
-
-    int i;
-    for (i = 0; i < node->ip_info->neighbor_count; i++) {
-        if (node->ip_info->neighbor_list[i] == neighbor) {
-            ip_node_unlock(node);
-
-            return TRUE;
-        }
-    }
-
-    ip_node_unlock(node);
-
-    return FALSE;
-}
-
 bool ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu)
 {
     rs_assert(node != NULL);
 
-    if (dst_node == NULL) {
-        rs_error("IP broadcast not supported");
-        return FALSE;
+    ip_pdu_t *ip_pdu = ip_pdu_create(ip_node_get_address(dst_node), ip_node_get_address(node));
+    ip_pdu_set_sdu(ip_pdu, next_header, sdu);
+
+    node_execute_event(
+            node,
+            "ip_event_before_pdu_sent",
+            (node_event_t) ip_event_before_pdu_sent,
+            dst_node, ip_pdu,
+            TRUE);
+
+    if (dst_node == NULL) { /* broadcast */
+        if (!mac_send(node, NULL, MAC_TYPE_IP, ip_pdu)) {
+            rs_error("failed to send MAC frame");
+            return FALSE;
+        }
     }
     else {
-        ip_pdu_t *ip_pdu = ip_pdu_create(ip_node_get_address(dst_node), ip_node_get_address(node));
-        ip_pdu_set_sdu(ip_pdu, next_header, sdu);
-
-        node_execute_event(
-                node,
-                "ip_event_before_pdu_sent",
-                (node_event_t) ip_event_before_pdu_sent,
-                dst_node, ip_pdu,
-                TRUE);
-
         /* route the packet */
         node_t *next_hop = ip_node_best_match_route(node, ip_node_get_address(dst_node));
 

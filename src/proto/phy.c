@@ -177,6 +177,16 @@ bool phy_send(node_t *node, node_t *dst_node, void *sdu)
     rs_assert(node != NULL);
     rs_assert(sdu != NULL);
 
+    phy_pdu_t *phy_pdu = phy_pdu_create();
+    phy_pdu_set_sdu(phy_pdu, node, sdu);
+
+    node_execute_event(
+            node,
+            "phy_event_before_pdu_sent",
+            (node_event_t) phy_event_before_pdu_sent,
+            dst_node, phy_pdu,
+            TRUE);
+
     if (dst_node == NULL) {
         system_lock();
 
@@ -184,12 +194,17 @@ bool phy_send(node_t *node, node_t *dst_node, void *sdu)
         uint16 index, node_count;
 
         node_list = rs_system_get_node_list(&node_count);
-
-        // fixme this gives temporal priority to nodes at the begining of the node list
         for (index = 0; index < node_count; index++) {
             dst_node = node_list[index];
 
-            if (!phy_send(node, dst_node, sdu)) {
+            /* simulate a "bad" quality link in function of distance and other factors */
+            percent_t link_quality = rs_system_get_link_quality(node, dst_node);
+            if (link_quality < rs_system_get_no_link_quality_thresh()) {
+                continue;
+            }
+
+            if (!node_enqueue_pdu(dst_node, phy_pdu, rs_system_get_transmit_mode())) {
+                rs_error("failed to enqueue pdu for node '%s'", phy_node_get_name(dst_node));
                 system_unlock();
 
                 return FALSE;
@@ -199,15 +214,11 @@ bool phy_send(node_t *node, node_t *dst_node, void *sdu)
         system_unlock();
     }
     else {
-        phy_pdu_t *phy_pdu = phy_pdu_create();
-        phy_pdu_set_sdu(phy_pdu, node, sdu);
-
-        node_execute_event(
-                node,
-                "phy_event_before_pdu_sent",
-                (node_event_t) phy_event_before_pdu_sent,
-                dst_node, phy_pdu,
-                TRUE);
+        /* simulate a "bad" quality link in function of distance and other factors */
+        percent_t link_quality = rs_system_get_link_quality(node, dst_node);
+        if (link_quality < rs_system_get_no_link_quality_thresh()) {
+            return TRUE;
+        }
 
         if (!node_enqueue_pdu(dst_node, phy_pdu, rs_system_get_transmit_mode())) {
             rs_error("failed to enqueue pdu for node '%s'", phy_node_get_name(dst_node));

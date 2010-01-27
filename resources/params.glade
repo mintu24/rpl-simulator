@@ -2,12 +2,6 @@
 <interface>
   <requires lib="gtk+" version="2.16"/>
   <!-- interface-naming-policy project-wide -->
-  <object class="GtkListStore" id="params_nodes_route_next_hop_store">
-    <columns>
-      <!-- column-name Next -->
-      <column type="gchararray"/>
-    </columns>
-  </object>
   <object class="GtkListStore" id="params_nodes_route_type_store">
     <columns>
       <!-- column-name Type -->
@@ -45,6 +39,18 @@
       <column type="gchararray"/>
     </columns>
   </object>
+  <object class="GtkListStore" id="params_nodes_route_next_hop_store">
+    <columns>
+      <!-- column-name Next -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="params_nodes_ping_node_store">
+    <columns>
+      <!-- column-name Next -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkTable" id="params_table">
     <property name="visible">True</property>
     <property name="border_width">5</property>
@@ -61,7 +67,7 @@
               <object class="GtkTable" id="table2">
                 <property name="visible">True</property>
                 <property name="border_width">5</property>
-                <property name="n_rows">4</property>
+                <property name="n_rows">5</property>
                 <property name="n_columns">3</property>
                 <property name="column_spacing">2</property>
                 <property name="row_spacing">2</property>
@@ -87,6 +93,7 @@
                     <property name="digits">2</property>
                     <property name="numeric">True</property>
                     <property name="update_policy">if-valid</property>
+                    <signal name="value_changed" handler="cb_gui_system_updated"/>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
@@ -168,8 +175,8 @@
                   </object>
                   <packing>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">1</property>
-                    <property name="bottom_attach">2</property>
+                    <property name="top_attach">2</property>
+                    <property name="bottom_attach">3</property>
                     <property name="x_options">GTK_FILL</property>
                     <property name="y_options">GTK_FILL</property>
                   </packing>
@@ -182,8 +189,8 @@
                     <property name="label" translatable="yes">Width: </property>
                   </object>
                   <packing>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
+                    <property name="top_attach">3</property>
+                    <property name="bottom_attach">4</property>
                     <property name="x_options">GTK_FILL</property>
                   </packing>
                 </child>
@@ -195,8 +202,8 @@
                     <property name="label" translatable="yes">Height: </property>
                   </object>
                   <packing>
-                    <property name="top_attach">3</property>
-                    <property name="bottom_attach">4</property>
+                    <property name="top_attach">4</property>
+                    <property name="bottom_attach">5</property>
                     <property name="x_options">GTK_FILL</property>
                   </packing>
                 </child>
@@ -216,8 +223,8 @@
                   <packing>
                     <property name="left_attach">1</property>
                     <property name="right_attach">2</property>
-                    <property name="top_attach">3</property>
-                    <property name="bottom_attach">4</property>
+                    <property name="top_attach">4</property>
+                    <property name="bottom_attach">5</property>
                   </packing>
                 </child>
                 <child>
@@ -228,8 +235,8 @@
                   <packing>
                     <property name="left_attach">2</property>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
+                    <property name="top_attach">3</property>
+                    <property name="bottom_attach">4</property>
                     <property name="x_options">GTK_FILL</property>
                     <property name="x_padding">2</property>
                   </packing>
@@ -242,8 +249,8 @@
                   <packing>
                     <property name="left_attach">2</property>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">3</property>
-                    <property name="bottom_attach">4</property>
+                    <property name="top_attach">4</property>
+                    <property name="bottom_attach">5</property>
                     <property name="x_options">GTK_FILL</property>
                     <property name="x_padding">2</property>
                   </packing>
@@ -264,8 +271,53 @@
                   <packing>
                     <property name="left_attach">1</property>
                     <property name="right_attach">2</property>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
+                    <property name="top_attach">3</property>
+                    <property name="bottom_attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label42">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">%</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">2</property>
+                    <property name="right_attach">3</property>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="x_options">GTK_FILL</property>
+                    <property name="x_padding">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="params_system_no_link_quality_spin">
+                    <property name="width_request">20</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="invisible_char">&#x25CF;</property>
+                    <property name="adjustment">params_no_link_quality_adjustment</property>
+                    <property name="numeric">True</property>
+                    <property name="update_policy">if-valid</property>
+                    <signal name="value_changed" handler="cb_gui_system_updated"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">2</property>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label43">
+                    <property name="visible">True</property>
+                    <property name="xalign">1</property>
+                    <property name="yalign">0.49000000953674316</property>
+                    <property name="label" translatable="yes">No-link quality: </property>
+                  </object>
+                  <packing>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="x_options">GTK_FILL</property>
                   </packing>
                 </child>
               </object>
@@ -901,7 +953,7 @@
               <object class="GtkTable" id="table8">
                 <property name="visible">True</property>
                 <property name="border_width">5</property>
-                <property name="n_rows">3</property>
+                <property name="n_rows">4</property>
                 <property name="n_columns">3</property>
                 <property name="column_spacing">2</property>
                 <property name="row_spacing">2</property>
@@ -912,8 +964,8 @@
                     <property name="label" translatable="yes">Ping Interval: </property>
                   </object>
                   <packing>
-                    <property name="top_attach">1</property>
-                    <property name="bottom_attach">2</property>
+                    <property name="top_attach">2</property>
+                    <property name="bottom_attach">3</property>
                     <property name="x_options">GTK_FILL</property>
                   </packing>
                 </child>
@@ -924,8 +976,8 @@
                     <property name="label" translatable="yes">Ping Timeout: </property>
                   </object>
                   <packing>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
+                    <property name="top_attach">3</property>
+                    <property name="bottom_attach">4</property>
                     <property name="x_options">GTK_FILL</property>
                   </packing>
                 </child>
@@ -944,8 +996,8 @@
                   <packing>
                     <property name="left_attach">1</property>
                     <property name="right_attach">2</property>
-                    <property name="top_attach">1</property>
-                    <property name="bottom_attach">2</property>
+                    <property name="top_attach">2</property>
+                    <property name="bottom_attach">3</property>
                   </packing>
                 </child>
                 <child>
@@ -963,8 +1015,8 @@
                   <packing>
                     <property name="left_attach">1</property>
                     <property name="right_attach">2</property>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
+                    <property name="top_attach">3</property>
+                    <property name="bottom_attach">4</property>
                   </packing>
                 </child>
                 <child>
@@ -989,8 +1041,8 @@
                   <packing>
                     <property name="left_attach">2</property>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">1</property>
-                    <property name="bottom_attach">2</property>
+                    <property name="top_attach">2</property>
+                    <property name="bottom_attach">3</property>
                     <property name="x_options">GTK_FILL</property>
                     <property name="x_padding">2</property>
                   </packing>
@@ -1003,10 +1055,36 @@
                   <packing>
                     <property name="left_attach">2</property>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
+                    <property name="top_attach">3</property>
+                    <property name="bottom_attach">4</property>
                     <property name="x_options">GTK_FILL</property>
                     <property name="x_padding">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkComboBox" id="params_nodes_ping_node_combo">
+                    <property name="width_request">20</property>
+                    <property name="visible">True</property>
+                    <property name="model">params_nodes_ping_node_store</property>
+                    <signal name="changed" handler="cb_gui_node_updated"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">3</property>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label41">
+                    <property name="visible">True</property>
+                    <property name="xalign">1</property>
+                    <property name="label" translatable="yes">Ping Node: </property>
+                  </object>
+                  <packing>
+                    <property name="top_attach">1</property>
+                    <property name="bottom_attach">2</property>
+                    <property name="x_options">GTK_FILL</property>
                   </packing>
                 </child>
               </object>
@@ -1320,5 +1398,10 @@
     <property name="upper">100000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="params_no_link_quality_adjustment">
+    <property name="upper">100</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
   </object>
 </interface>
