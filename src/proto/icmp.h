@@ -30,7 +30,7 @@ typedef struct node_ping_measure_t {
 typedef struct icmp_node_info_t {
 
     bool                    ping_measures_enabled;
-    icmp_ping_measure_t **  ping_measures;
+    icmp_ping_measure_t **  ping_measure_list;
     uint32                  ping_measure_count;
     uint32                  ping_interval;
     uint32                  ping_timeout;
@@ -68,9 +68,9 @@ void                icmp_node_set_ping_timeout(node_t *node, uint32 timeout);
 uint32              icmp_node_get_ping_timeout(node_t *node);
 
 icmp_ping_measure_t *
-                    icmp_get_ping_measure(node_t *node, node_t *dst_node);
+                    icmp_node_get_ping_measure(node_t *node, node_t *dst_node);
 icmp_ping_measure_t **
-                    icmp_get_ping_measure_list(node_t *node, uint32 *ping_measure_count);
+                    icmp_node_get_ping_measure_list(node_t *node, uint32 *ping_measure_count);
 
 bool                icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu);
 bool                icmp_receive(node_t *node, node_t *src_node, icmp_pdu_t *pdu);

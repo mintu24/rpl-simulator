@@ -39,6 +39,12 @@
       </row>
     </data>
   </object>
+  <object class="GtkListStore" id="params_nodes_route_dst_store">
+    <columns>
+      <!-- column-name Destination -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkTable" id="params_table">
     <property name="visible">True</property>
     <property name="border_width">5</property>
@@ -694,17 +700,6 @@
                         <property name="column_spacing">3</property>
                         <property name="row_spacing">3</property>
                         <child>
-                          <object class="GtkEntry" id="params_nodes_route_entry">
-                            <property name="width_request">20</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="invisible_char">&#x25CF;</property>
-                          </object>
-                          <packing>
-                            <property name="right_attach">3</property>
-                          </packing>
-                        </child>
-                        <child>
                           <object class="GtkScrolledWindow" id="scrolledwindow1">
                             <property name="height_request">150</property>
                             <property name="visible">True</property>
@@ -854,6 +849,18 @@
                           <packing>
                             <property name="left_attach">3</property>
                             <property name="right_attach">4</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkComboBoxEntry" id="params_nodes_route_dst_combo">
+                            <property name="width_request">20</property>
+                            <property name="visible">True</property>
+                            <property name="model">params_nodes_route_dst_store</property>
+                            <property name="text_column">0</property>
+                            <signal name="changed" handler="cb_params_nodes_route_dst_combo_changed"/>
+                          </object>
+                          <packing>
+                            <property name="right_attach">3</property>
                           </packing>
                         </child>
                       </object>

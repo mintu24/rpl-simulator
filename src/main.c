@@ -82,6 +82,35 @@ void rs_start()
 void rs_stop(char *filename)
 {
     // todo: implement me
+
+    system_lock();
+
+    uint16 node_count;
+    int32 index;
+    node_t **node_list = rs_system_get_node_list(&node_count);
+
+    for (index = 0; index < node_count; index++) {
+        node_t *node = node_list[index];
+        printf("node '%s':\n", phy_node_get_name(node));
+
+        icmp_node_lock(node);
+
+        uint32 meas_count, i;
+        icmp_ping_measure_t **measures = icmp_node_get_ping_measure_list(node, &meas_count);
+        for (i = 0; i < meas_count; i++) {
+            icmp_ping_measure_t *measure = measures[i];
+            printf("    to '%s': failures %d/%d\n",
+                    phy_node_get_name(measure->dst_node),
+                    measure->failed_count,
+                    measure->total_count);
+        }
+
+        icmp_node_unlock(node);
+    }
+
+    system_unlock();
+
+    /** fixme test **********************/
 }
 
 node_t *rs_add_node()
