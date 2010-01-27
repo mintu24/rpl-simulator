@@ -50,7 +50,7 @@ void icmp_node_init(node_t *node)
 
     node->icmp_info->ping_measure_count = 0;
     node->icmp_info->ping_measures_enabled = FALSE;
-    node->icmp_info->ping_measures = NULL;
+    node->icmp_info->ping_measure_list = NULL;
     node->icmp_info->ping_interval = ICMP_DEFAULT_PING_INTERVAL;
     node->icmp_info->ping_timeout = ICMP_DEFAULT_PING_TIMEOUT;
     node->icmp_info->ping_current_seq = 0;
@@ -66,7 +66,7 @@ void icmp_node_done(node_t *node)
     if (node->icmp_info != NULL) {
         uint32 i;
         for (i = 0; i < node->icmp_info->ping_measure_count; i++) {
-            free(node->icmp_info->ping_measures[i]);
+            free(node->icmp_info->ping_measure_list[i]);
         }
 
         g_static_rec_mutex_free(&node->icmp_info->mutex);
@@ -117,7 +117,7 @@ uint32 icmp_node_get_ping_timeout(node_t *node)
     return node->icmp_info->ping_timeout;
 }
 
-icmp_ping_measure_t *icmp_get_ping_measure(node_t *node, node_t *dst_node)
+icmp_ping_measure_t *icmp_node_get_ping_measure(node_t *node, node_t *dst_node)
 {
     rs_assert(node != NULL);
 
@@ -126,8 +126,8 @@ icmp_ping_measure_t *icmp_get_ping_measure(node_t *node, node_t *dst_node)
     icmp_ping_measure_t *ping_measure = NULL;
     uint32 i;
     for (i = 0; i < node->icmp_info->ping_measure_count; i++) {
-        if (node->icmp_info->ping_measures[i]->dst_node == dst_node) {
-            ping_measure = node->icmp_info->ping_measures[i];
+        if (node->icmp_info->ping_measure_list[i]->dst_node == dst_node) {
+            ping_measure = node->icmp_info->ping_measure_list[i];
         }
     }
 
@@ -136,14 +136,14 @@ icmp_ping_measure_t *icmp_get_ping_measure(node_t *node, node_t *dst_node)
     return ping_measure;
 }
 
-icmp_ping_measure_t **icmp_get_ping_measure_list(node_t *node, uint32 *ping_measure_count)
+icmp_ping_measure_t **icmp_node_get_ping_measure_list(node_t *node, uint32 *ping_measure_count)
 {
     rs_assert(node != NULL);
 
     if (ping_measure_count != NULL)
         *ping_measure_count = node->icmp_info->ping_measure_count;
 
-    return node->icmp_info->ping_measures;
+    return node->icmp_info->ping_measure_list;
 }
 
 bool icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu)
@@ -301,8 +301,8 @@ static void icmp_add_ping_measure(node_t *node, node_t *dst_node, bool timedout)
     icmp_ping_measure_t *ping_measure = NULL;
     uint32 i;
     for (i = 0; i < node->icmp_info->ping_measure_count; i++) {
-        if (node->icmp_info->ping_measures[i]->dst_node == dst_node) {
-            ping_measure = node->icmp_info->ping_measures[i];
+        if (node->icmp_info->ping_measure_list[i]->dst_node == dst_node) {
+            ping_measure = node->icmp_info->ping_measure_list[i];
             break;
         }
     }
@@ -313,8 +313,8 @@ static void icmp_add_ping_measure(node_t *node, node_t *dst_node, bool timedout)
         ping_measure->failed_count = 0;
         ping_measure->total_count = 0;
 
-        node->icmp_info->ping_measures = realloc(node->icmp_info->ping_measures, sizeof(icmp_ping_measure_t *) * (node->icmp_info->ping_measure_count + 1));
-        node->icmp_info->ping_measures[node->icmp_info->ping_measure_count++] = ping_measure;
+        node->icmp_info->ping_measure_list = realloc(node->icmp_info->ping_measure_list, sizeof(icmp_ping_measure_t *) * (node->icmp_info->ping_measure_count + 1));
+        node->icmp_info->ping_measure_list[node->icmp_info->ping_measure_count++] = ping_measure;
     }
 
     if (timedout) {
