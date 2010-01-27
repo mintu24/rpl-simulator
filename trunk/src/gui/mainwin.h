@@ -9,8 +9,8 @@
 #include "../base.h"
 #include "../node.h"
 
-#define MAIN_WIN_WIDTH                              1000
-#define MAIN_WIN_HEIGHT	                            800
+#define MAIN_WIN_WIDTH                              1200
+#define MAIN_WIN_HEIGHT	                            750
 
 #ifndef gtk_widget_set_visible
 #define gtk_widget_set_visible(widget, visible)     { if (visible) gtk_widget_show(widget); else gtk_widget_hide(widget); }

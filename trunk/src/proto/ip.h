@@ -38,9 +38,6 @@ typedef struct ip_node_info_t {
                             route_list;
     uint16                  route_count;
 
-    node_t **               neighbor_list;
-    uint16                  neighbor_count;
-
     GStaticRecMutex         mutex;
 
 } ip_node_info_t;
@@ -71,11 +68,6 @@ void                ip_node_add_route(node_t *node, uint8 type, char *dst, uint8
 bool                ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len);
 ip_route_t **       ip_node_get_route_list(node_t *node, uint16 *route_count);
 node_t *            ip_node_best_match_route(node_t *node, char *dst_address);
-
-bool                ip_node_add_neighbor(node_t *node, node_t *neighbor);
-bool                ip_node_remove_neighbor(node_t *node, node_t *neighbor);
-node_t **           ip_node_get_neighbor_list(node_t *node, uint16 *neighbor_count);
-bool                ip_node_has_neighbor(node_t *node, node_t *neighbor);
 
 bool                ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu);
 bool                ip_forward(node_t *node, ip_pdu_t *pdu);

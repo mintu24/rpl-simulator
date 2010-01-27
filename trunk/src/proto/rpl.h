@@ -20,18 +20,32 @@
 #define rpl_node_lock(node)                 g_static_rec_mutex_lock(&node->rpl_info->mutex)
 #define rpl_node_unlock(node)               g_static_rec_mutex_unlock(&node->rpl_info->mutex)
 
+#define rpl_node_has_parent(node, parent)   (rpl_node_find_parent_by_node(node, parent) != NULL)
+#define rpl_node_has_sibling(node, sibling) (rpl_node_find_sibling_by_node(node, sibling) != NULL)
+
+
+/* data structure that holds remote RPL node information, for avoiding a node_t * reference */
+typedef struct rpl_remote_node_t {
+
+    node_t *            node;   /* identifies the interface */
+
+    struct rpl_dio_pdu_t *
+                        last_dio_message;
+
+} rpl_remote_node_t;
 
     /* info that a node supporting RPL should store */
 typedef struct rpl_node_info_t {
 
-    uint8               rank;
+    char *              dag_id;
     uint8               seq_num;
+    uint8               rank;
 
-    node_t *            pref_parent;
-    node_t **           parent_list;
+    rpl_remote_node_t * pref_parent;
+    rpl_remote_node_t **parent_list;
     uint16              parent_count;
 
-    node_t **           sibling_list;
+    rpl_remote_node_t **sibling_list;
     uint16              sibling_count;
 
     GStaticRecMutex     mutex;
@@ -92,7 +106,7 @@ typedef struct rpl_dao_pdu_t {
 } rpl_dao_pdu_t;
 
 
-rpl_dio_pdu_t *     rpl_dio_pdu_create(bool grounded, bool da_trigger, bool da_support, int8 dag_pref, int8 seq_number, int8 instance_id, int8 rank, char *dag_id);
+rpl_dio_pdu_t *     rpl_dio_pdu_create(bool grounded, bool da_trigger, bool da_support, uint8 dag_pref, uint8 seq_number, uint8 instance_id, uint8 rank, char *dag_id);
 void                rpl_dio_pdu_destroy(rpl_dio_pdu_t *pdu);
 
 rpl_dio_suboption_t *
@@ -113,17 +127,18 @@ void                rpl_node_set_rank(node_t *node, uint8 rank);
 uint8               rpl_node_get_seq_num(node_t *node);
 void                rpl_node_set_seq_num(node_t *node, uint8 seq_num);
 
-node_t *            rpl_node_get_pref_parent(node_t *node);
-void                rpl_node_set_pref_parent(node_t *node, node_t *pref_parent);
-node_t **           rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
-bool                rpl_node_add_parent(node_t *node, node_t *parent);
-bool                rpl_node_remove_parent(node_t *node, node_t *parent);
-bool                rpl_node_has_parent(node_t *node, node_t *parent);
+rpl_remote_node_t * rpl_node_get_pref_parent(node_t *node);
+void                rpl_node_set_pref_parent(node_t *node, rpl_remote_node_t *parent);
 
-node_t **           rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count);
-bool                rpl_node_add_sibling(node_t *node, node_t *sibling);
-bool                rpl_node_remove_sibling(node_t *node, node_t *sibling);
-bool                rpl_node_has_sibling(node_t *node, node_t *sibling);
+bool                rpl_node_add_parent(node_t *node, node_t *parent_node, rpl_dio_pdu_t *dio_message);
+bool                rpl_node_remove_parent(node_t *node, rpl_remote_node_t *parent);
+rpl_remote_node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
+rpl_remote_node_t * rpl_node_find_parent_by_node(node_t *node, node_t *parent_node);
+
+bool                rpl_node_add_sibling(node_t *node, node_t *sibling_node, rpl_dio_pdu_t *dio_message);
+bool                rpl_node_remove_sibling(node_t *node, rpl_remote_node_t *sibling);
+rpl_remote_node_t **rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count);
+rpl_remote_node_t * rpl_node_find_sibling_by_node(node_t *node, node_t *sibling_node);
 
 bool                rpl_send_dis(node_t *node, node_t *dst_node);
 bool                rpl_receive_dis(node_t *node, node_t *src_node);

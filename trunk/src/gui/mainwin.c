@@ -31,6 +31,7 @@ static GtkWidget *              main_window = NULL;
 static GtkWidget *              params_system_button = NULL;
 static GtkWidget *              params_system_vbox = NULL;
 static GtkWidget *              params_system_no_link_dist_spin = NULL;
+static GtkWidget *              params_system_no_link_quality_spin = NULL;
 static GtkWidget *              params_transmit_mode_block_radio = NULL;
 static GtkWidget *              params_transmit_mode_reject_radio = NULL;
 static GtkWidget *              params_transmit_mode_queue_radio = NULL;
@@ -62,6 +63,8 @@ static GtkListStore *           params_nodes_route_store = NULL;
 static GtkWidget *              params_nodes_enable_ping_measurements_check = NULL;
 static GtkWidget *              params_nodes_ping_interval_spin = NULL;
 static GtkWidget *              params_nodes_ping_timeout_spin = NULL;
+static GtkWidget *              params_nodes_ping_node_combo = NULL;
+static GtkListStore *           params_nodes_ping_node_store = NULL;
 static GtkWidget *              params_nodes_rank_spin = NULL;
 static GtkWidget *              params_nodes_seq_num_spin = NULL;
 
@@ -224,6 +227,7 @@ void main_win_system_to_gui()
     rs_assert(rs_system != NULL);
 
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin), rs_system_get_no_link_dist_thresh());
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin), rs_system_get_no_link_quality_thresh() * 100);
 
     switch (rs_system_get_transmit_mode()) {
         case PHY_TRANSMIT_MODE_BLOCK :
@@ -250,11 +254,16 @@ void main_win_system_to_gui()
     node_t **node_list = rs_system_get_node_list(&node_count);
     gtk_list_store_clear(params_nodes_route_next_hop_store);
     gtk_list_store_clear(params_nodes_route_dst_store);
+    gtk_list_store_clear(params_nodes_ping_node_store);
+
+    gtk_list_store_insert_with_values(params_nodes_ping_node_store, NULL, -1, 0, "Any", -1);
+
     for (i = 0; i < node_count; i++) {
         node_t *node = node_list[i];
 
         gtk_list_store_insert_with_values(params_nodes_route_next_hop_store, NULL, -1, 0, phy_node_get_name(node), -1);
         gtk_list_store_insert_with_values(params_nodes_route_dst_store, NULL, -1, 0, ip_node_get_address(node), -1);
+        gtk_list_store_insert_with_values(params_nodes_ping_node_store, NULL, -1, 0, phy_node_get_name(node), -1);
     }
 
     system_unlock();
@@ -329,6 +338,18 @@ void main_win_node_to_gui(node_t *node)
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check), icmp_node_is_enabled_ping_measurement(node));
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_interval_spin), icmp_node_get_ping_interval(node) / 1000);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin), icmp_node_get_ping_timeout(node) / 1000);
+
+    if (icmp_node_get_ping_node(node) == NULL) {
+        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_node_combo), 0);
+    }
+    else {
+        system_lock();
+
+        int pos = rs_system_get_node_pos(icmp_node_get_ping_node(node));
+        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_node_combo), pos + 1);
+
+        system_unlock();
+    }
 
     icmp_node_unlock(node);
 
@@ -896,6 +917,7 @@ GtkWidget *create_params_widget()
     params_system_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_button");
     params_system_vbox = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_vbox");
     params_system_no_link_dist_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_dist_spin");
+    params_system_no_link_quality_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_quality_spin");
     params_transmit_mode_block_radio = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_transmit_mode_block_radio");
     params_transmit_mode_reject_radio = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_transmit_mode_reject_radio");
     params_transmit_mode_queue_radio = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_transmit_mode_queue_radio");
@@ -927,6 +949,8 @@ GtkWidget *create_params_widget()
     params_nodes_enable_ping_measurements_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_enable_ping_measurements_check");
     params_nodes_ping_interval_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_interval_spin");
     params_nodes_ping_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_timeout_spin");
+    params_nodes_ping_node_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_node_combo");
+    params_nodes_ping_node_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_node_store");
     params_nodes_rank_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_rank_spin");
     params_nodes_seq_num_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_seq_num_spin");
 
@@ -946,6 +970,10 @@ GtkWidget *create_params_widget()
     renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_route_next_hop_combo), renderer, FALSE);
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(params_nodes_route_next_hop_combo), renderer, "text", 0, NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_ping_node_combo), renderer, FALSE);
+    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(params_nodes_ping_node_combo), renderer, "text", 0, NULL);
 
     renderer = gtk_cell_renderer_text_new();
     gtk_tree_view_insert_column_with_attributes(
@@ -1201,6 +1229,7 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_enable_ping_measurements_check, node_selected);
     gtk_widget_set_sensitive(params_nodes_ping_interval_spin, node_selected && ping_enabled);
     gtk_widget_set_sensitive(params_nodes_ping_timeout_spin, node_selected && ping_enabled);
+    gtk_widget_set_sensitive(params_nodes_ping_node_combo, node_selected && ping_enabled);
     gtk_widget_set_sensitive(params_nodes_rank_spin, node_selected);
     gtk_widget_set_sensitive(params_nodes_seq_num_spin, node_selected);
 
@@ -1240,6 +1269,7 @@ static void gui_to_system()
     rs_assert(rs_system != NULL);
 
     rs_system_set_no_link_dist_thresh(gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin)));
+    rs_system_set_no_link_quality_thresh(gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin)) / 100.0);
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_transmit_mode_block_radio))) {
         rs_system_set_transmit_mode(PHY_TRANSMIT_MODE_BLOCK);
@@ -1298,6 +1328,16 @@ static void gui_to_node(node_t *node)
     icmp_node_set_enable_ping_measurement(node, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check)));
     icmp_node_set_ping_interval(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_interval_spin)) * 1000);
     icmp_node_set_ping_timeout(node, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin)) * 1000);
+
+    system_lock();
+    uint16 node_count;
+    node_t **node_list = rs_system_get_node_list(&node_count);
+    int16 pos = gtk_combo_box_get_active(GTK_COMBO_BOX(params_nodes_ping_node_combo));
+    if (pos < 1 || pos > node_count)
+        icmp_node_set_ping_node(node, NULL);
+    else
+        icmp_node_set_ping_node(node, node_list[pos - 1]);
+    system_unlock();
 
     icmp_node_unlock(node);
 
