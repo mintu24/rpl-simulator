@@ -5,8 +5,8 @@
 #include "../base.h"
 #include "../node.h"
 
-#define phy_node_lock(node)             g_static_rec_mutex_lock(&node->phy_info->mutex)
-#define phy_node_unlock(node)           g_static_rec_mutex_unlock(&node->phy_info->mutex)
+#define phy_node_lock(node)        proto_node_lock("PHY", &(node)->phy_info->mutex)
+#define phy_node_unlock(node)      proto_node_unlock("PHY", &(node)->phy_info->mutex)
 
 
     /* info that a node supporting PHY layer should store */
@@ -35,6 +35,7 @@ typedef struct phy_pdu_t {
 
 phy_pdu_t *             phy_pdu_create();
 bool                    phy_pdu_destroy(phy_pdu_t *pdu);
+phy_pdu_t *             phy_pdu_duplicate(phy_pdu_t *pdu);
 bool                    phy_pdu_set_sdu(phy_pdu_t *pdu, node_t *src_node, void *sdu);
 
 bool                    phy_node_init(node_t *node, char *name, coord_t cx, coord_t cy);

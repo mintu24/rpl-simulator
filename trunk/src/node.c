@@ -305,7 +305,7 @@ static void *node_life_core(node_t *node)
     while (node->alive) {
         g_timer_reset(node->schedule_timer);
 
-        usleep(NODE_LIFE_CORE_SLEEP);
+        usleep(rs_system_get_node_core_sleep());
 
 
         /* what if the node was killed while usleep()-ing? */

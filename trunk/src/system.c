@@ -32,10 +32,14 @@ bool rs_system_create()
     rs_system->width = DEFAULT_SYS_WIDTH;
     rs_system->height = DEFAULT_SYS_HEIGHT;
 
+    rs_system->node_core_sleep = DEFAULT_NODE_CORE_SLEEP;
+
     rs_system->gc_list = NULL;
     rs_system->gc_count = 0;
     rs_system->gc_running = FALSE;
     rs_system->gc_mutex = g_mutex_new();
+
+    rs_system->main_thread = g_thread_self();
 
     g_static_rec_mutex_init(&rs_system->mutex);
 
@@ -54,6 +58,8 @@ bool rs_system_destroy()
 {
     rs_assert(rs_system != NULL);
 
+    system_lock();
+
     /* try to stop the GC */
     rs_system->gc_running = FALSE;
 
@@ -66,9 +72,13 @@ bool rs_system_destroy()
     if (rs_system->node_list != NULL)
         free(rs_system->node_list);
 
+    system_unlock();
+
     g_static_rec_mutex_free(&rs_system->mutex);
 
     free(rs_system);
+    rs_system = NULL;
+
 
     return TRUE;
 }
@@ -135,6 +145,20 @@ void rs_system_set_width_height(coord_t width, coord_t height)
 
     rs_system->width = width;
     rs_system->height = height;
+}
+
+uint32 rs_system_get_node_core_sleep()
+{
+    rs_assert(rs_system != NULL);
+
+    return rs_system->node_core_sleep;
+}
+
+void rs_system_set_node_core_sleep(uint32 node_core_sleep)
+{
+    rs_assert(rs_system != NULL);
+
+    rs_system->node_core_sleep = node_core_sleep;
 }
 
 bool rs_system_add_node(node_t *node)
@@ -283,6 +307,27 @@ node_t **rs_system_get_node_list(uint16 *node_count)
         *node_count = rs_system->node_count;
 
     return rs_system->node_list;
+}
+
+node_t **rs_system_get_node_list_copy(uint16 *node_count)
+{
+    rs_assert(rs_system != NULL);
+
+    system_lock();
+
+    if (node_count != NULL)
+        *node_count = rs_system->node_count;
+
+    uint16 index;
+    node_t **copy_node_list = malloc(rs_system->node_count * sizeof(node_t *));
+
+    for (index = 0; index < rs_system->node_count; index++) {
+        copy_node_list[index] = rs_system->node_list[index];
+    }
+
+    system_unlock();
+
+    return copy_node_list;
 }
 
 percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)

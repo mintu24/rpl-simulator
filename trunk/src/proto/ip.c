@@ -40,6 +40,27 @@ void ip_pdu_destroy(ip_pdu_t *pdu)
     free(pdu);
 }
 
+ip_pdu_t *ip_pdu_duplicate(ip_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+
+    ip_pdu_t *new_pdu = malloc(sizeof(ip_pdu_t));
+
+    new_pdu->dst_address = strdup(pdu->dst_address);
+    new_pdu->src_address = strdup(pdu->src_address);
+
+    new_pdu->next_header = pdu->next_header;
+
+    switch (pdu->next_header) {
+        case IP_NEXT_HEADER_ICMP :
+            new_pdu->sdu = icmp_pdu_duplicate(pdu->sdu);
+
+            break;
+    }
+
+    return new_pdu;
+}
+
 bool ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu)
 {
     rs_assert(pdu != NULL);
@@ -103,6 +124,7 @@ char *ip_node_get_address(node_t *node)
 void ip_node_set_address(node_t *node, const char *address)
 {
     rs_assert(node != NULL);
+    rs_assert(address != NULL);
 
     ip_node_lock(node);
 
@@ -244,23 +266,33 @@ bool ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu)
 {
     rs_assert(node != NULL);
 
-    ip_pdu_t *ip_pdu = ip_pdu_create(ip_node_get_address(dst_node), ip_node_get_address(node));
-    ip_pdu_set_sdu(ip_pdu, next_header, sdu);
-
-    node_execute_event(
-            node,
-            "ip_event_before_pdu_sent",
-            (node_event_t) ip_event_before_pdu_sent,
-            dst_node, ip_pdu,
-            TRUE);
-
     if (dst_node == NULL) { /* broadcast */
+        ip_pdu_t *ip_pdu = ip_pdu_create("", ip_node_get_address(node));
+        ip_pdu_set_sdu(ip_pdu, next_header, sdu);
+
+        node_execute_event(
+                node,
+                "ip_event_before_pdu_sent",
+                (node_event_t) ip_event_before_pdu_sent,
+                dst_node, ip_pdu,
+                TRUE);
+
         if (!mac_send(node, NULL, MAC_TYPE_IP, ip_pdu)) {
             rs_error("failed to send MAC frame");
             return FALSE;
         }
     }
     else {
+        ip_pdu_t *ip_pdu = ip_pdu_create(ip_node_get_address(dst_node), ip_node_get_address(node));
+        ip_pdu_set_sdu(ip_pdu, next_header, sdu);
+
+        node_execute_event(
+                node,
+                "ip_event_before_pdu_sent",
+                (node_event_t) ip_event_before_pdu_sent,
+                dst_node, ip_pdu,
+                TRUE);
+
         /* route the packet */
         node_t *next_hop = ip_node_best_match_route(node, ip_node_get_address(dst_node));
 
@@ -319,7 +351,7 @@ bool ip_receive(node_t *node, node_t *src_node, ip_pdu_t *pdu)
             TRUE);
 
     /* if the packet is not intended for us, we forward it */
-    if (strcmp(ip_node_get_address(node), pdu->dst_address) != 0) {
+    if (strcmp(ip_node_get_address(node), pdu->dst_address) != 0 && (strlen(pdu->dst_address) > 0)) {
         return ip_forward(node, pdu);
     }
 

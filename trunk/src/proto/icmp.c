@@ -31,6 +31,38 @@ void icmp_pdu_destroy(icmp_pdu_t *pdu)
     free(pdu);
 }
 
+icmp_pdu_t *icmp_pdu_duplicate(icmp_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+
+    icmp_pdu_t *new_pdu = malloc(sizeof(icmp_pdu_t));
+
+    new_pdu->type = pdu->type;
+    new_pdu->code = pdu->code;
+
+    switch (pdu->type) {
+        case ICMP_TYPE_RPL:
+
+            switch (pdu->code) {
+                case ICMP_RPL_CODE_DIS:
+                    new_pdu->sdu = NULL;
+                    break;
+
+                case ICMP_RPL_CODE_DIO:
+                    new_pdu->sdu = rpl_dio_pdu_duplicate(pdu->sdu);
+                    break;
+
+                case ICMP_RPL_CODE_DAO:
+                    new_pdu->sdu = rpl_dao_pdu_duplicate(pdu->sdu);
+                    break;
+            }
+
+            break;
+    }
+
+    return new_pdu;
+}
+
 bool icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu)
 {
     rs_assert(pdu != NULL);
@@ -49,7 +81,7 @@ void icmp_node_init(node_t *node)
     node->icmp_info = malloc(sizeof(icmp_node_info_t));
 
     node->icmp_info->ping_measure_count = 0;
-    node->icmp_info->ping_measures_enabled = FALSE;
+    node->icmp_info->ping_measures_enabled = TRUE;
     node->icmp_info->ping_measure_list = NULL;
     node->icmp_info->ping_interval = ICMP_DEFAULT_PING_INTERVAL;
     node->icmp_info->ping_timeout = ICMP_DEFAULT_PING_TIMEOUT;
@@ -163,7 +195,6 @@ icmp_ping_measure_t **icmp_node_get_ping_measure_list(node_t *node, uint32 *ping
 bool icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu)
 {
     rs_assert(node != NULL);
-    rs_assert(dst_node != NULL);    /* for the moment we don't want ICMP/IP broadcast */
 
     icmp_pdu_t *icmp_pdu = icmp_pdu_create();
     icmp_pdu_set_sdu(icmp_pdu, type, code, sdu);
@@ -256,8 +287,9 @@ bool icmp_receive(node_t *node, node_t *src_node, icmp_pdu_t *pdu)
 
 void icmp_event_after_node_wake(node_t *node)
 {
-    rs_debug(DEBUG_ICMP, "scheduling ping measurements routine");
-    node_schedule(node, "ping", (node_schedule_func_t) icmp_do_ping, NULL, node->icmp_info->ping_interval, TRUE);
+    // todo uncomment this
+//    rs_debug(DEBUG_ICMP, "scheduling ping measurements routine");
+//    node_schedule(node, "ping", (node_schedule_func_t) icmp_do_ping, NULL, node->icmp_info->ping_interval, TRUE);
 }
 
 void icmp_event_before_node_kill(node_t *node)
@@ -271,6 +303,9 @@ void icmp_event_before_pdu_sent(node_t *node, node_t *dst_node, icmp_pdu_t *pdu)
 void icmp_event_after_pdu_received(node_t *node, node_t *src_node, icmp_pdu_t *pdu)
 {
     switch (pdu->type) {
+        case ICMP_TYPE_RPL:
+            break;
+
         case ICMP_TYPE_ECHO_REQUEST: {
             uint32 *seq = pdu->sdu;
             rs_debug(DEBUG_ICMP, "ICMP Echo Request received from '%s' with seq = %d", phy_node_get_name(src_node), *seq);
@@ -353,22 +388,19 @@ static void icmp_do_ping(node_t *node)
     node_t *dst_node = NULL;
 
     if (node->icmp_info->ping_node == NULL) {
-        system_lock();
-
         uint16 node_count;
-        node_t **node_list = rs_system_get_node_list(&node_count);
+        node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
         /* nothing to ping if 0 or 1 node in the system */
         if (node_count < 2) {
-            system_unlock();
-
+            free(node_list);
             return;
         }
 
         uint16 pos = rand() % node_count;
         dst_node = node_list[pos];
 
-        system_unlock();
+        free(node_list);
     }
     else {
         dst_node = node->icmp_info->ping_node;

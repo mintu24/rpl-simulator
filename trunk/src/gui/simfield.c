@@ -271,13 +271,11 @@ static gboolean draw_sim_field(void *data)
     cairo_rectangle(cr, 0, 0, pixel_width, pixel_height);
     cairo_fill(cr);
 
-    system_lock();
-
     /* nodes */
     uint16 node_count, parent_count, sibling_count, node_index, parent_index, sibling_index;
     node_t **node_list;
     rpl_remote_node_t **parent_list, **sibling_list;
-    node_list = rs_system_get_node_list(&node_count);
+    node_list = rs_system_get_node_list_copy(&node_count);
 
     float scale_x = pixel_width / rs_system_get_width();
     float scale_y = pixel_height / rs_system_get_height();
@@ -390,7 +388,7 @@ static gboolean draw_sim_field(void *data)
         }
     }
 
-    system_unlock();
+    free(node_list);
 
     /* decorate the hovered node */
     if (hover_node != NULL) {
@@ -457,7 +455,7 @@ static void draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y)
     }
 
     if (node->alive) {
-        if (RPL_NODE_IS_ROOT(node)) {
+        if (rpl_node_is_root(node)) {
             images = node_square_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
         }
         else {
@@ -558,6 +556,9 @@ static void draw_arrow(cairo_t *cr, double start_x, double start_y, double end_x
             static int len = sizeof(dashes) / sizeof(dashes[0]);
 
             cairo_set_dash(cr, dashes, len, 0.0);
+        }
+        else {
+            cairo_set_dash(cr, NULL, 0, 0.0);
         }
 
         cairo_set_line_width(cr, thickness);

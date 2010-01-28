@@ -27,6 +27,18 @@ bool phy_pdu_destroy(phy_pdu_t *pdu)
     return TRUE;
 }
 
+phy_pdu_t *phy_pdu_duplicate(phy_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+
+    phy_pdu_t *new_pdu = malloc(sizeof(phy_pdu_t));
+
+    new_pdu->src_node = pdu->src_node;
+    new_pdu->sdu = mac_pdu_duplicate(pdu->sdu);
+
+    return new_pdu;
+}
+
 bool phy_pdu_set_sdu(phy_pdu_t *pdu, node_t *src_node, void *sdu)
 {
     rs_assert(pdu != NULL);
@@ -188,14 +200,21 @@ bool phy_send(node_t *node, node_t *dst_node, void *sdu)
             TRUE);
 
     if (dst_node == NULL) {
-        system_lock();
-
-        node_t **node_list;
         uint16 index, node_count;
+        node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
-        node_list = rs_system_get_node_list(&node_count);
         for (index = 0; index < node_count; index++) {
             dst_node = node_list[index];
+
+            /* skip ourself :) */
+            if (node == dst_node) {
+                continue;
+            }
+
+            /* skip dead nodes */
+            if (!node->alive) {
+                continue;
+            }
 
             /* simulate a "bad" quality link in function of distance and other factors */
             percent_t link_quality = rs_system_get_link_quality(node, dst_node);
@@ -203,15 +222,19 @@ bool phy_send(node_t *node, node_t *dst_node, void *sdu)
                 continue;
             }
 
-            if (!node_enqueue_pdu(dst_node, phy_pdu, rs_system_get_transmit_mode())) {
+            phy_pdu_t *duplicated = phy_pdu_duplicate(phy_pdu);
+
+            if (!node_enqueue_pdu(dst_node, duplicated, rs_system_get_transmit_mode())) {
                 rs_error("failed to enqueue pdu for node '%s'", phy_node_get_name(dst_node));
-                system_unlock();
+                free(node_list);
 
                 return FALSE;
             }
         }
 
-        system_unlock();
+        free(node_list);
+
+        // todo free the original phy_pdu !!!
     }
     else {
         /* simulate a "bad" quality link in function of distance and other factors */

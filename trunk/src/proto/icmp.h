@@ -7,14 +7,14 @@
 
 #define IP_NEXT_HEADER_ICMP         0x0058
 
-#define ICMP_DEFAULT_PING_INTERVAL  1000000
+#define ICMP_DEFAULT_PING_INTERVAL  10000
 #define ICMP_DEFAULT_PING_TIMEOUT   1000000
 
 #define ICMP_TYPE_ECHO_REQUEST      0x80
 #define ICMP_TYPE_ECHO_REPLY        0x81
 
-#define icmp_node_lock(node)        g_static_rec_mutex_lock(&node->icmp_info->mutex)
-#define icmp_node_unlock(node)      g_static_rec_mutex_unlock(&node->icmp_info->mutex)
+#define icmp_node_lock(node)        proto_node_lock("ICMP", &(node)->icmp_info->mutex)
+#define icmp_node_unlock(node)      proto_node_unlock("ICMP", &(node)->icmp_info->mutex)
 
 
     /* a set of measurement results obtained when pinging a specified node */
@@ -53,6 +53,7 @@ typedef struct icmp_pdu_t {
 
 icmp_pdu_t *        icmp_pdu_create();
 void                icmp_pdu_destroy(icmp_pdu_t *pdu);
+icmp_pdu_t *        icmp_pdu_duplicate(icmp_pdu_t *pdu);
 bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, void *sdu);
 
 void                icmp_node_init(node_t *node);
