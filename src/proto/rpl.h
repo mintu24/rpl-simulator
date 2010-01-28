@@ -13,18 +13,23 @@
 
 #define RPL_DIO_SUBOPTION_TYPE_DAG_CONFIG   0x04
 
+#define RPL_DEFAULT_DAG_PREF                0
 #define RPL_RANK_ROOT                       1
+#define RPL_RANK_INFINITY                   255
+#define RPL_MINIMUM_RANK_INCREMENT          1
+#define RPL_MAXIMUM_RANK_INCREMENT          16
 
-#define RPL_NODE_IS_ROOT(node)              (rpl_node_get_rank(node) == RPL_RANK_ROOT)
+#define rpl_node_is_root(node)              (rpl_node_get_rank(node) == RPL_RANK_ROOT)
 
-#define rpl_node_lock(node)                 g_static_rec_mutex_lock(&node->rpl_info->mutex)
-#define rpl_node_unlock(node)               g_static_rec_mutex_unlock(&node->rpl_info->mutex)
+#define rpl_node_lock(node)                 proto_node_lock("RPL", &(node)->rpl_info->mutex)
+#define rpl_node_unlock(node)               proto_node_unlock("RPL", &(node)->rpl_info->mutex)
 
 #define rpl_node_has_parent(node, parent)   (rpl_node_find_parent_by_node(node, parent) != NULL)
 #define rpl_node_has_sibling(node, sibling) (rpl_node_find_sibling_by_node(node, sibling) != NULL)
+#define rpl_node_has_neighbor(node, neighbor)   (rpl_node_find_neighbor_by_node(node, neighbor) != NULL)
 
 
-/* data structure that holds remote RPL node information, for avoiding a node_t * reference */
+    /* data structure that holds remote RPL node information, for avoiding a node_t * reference */
 typedef struct rpl_remote_node_t {
 
     node_t *            node;   /* identifies the interface */
@@ -37,6 +42,7 @@ typedef struct rpl_remote_node_t {
     /* info that a node supporting RPL should store */
 typedef struct rpl_node_info_t {
 
+    uint8               dag_pref;
     char *              dag_id;
     uint8               seq_num;
     uint8               rank;
@@ -47,6 +53,9 @@ typedef struct rpl_node_info_t {
 
     rpl_remote_node_t **sibling_list;
     uint16              sibling_count;
+
+    rpl_remote_node_t **neighbor_list;
+    uint16              neighbor_count;
 
     GStaticRecMutex     mutex;
 
@@ -108,6 +117,7 @@ typedef struct rpl_dao_pdu_t {
 
 rpl_dio_pdu_t *     rpl_dio_pdu_create(bool grounded, bool da_trigger, bool da_support, uint8 dag_pref, uint8 seq_number, uint8 instance_id, uint8 rank, char *dag_id);
 void                rpl_dio_pdu_destroy(rpl_dio_pdu_t *pdu);
+rpl_dio_pdu_t *     rpl_dio_pdu_duplicate(rpl_dio_pdu_t *pdu);
 
 rpl_dio_suboption_t *
                     rpl_dio_suboption_dag_config_create(int8 interval_doublings, int8 interval_min, int8 redundancy_constant, int8 max_rank_increase);
@@ -116,29 +126,41 @@ bool                rpl_dio_pdu_add_suboption(rpl_dio_pdu_t *pdu, rpl_dio_subopt
 
 rpl_dao_pdu_t *     rpl_dao_pdu_create(uint16 sequence, uint8 instance_id, uint8 rank, uint32 dao_lifetime, char *prefix, uint8 prefix_len);
 void                rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu);
+rpl_dao_pdu_t *     rpl_dao_pdu_duplicate(rpl_dao_pdu_t *pdu);
 bool                rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address);
 
 bool                rpl_node_init(node_t *node);
 void                rpl_node_done(node_t *node);
 
-uint8               rpl_node_get_rank(node_t *node);
-void                rpl_node_set_rank(node_t *node, uint8 rank);
+uint8               rpl_node_get_dag_pref(node_t *node);
+void                rpl_node_set_dag_pref(node_t *node, uint8 dag_pref);
+
+char *              rpl_node_get_dag_id(node_t *node);
+void                rpl_node_set_dag_id(node_t *node, char *dag_id);
 
 uint8               rpl_node_get_seq_num(node_t *node);
 void                rpl_node_set_seq_num(node_t *node, uint8 seq_num);
 
+uint8               rpl_node_get_rank(node_t *node);
+void                rpl_node_set_rank(node_t *node, uint8 rank);
+
 rpl_remote_node_t * rpl_node_get_pref_parent(node_t *node);
 void                rpl_node_set_pref_parent(node_t *node, rpl_remote_node_t *parent);
 
-bool                rpl_node_add_parent(node_t *node, node_t *parent_node, rpl_dio_pdu_t *dio_message);
+bool                rpl_node_add_parent(node_t *node, rpl_remote_node_t *parent);
 bool                rpl_node_remove_parent(node_t *node, rpl_remote_node_t *parent);
 rpl_remote_node_t **rpl_node_get_parent_list(node_t *node, uint16 *parent_count);
 rpl_remote_node_t * rpl_node_find_parent_by_node(node_t *node, node_t *parent_node);
 
-bool                rpl_node_add_sibling(node_t *node, node_t *sibling_node, rpl_dio_pdu_t *dio_message);
+bool                rpl_node_add_sibling(node_t *node, rpl_remote_node_t *sibling);
 bool                rpl_node_remove_sibling(node_t *node, rpl_remote_node_t *sibling);
 rpl_remote_node_t **rpl_node_get_sibling_list(node_t *node, uint16 *sibling_count);
 rpl_remote_node_t * rpl_node_find_sibling_by_node(node_t *node, node_t *sibling_node);
+
+bool                rpl_node_add_neighbor(node_t *node, node_t *neighbor_node, rpl_dio_pdu_t *dio_message);
+bool                rpl_node_remove_neighbor(node_t *node, rpl_remote_node_t *neighbor);
+rpl_remote_node_t **rpl_node_get_neighbor_list(node_t *node, uint16 *neighbor_count);
+rpl_remote_node_t * rpl_node_find_neighbor_by_node(node_t *node, node_t *neighbor_node);
 
 bool                rpl_send_dis(node_t *node, node_t *dst_node);
 bool                rpl_receive_dis(node_t *node, node_t *src_node);

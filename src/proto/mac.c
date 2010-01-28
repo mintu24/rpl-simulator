@@ -41,6 +41,27 @@ bool mac_pdu_destroy(mac_pdu_t *pdu)
     return TRUE;
 }
 
+mac_pdu_t *mac_pdu_duplicate(mac_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+
+    mac_pdu_t *new_pdu = malloc(sizeof(mac_pdu_t));
+
+    new_pdu->dst_address = strdup(pdu->dst_address);
+    new_pdu->src_address = strdup(pdu->src_address);
+
+    new_pdu->type = pdu->type;
+
+    switch (pdu->type) {
+        case MAC_TYPE_IP:
+            new_pdu->sdu = ip_pdu_duplicate(pdu->sdu);
+
+            break;
+    }
+
+    return new_pdu;
+}
+
 bool mac_pdu_set_sdu(mac_pdu_t *pdu, uint16 type, void *sdu)
 {
     rs_assert(pdu != NULL);
@@ -89,6 +110,7 @@ char *mac_node_get_address(node_t *node)
 void mac_node_set_address(node_t *node, const char *address)
 {
     rs_assert(node != NULL);
+    rs_assert(address != NULL);
 
     mac_node_lock(node);
 
@@ -104,19 +126,38 @@ bool mac_send(node_t *node, node_t *dst_node, uint16 type, void *sdu)
 {
     rs_assert(node != NULL);
 
-    mac_pdu_t *mac_pdu = mac_pdu_create(mac_node_get_address(dst_node), mac_node_get_address(node));
-    mac_pdu_set_sdu(mac_pdu, type, sdu);
+    if (dst_node == NULL) { /* broadcast */
+        mac_pdu_t *mac_pdu = mac_pdu_create("", mac_node_get_address(node));
+        mac_pdu_set_sdu(mac_pdu, type, sdu);
 
-    node_execute_event(
-            node,
-            "mac_event_before_pdu_sent",
-            (node_event_t) mac_event_before_pdu_sent,
-            dst_node, mac_pdu,
-            TRUE);
+        node_execute_event(
+                node,
+                "mac_event_before_pdu_sent",
+                (node_event_t) mac_event_before_pdu_sent,
+                dst_node, mac_pdu,
+                TRUE);
 
-    if (!phy_send(node, dst_node, mac_pdu)) {
-        rs_error("failed to send PHY message");
-        return FALSE;
+        if (!phy_send(node, NULL, mac_pdu)) {
+            rs_error("failed to send PHY message");
+            return FALSE;
+        }
+    }
+    else {
+        mac_pdu_t *mac_pdu = mac_pdu_create(mac_node_get_address(dst_node), mac_node_get_address(node));
+        mac_pdu_set_sdu(mac_pdu, type, sdu);
+
+        node_execute_event(
+                node,
+                "mac_event_before_pdu_sent",
+                (node_event_t) mac_event_before_pdu_sent,
+                dst_node, mac_pdu,
+                TRUE);
+
+        if (!phy_send(node, dst_node, mac_pdu)) {
+            rs_error("failed to send PHY message");
+            return FALSE;
+        }
+
     }
 
     return TRUE;

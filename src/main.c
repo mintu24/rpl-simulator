@@ -44,32 +44,31 @@ void rs_quit()
 
 void rs_start()
 {
-    // todo: implement me
-
-    /** fixme test **********************/
-    rs_add_node();
-    rs_add_node();
-    rs_add_node();
-
-    rs_wake_all_nodes();
-
-    node_t *a = rs_system_find_node_by_name("A");
-    node_t *b = rs_system_find_node_by_name("B");
-    node_t *c = rs_system_find_node_by_name("C");
-
-    if (a == NULL || b == NULL || c == NULL) {
-        return;
-    }
-
-    ip_node_add_route(a, 0, "0000", 0, b, FALSE);
-    ip_node_add_route(b, 0, "0000", 0, c, FALSE);
-
-    if (a->alive && b->alive && c->alive)
-        rpl_send_dis(a, c);
-
-    sim_field_redraw();
-
-    /************************************/
+//    // todo: implement me
+//
+//    rs_add_node();
+//    rs_add_node();
+//    rs_add_node();
+//
+//    rs_wake_all_nodes();
+//
+//    node_t *a = rs_system_find_node_by_name("A");
+//    node_t *b = rs_system_find_node_by_name("B");
+//    node_t *c = rs_system_find_node_by_name("C");
+//
+//    if (a == NULL || b == NULL || c == NULL) {
+//        return;
+//    }
+//
+//    ip_node_add_route(a, 0, "0000", 0, b, FALSE);
+//    ip_node_add_route(b, 0, "0000", 0, c, FALSE);
+//
+//    if (a->alive && b->alive && c->alive)
+//        rpl_send_dis(a, c);
+//
+//    sim_field_redraw();
+//
+//    /************************************/
 }
 
 void rs_stop(char *filename)
@@ -113,11 +112,9 @@ node_t *rs_add_node()
     char *new_ip_address = NULL;
     coord_t new_x, new_y;
 
-    system_lock();
-
     uint16 node_count;
     int32 index;
-    node_t **node_list = rs_system_get_node_list(&node_count);
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
     for (index = node_count - 1; index >= 0; index--) {
         if (new_name == NULL)
@@ -145,8 +142,6 @@ node_t *rs_add_node()
             new_ip_address = NULL;
         }
     }
-
-    system_unlock();
 
     if (new_name == NULL) {
         new_name = get_next_name(NULL);
@@ -179,9 +174,11 @@ node_t *rs_add_node()
     icmp_node_init(node);
     rpl_node_init(node);
 
-    /* add routes to everyone */
+    if (node_count == 0) {
+        rpl_node_set_rank(node, RPL_RANK_ROOT);
+    }
 
-    system_lock();
+    /* add routes to everyone */
 
     for (index = 0; index < node_count; index++) {
         node_t *dst_node = node_list[index];
@@ -190,7 +187,7 @@ node_t *rs_add_node()
         ip_node_add_route(dst_node, IP_ROUTE_TYPE_MANUAL, ip_node_get_address(node), 16, node, FALSE);
     }
 
-    system_unlock();
+    free(node_list);
 
     rs_system_add_node(node);
 
@@ -319,12 +316,12 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
     va_end(ap);
 
     node_t *node = NULL;
-    if (g_thread_get_initialized())
+    if (g_thread_get_initialized() && (rs_system != NULL) && (g_thread_self() != rs_system->main_thread))
         node = find_node_by_thread(g_thread_self());
 
     char *context;
     if (node == NULL) {
-        if (rs_system != NULL && g_thread_self() == rs_system->gc_thread) {
+        if (rs_system != NULL && (g_thread_self() == rs_system->gc_thread)) {
             context = "garbage collector";
         }
         else {
@@ -462,23 +459,21 @@ static char *get_next_ip_address(char *address)
 
 static node_t *find_node_by_thread(GThread *thread)
 {
-    system_lock();
-
     uint16 node_count, index;
     node_t **node_list;
-    node_list = rs_system_get_node_list(&node_count);
+    node_list = rs_system_get_node_list_copy(&node_count);
 
     for (index = 0; index < node_count; index++) {
         node_t *node = node_list[index];
 
         if (node->life == thread) {
-            system_unlock();
+            free(node_list);
 
             return node;
         }
     }
 
-    system_unlock();
+    free(node_list);
 
     return NULL;
 }

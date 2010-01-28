@@ -56,17 +56,27 @@
 #define DEBUG_ICMP          (1 << 6)
 #define DEBUG_RPL           (1 << 7)
 #define DEBUG_GUI           (1 << 8)
+#define DEBUG_MUTEX         (1 << 9)
 
 #define DEBUG_MINIMAL       (DEBUG_MAIN | DEBUG_SYSTEM | DEBUG_NODE)
 #define DEBUG_PROTO         (DEBUG_PHY | DEBUG_MAC | DEBUG_IP | DEBUG_ICMP | DEBUG_RPL)
-#define DEBUG_ALL           (DEBUG_MINIMAL | DEBUG_PROTO | DEBUG_GUI)
+#define DEBUG_ALL           (DEBUG_MINIMAL | DEBUG_PROTO | DEBUG_GUI | DEBUG_MUTEX)
 
-#define DEBUG               DEBUG_ICMP
+#define DEBUG               DEBUG_RPL
+
+#define proto_node_lock(proto, mutex)                           \
+    { rs_debug(DEBUG_MUTEX, "locking " proto " mutex (%d)", (mutex)->depth);         \
+    g_static_rec_mutex_lock(mutex);                             \
+    rs_debug(DEBUG_MUTEX, proto " mutex locked (%d)", (mutex)->depth); }
+
+#define proto_node_unlock(proto, mutex)                         \
+    { if ((mutex)->depth == 1) (mutex)->depth = 0; g_static_rec_mutex_unlock(mutex);                         \
+    rs_debug(DEBUG_MUTEX, proto " mutex unlocked (%d)", (mutex)->depth); }
 
 #define rs_info(args...)                rs_print(stdout, "* ", NULL, 0, NULL, args)
 
 #ifdef DEBUG
-#define rs_debug(cat, args...)          { if (cat & DEBUG) rs_print(stderr, "@ ", __FILE__, __LINE__, __FUNCTION__, args); }
+#define rs_debug(cat, args...)          { if (cat & (DEBUG)) rs_print(stderr, "@ ", __FILE__, __LINE__, __FUNCTION__, args); }
 #else
 #define rs_debug(args...)
 #endif  /* DEBUG */
@@ -76,7 +86,7 @@
 #define rs_assert(cond)                 { if (!(cond)) rs_print(stderr, "# ", __FILE__, __LINE__, __FUNCTION__, "assertion '%s' failed", #cond); }
 
 
-void        rs_print(FILE *stream, char *sym, const char *file, int line, const char *function, const char *fmt, ...);
+void                        rs_print(FILE *stream, char *sym, const char *file, int line, const char *function, const char *fmt, ...);
 
 
 #endif /* BASE_H_ */

@@ -12,8 +12,8 @@
 #define IP_ROUTE_TYPE_RPL_DAO_UCAST 2
 #define IP_ROUTE_TYPE_RPL_DIO       3
 
-#define ip_node_lock(node)          g_static_rec_mutex_lock(&node->ip_info->mutex)
-#define ip_node_unlock(node)        g_static_rec_mutex_unlock(&node->ip_info->mutex)
+#define ip_node_lock(node)          proto_node_lock("IP", &(node)->ip_info->mutex)
+#define ip_node_unlock(node)        proto_node_unlock("IP", &(node)->ip_info->mutex)
 
 
     /* a struct defining a route record */
@@ -56,6 +56,7 @@ typedef struct ip_pdu_t {
 
 ip_pdu_t *          ip_pdu_create(char *dst_address, char *src_address);
 void                ip_pdu_destroy(ip_pdu_t *pdu);
+ip_pdu_t *          ip_pdu_duplicate(ip_pdu_t *pdu);
 bool                ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu);
 
 void                ip_node_init(node_t *node, char *address);

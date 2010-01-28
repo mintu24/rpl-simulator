@@ -6,7 +6,6 @@
 
 #include "base.h"
 
-#define NODE_LIFE_CORE_SLEEP            10000
 #define NODE_MAX_SCHEDULES_TO_EXEC      100
 
 #define PHY_TRANSMIT_MODE_BLOCK         0
