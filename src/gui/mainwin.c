@@ -796,9 +796,17 @@ static void cb_add_all_menu_item_activate(GtkWidget *widget, gpointer *data)
 
     rs_debug(DEBUG_GUI, NULL);
 
-    rs_add_more_nodes();
+    GtkDialog *dialog = (GtkDialog *) gtk_builder_get_object(gtk_builder, "add_more_dialog");
+    GtkSpinButton *node_number_spin = (GtkSpinButton *) gtk_builder_get_object(gtk_builder, "add_more_node_number_spin");
 
-    sim_field_redraw();
+    gtk_spin_button_set_value(node_number_spin, 50);
+
+    if (gtk_dialog_run(dialog)) {
+        rs_add_more_nodes(gtk_spin_button_get_value(node_number_spin));
+    }
+
+    gtk_widget_set_visible(GTK_WIDGET(dialog), FALSE);
+
     update_sensitivity();
 
     signal_leave();

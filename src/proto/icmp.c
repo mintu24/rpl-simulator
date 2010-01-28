@@ -81,7 +81,7 @@ void icmp_node_init(node_t *node)
     node->icmp_info = malloc(sizeof(icmp_node_info_t));
 
     node->icmp_info->ping_measure_count = 0;
-    node->icmp_info->ping_measures_enabled = TRUE;
+    node->icmp_info->ping_measures_enabled = FALSE;
     node->icmp_info->ping_measure_list = NULL;
     node->icmp_info->ping_interval = ICMP_DEFAULT_PING_INTERVAL;
     node->icmp_info->ping_timeout = ICMP_DEFAULT_PING_TIMEOUT;
@@ -96,10 +96,14 @@ void icmp_node_done(node_t *node)
     rs_assert(node != NULL);
 
     if (node->icmp_info != NULL) {
+        icmp_node_lock(node);
+
         uint32 i;
         for (i = 0; i < node->icmp_info->ping_measure_count; i++) {
             free(node->icmp_info->ping_measure_list[i]);
         }
+
+        icmp_node_unlock(node);
 
         g_static_rec_mutex_free(&node->icmp_info->mutex);
 
@@ -174,6 +178,7 @@ icmp_ping_measure_t *icmp_node_get_ping_measure(node_t *node, node_t *dst_node)
     for (i = 0; i < node->icmp_info->ping_measure_count; i++) {
         if (node->icmp_info->ping_measure_list[i]->dst_node == dst_node) {
             ping_measure = node->icmp_info->ping_measure_list[i];
+            break;
         }
     }
 
@@ -186,10 +191,16 @@ icmp_ping_measure_t **icmp_node_get_ping_measure_list(node_t *node, uint32 *ping
 {
     rs_assert(node != NULL);
 
+    icmp_node_lock(node);
+
     if (ping_measure_count != NULL)
         *ping_measure_count = node->icmp_info->ping_measure_count;
 
-    return node->icmp_info->ping_measure_list;
+    icmp_ping_measure_t *measure = node->icmp_info->ping_measure_list;
+
+    icmp_node_unlock(node);
+
+    return measure;
 }
 
 bool icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu)
@@ -287,9 +298,8 @@ bool icmp_receive(node_t *node, node_t *src_node, icmp_pdu_t *pdu)
 
 void icmp_event_after_node_wake(node_t *node)
 {
-    // todo uncomment this
-//    rs_debug(DEBUG_ICMP, "scheduling ping measurements routine");
-//    node_schedule(node, "ping", (node_schedule_func_t) icmp_do_ping, NULL, node->icmp_info->ping_interval, TRUE);
+    rs_debug(DEBUG_ICMP, "scheduling ping measurements routine");
+    node_schedule(node, "ping", (node_schedule_func_t) icmp_do_ping, NULL, node->icmp_info->ping_interval, TRUE);
 }
 
 void icmp_event_before_node_kill(node_t *node)
@@ -385,8 +395,9 @@ static void icmp_do_ping(node_t *node)
     if (!icmp_node_is_enabled_ping_measurement(node))
         return;
 
-    node_t *dst_node = NULL;
+    icmp_node_lock(node);
 
+    node_t *dst_node = NULL;
     if (node->icmp_info->ping_node == NULL) {
         uint16 node_count;
         node_t **node_list = rs_system_get_node_list_copy(&node_count);
@@ -394,6 +405,8 @@ static void icmp_do_ping(node_t *node)
         /* nothing to ping if 0 or 1 node in the system */
         if (node_count < 2) {
             free(node_list);
+            icmp_node_unlock(node);
+
             return;
         }
 
@@ -407,6 +420,8 @@ static void icmp_do_ping(node_t *node)
     }
 
     if (dst_node == node || !dst_node->alive) {
+        icmp_node_unlock(node);
+
         return;
     }
 
@@ -422,6 +437,8 @@ static void icmp_do_ping(node_t *node)
             dst_node,
             node->icmp_info->ping_timeout,
             FALSE);
+
+    icmp_node_unlock(node);
 
     rs_debug(DEBUG_ICMP, "sending ICMP Echo Request to '%s' with seq = %d", phy_node_get_name(dst_node), *seq);
     icmp_send(node, dst_node, ICMP_TYPE_ECHO_REQUEST, 0, seq);

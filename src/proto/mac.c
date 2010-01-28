@@ -91,8 +91,12 @@ void mac_node_done(node_t *node)
     rs_assert(node != NULL);
 
     if (node->mac_info != NULL) {
+        mac_node_lock(node);
+
         if (node->mac_info->address != NULL)
             free(node->mac_info->address);
+
+        mac_node_unlock(node);
 
         g_static_rec_mutex_free(&node->mac_info->mutex);
 
@@ -119,7 +123,7 @@ void mac_node_set_address(node_t *node, const char *address)
 
     node->mac_info->address = strdup(address);
 
-    mac_node_lock(node);
+    mac_node_unlock(node);
 }
 
 bool mac_send(node_t *node, node_t *dst_node, uint16 type, void *sdu)

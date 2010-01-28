@@ -91,6 +91,8 @@ void ip_node_done(node_t *node)
     rs_assert(node != NULL);
 
     if (node->ip_info != NULL) {
+        ip_node_lock(node);
+
         if (node->ip_info->address != NULL)
             free(node->ip_info->address);
 
@@ -107,6 +109,8 @@ void ip_node_done(node_t *node)
 
             free(node->ip_info->route_list);
         }
+
+        ip_node_unlock(node);
 
         g_static_rec_mutex_free(&node->ip_info->mutex);
 
@@ -200,10 +204,16 @@ ip_route_t **ip_node_get_route_list(node_t *node, uint16 *route_count)
 {
     rs_assert(node != NULL);
 
+    ip_node_lock(node);
+
     if (route_count != NULL)
         *route_count = node->ip_info->route_count;
 
-    return node->ip_info->route_list;
+    ip_route_t **route_list = node->ip_info->route_list;
+
+    ip_node_unlock(node);
+
+    return route_list;
 }
 
 node_t *ip_node_best_match_route(node_t *node, char *dst_address)
@@ -374,7 +384,7 @@ bool ip_receive(node_t *node, node_t *src_node, ip_pdu_t *pdu)
             all_ok = FALSE;
     }
 
-    ip_pdu_destroy(pdu);
+     ip_pdu_destroy(pdu);
 
     return all_ok;
 }

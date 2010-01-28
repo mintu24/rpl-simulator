@@ -74,8 +74,12 @@ void phy_node_done(node_t *node)
     rs_assert(node != NULL);
 
     if (node->phy_info != NULL) {
+        phy_node_lock(node);
+
         if (node->phy_info->name != NULL)
             free(node->phy_info->name);
+
+        phy_node_unlock(node);
 
         g_static_rec_mutex_free(&node->phy_info->mutex);
 

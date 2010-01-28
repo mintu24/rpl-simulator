@@ -62,7 +62,7 @@
 #define DEBUG_PROTO         (DEBUG_PHY | DEBUG_MAC | DEBUG_IP | DEBUG_ICMP | DEBUG_RPL)
 #define DEBUG_ALL           (DEBUG_MINIMAL | DEBUG_PROTO | DEBUG_GUI | DEBUG_MUTEX)
 
-#define DEBUG               DEBUG_RPL
+//#define DEBUG               DEBUG_RPL
 
 #define proto_node_lock(proto, mutex)                           \
     { rs_debug(DEBUG_MUTEX, "locking " proto " mutex (%d)", (mutex)->depth);         \

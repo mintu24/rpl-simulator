@@ -58,27 +58,25 @@ bool rs_system_destroy()
 {
     rs_assert(rs_system != NULL);
 
-    system_lock();
-
     /* try to stop the GC */
     rs_system->gc_running = FALSE;
 
-    int i;
-    for (i = 0; i < rs_system->node_count; i++) {
-        node_t *node = rs_system->node_list[i];
+    uint16 node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
+    int i;
+    for (i = 0; i < node_count; i++) {
+        node_t *node = node_list[i];
         node_destroy(node);
     }
+
     if (rs_system->node_list != NULL)
         free(rs_system->node_list);
-
-    system_unlock();
 
     g_static_rec_mutex_free(&rs_system->mutex);
 
     free(rs_system);
     rs_system = NULL;
-
 
     return TRUE;
 }
@@ -382,6 +380,8 @@ void destroy_all_unreferenced_nodes()
         for (ref_node_index = 0; ref_node_index < rs_system->node_count; ref_node_index++) {
             node_t *ref_node = rs_system->node_list[ref_node_index];
 
+            rpl_node_lock(ref_node);
+
             if (rpl_node_has_parent(ref_node, node)) {
                 referenced = TRUE;
             }
@@ -389,6 +389,12 @@ void destroy_all_unreferenced_nodes()
             if (rpl_node_has_sibling(ref_node, node)) {
                 referenced = TRUE;
             }
+
+            if (rpl_node_has_neighbor(ref_node, node)) {
+                referenced = TRUE;
+            }
+
+            rpl_node_unlock(ref_node);
         }
 
         if (!referenced) {

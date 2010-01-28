@@ -235,12 +235,10 @@ void rs_kill_node(node_t *node)
     }
 }
 
-void rs_add_more_nodes()
+void rs_add_more_nodes(uint16 node_count)
 {
-    // todo implement me
-
     int i;
-    for (i = 0; i < 500; i++) {
+    for (i = 0; i < node_count; i++) {
         rs_add_node();
     }
 }
@@ -378,11 +376,17 @@ static char *get_next_name(char *name)
         else if (isalpha(name[length - 1])) { /* increment last letter */
             char last_letter = name[length - 1];
 
-            char base[256];
-            strncpy(base, name, length - 1);
-            base[length - 1] = '\0';
+            if (last_letter < 'Z') {
+                char base[256];
+                strncpy(base, name, length - 1);
+                base[length - 1] = '\0';
 
-            snprintf(new_name, 256, "%s%c", base, last_letter + 1);
+                snprintf(new_name, 256, "%s%c", base, last_letter + 1);
+            }
+            else {
+                snprintf(new_name, 256, "1");
+            }
+
         }
         else { /* add a 1, whatever the name is */
             snprintf(new_name, 256, "%s1", name);

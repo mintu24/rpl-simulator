@@ -23,7 +23,7 @@ void                    rs_rem_node(node_t *node);
 void                    rs_wake_node(node_t *node);
 void                    rs_kill_node(node_t *node);
 
-void                    rs_add_more_nodes();
+void                    rs_add_more_nodes(uint16 node_count);
 void                    rs_rem_all_nodes();
 void                    rs_wake_all_nodes();
 void                    rs_kill_all_nodes();
