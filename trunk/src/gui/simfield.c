@@ -315,9 +315,7 @@ static gboolean draw_sim_field(void *data)
             }
 
             phy_node_lock(node);
-            mac_node_lock(node);
             ip_node_lock(node);
-            icmp_node_lock(node);
             rpl_node_lock(node);
 
             start_pixel_x = phy_node_get_x(node) * scale_x;
@@ -326,8 +324,22 @@ static gboolean draw_sim_field(void *data)
             if (main_win_get_display_params()->show_parent_arrows) {
                 parent_list = rpl_node_get_parent_list(node, &parent_count);
 
+//                printf("%s.parent_list = [", node->phy_info->name);
+//                for (parent_index = 0; parent_index < parent_count; parent_index++) {
+//                    node_t *parent = parent_list[parent_index]->node;
+//                    if (parent == NULL)
+//                        printf(" (NULL) ");
+//                    else
+//                        printf(" %s ", parent->phy_info->name);
+//                }
+//                printf("]\n");
+
                 for (parent_index = 0; parent_index < parent_count; parent_index++) {
                     node_t *parent = parent_list[parent_index]->node;
+
+                    phy_node_lock(parent);
+                    ip_node_lock(parent);
+                    rpl_node_lock(parent);
 
                     end_pixel_x = phy_node_get_x(parent) * scale_x;
                     end_pixel_y = phy_node_get_y(parent) * scale_y;
@@ -345,6 +357,10 @@ static gboolean draw_sim_field(void *data)
                         color = SIM_FIELD_DEAD_ARROW_COLOR;
                     }
 
+                    rpl_node_unlock(parent);
+                    ip_node_unlock(parent);
+                    phy_node_unlock(parent);
+
                     bool packet = FALSE; //node_has_pdu_from(parent, node);
                     draw_parent_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet);
                 }
@@ -355,6 +371,10 @@ static gboolean draw_sim_field(void *data)
 
                 for (sibling_index = 0; sibling_index < sibling_count; sibling_index++) {
                     node_t *sibling = sibling_list[sibling_index]->node;
+
+                    phy_node_lock(sibling);
+                    ip_node_lock(sibling);
+                    rpl_node_lock(sibling);
 
                     end_pixel_x = phy_node_get_x(sibling) * scale_x;
                     end_pixel_y = phy_node_get_y(sibling) * scale_y;
@@ -377,13 +397,15 @@ static gboolean draw_sim_field(void *data)
                             draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet, TRUE);
                         }
                     }
+
+                    rpl_node_unlock(sibling);
+                    ip_node_unlock(sibling);
+                    phy_node_unlock(sibling);
                 }
             }
 
             rpl_node_unlock(node);
-            icmp_node_unlock(node);
             ip_node_unlock(node);
-            mac_node_unlock(node);
             phy_node_unlock(node);
         }
     }

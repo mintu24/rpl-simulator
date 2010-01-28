@@ -278,10 +278,36 @@ static bool node_process_message(node_t *node, node_t *src_node, phy_pdu_t *mess
     return TRUE;
 }
 
+//// todo remove me!
+//void sigsegv_handler(int sig)
+//{
+//    int i, parent_index;
+//    for (i = 0; i < rs_system->node_count; i++) {
+//        node_t *node = rs_system->node_list[i];
+//        if (node->life == g_thread_self()) {
+//            printf("**** SEGFAULTING THREAD: '%S'\n", node->phy_info->name);
+//
+//            printf("**** %s.parent_list = [", node->phy_info->name);
+//            for (parent_index = 0; parent_index < parent_count; parent_index++) {
+//                node_t *parent = parent_list[parent_index]->node;
+//                if (parent == NULL)
+//                    printf(" (NULL) ");
+//                else
+//                    printf(" %s ", parent->phy_info->name);
+//            }
+//            printf("]\n");
+//
+//            break;
+//        }
+//    }
+//}
+
 static void *node_life_core(node_t *node)
 {
     rs_assert(node != NULL);
     rs_assert(node->alive == FALSE);
+
+//    signal(SIGSEGV, sigsegv_handler);
 
     /* wait until the creation routine exists */
     /* life mutex will be locked during all the life of the node */
