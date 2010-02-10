@@ -72,7 +72,7 @@
                   <object class="GtkTable" id="table2">
                     <property name="visible">True</property>
                     <property name="border_width">5</property>
-                    <property name="n_rows">6</property>
+                    <property name="n_rows">7</property>
                     <property name="n_columns">3</property>
                     <property name="column_spacing">2</property>
                     <property name="row_spacing">2</property>
@@ -118,76 +118,6 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="frame9">
-                        <property name="visible">True</property>
-                        <property name="label_xalign">0</property>
-                        <child>
-                          <object class="GtkVBox" id="vbox8">
-                            <property name="visible">True</property>
-                            <property name="border_width">5</property>
-                            <property name="orientation">vertical</property>
-                            <property name="spacing">2</property>
-                            <child>
-                              <object class="GtkRadioButton" id="params_transmit_mode_block_radio">
-                                <property name="label" translatable="yes">Block</property>
-                                <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">False</property>
-                                <property name="active">True</property>
-                                <property name="draw_indicator">True</property>
-                                <signal name="toggled" handler="cb_gui_system_updated"/>
-                              </object>
-                              <packing>
-                                <property name="position">0</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkRadioButton" id="params_transmit_mode_reject_radio">
-                                <property name="label" translatable="yes">Reject</property>
-                                <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">False</property>
-                                <property name="draw_indicator">True</property>
-                                <property name="group">params_transmit_mode_block_radio</property>
-                                <signal name="toggled" handler="cb_gui_system_updated"/>
-                              </object>
-                              <packing>
-                                <property name="position">1</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkRadioButton" id="params_transmit_mode_queue_radio">
-                                <property name="label" translatable="yes">Queue</property>
-                                <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">False</property>
-                                <property name="draw_indicator">True</property>
-                                <property name="group">params_transmit_mode_reject_radio</property>
-                                <signal name="toggled" handler="cb_gui_system_updated"/>
-                              </object>
-                              <packing>
-                                <property name="position">2</property>
-                              </packing>
-                            </child>
-                          </object>
-                        </child>
-                        <child type="label">
-                          <object class="GtkLabel" id="label12">
-                            <property name="visible">True</property>
-                            <property name="label" translatable="yes"> Transmit Mode </property>
-                            <property name="use_markup">True</property>
-                          </object>
-                        </child>
-                      </object>
-                      <packing>
-                        <property name="right_attach">3</property>
-                        <property name="top_attach">2</property>
-                        <property name="bottom_attach">3</property>
-                        <property name="x_options">GTK_FILL</property>
-                        <property name="y_options">GTK_FILL</property>
-                      </packing>
-                    </child>
-                    <child>
                       <object class="GtkLabel" id="label25">
                         <property name="visible">True</property>
                         <property name="xalign">1</property>
@@ -195,8 +125,8 @@
                         <property name="label" translatable="yes">Width: </property>
                       </object>
                       <packing>
-                        <property name="top_attach">3</property>
-                        <property name="bottom_attach">4</property>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
                         <property name="x_options">GTK_FILL</property>
                       </packing>
                     </child>
@@ -208,8 +138,8 @@
                         <property name="label" translatable="yes">Height: </property>
                       </object>
                       <packing>
-                        <property name="top_attach">4</property>
-                        <property name="bottom_attach">5</property>
+                        <property name="top_attach">3</property>
+                        <property name="bottom_attach">4</property>
                         <property name="x_options">GTK_FILL</property>
                       </packing>
                     </child>
@@ -229,8 +159,8 @@
                       <packing>
                         <property name="left_attach">1</property>
                         <property name="right_attach">2</property>
-                        <property name="top_attach">4</property>
-                        <property name="bottom_attach">5</property>
+                        <property name="top_attach">3</property>
+                        <property name="bottom_attach">4</property>
                       </packing>
                     </child>
                     <child>
@@ -241,8 +171,8 @@
                       <packing>
                         <property name="left_attach">2</property>
                         <property name="right_attach">3</property>
-                        <property name="top_attach">3</property>
-                        <property name="bottom_attach">4</property>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
                         <property name="x_options">GTK_FILL</property>
                         <property name="x_padding">2</property>
                       </packing>
@@ -255,8 +185,8 @@
                       <packing>
                         <property name="left_attach">2</property>
                         <property name="right_attach">3</property>
-                        <property name="top_attach">4</property>
-                        <property name="bottom_attach">5</property>
+                        <property name="top_attach">3</property>
+                        <property name="bottom_attach">4</property>
                         <property name="x_options">GTK_FILL</property>
                         <property name="x_padding">2</property>
                       </packing>
@@ -277,8 +207,8 @@
                       <packing>
                         <property name="left_attach">1</property>
                         <property name="right_attach">2</property>
-                        <property name="top_attach">3</property>
-                        <property name="bottom_attach">4</property>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
                       </packing>
                     </child>
                     <child>
@@ -327,14 +257,13 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkSpinButton" id="params_system_node_core_sleep_spin">
+                      <object class="GtkSpinButton" id="params_system_sim_second_spin">
                         <property name="width_request">20</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="invisible_char">&#x25CF;</property>
-                        <property name="adjustment">params_node_core_sleep_adjustment</property>
+                        <property name="adjustment">params_system_sim_second_adjustment</property>
                         <property name="climb_rate">10.050000000000001</property>
-                        <property name="digits">2</property>
                         <property name="numeric">True</property>
                         <property name="update_policy">if-valid</property>
                         <signal name="value_changed" handler="cb_gui_system_updated"/>
@@ -351,7 +280,7 @@
                         <property name="visible">True</property>
                         <property name="xalign">1</property>
                         <property name="yalign">0.49000000953674316</property>
-                        <property name="label" translatable="yes">Node Core Sleep: </property>
+                        <property name="label" translatable="yes">Simulation second: </property>
                       </object>
                       <packing>
                         <property name="top_attach">5</property>
@@ -362,7 +291,7 @@
                     <child>
                       <object class="GtkLabel" id="label2">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">us</property>
+                        <property name="label" translatable="yes">ms</property>
                       </object>
                       <packing>
                         <property name="left_attach">2</property>
@@ -371,6 +300,36 @@
                         <property name="bottom_attach">6</property>
                         <property name="x_options">GTK_FILL</property>
                         <property name="x_padding">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="params_system_auto_wake_check">
+                        <property name="label" translatable="yes">Automatically wake nodes upon start</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">6</property>
+                        <property name="bottom_attach">7</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="params_system_real_time_sim_check">
+                        <property name="label" translatable="yes">Simulate in real time</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">4</property>
+                        <property name="bottom_attach">5</property>
                       </packing>
                     </child>
                   </object>
@@ -1504,102 +1463,324 @@
     <property name="step_increment">1</property>
     <property name="page_increment">1</property>
   </object>
-  <object class="GtkAdjustment" id="params_node_core_sleep_adjustment">
-    <property name="upper">1000000</property>
+  <object class="GtkAdjustment" id="params_system_sim_second_adjustment">
+    <property name="lower">100</property>
+    <property name="upper">10000</property>
     <property name="step_increment">100</property>
     <property name="page_increment">1000</property>
-  </object>
-  <object class="GtkDialog" id="add_more_dialog">
-    <property name="border_width">5</property>
-    <property name="type_hint">normal</property>
-    <property name="has_separator">False</property>
-    <child internal-child="vbox">
-      <object class="GtkVBox" id="dialog-vbox1">
-        <property name="visible">True</property>
-        <property name="orientation">vertical</property>
-        <property name="spacing">2</property>
-        <child>
-          <object class="GtkTable" id="table9">
-            <property name="visible">True</property>
-            <property name="border_width">5</property>
-            <property name="n_rows">2</property>
-            <property name="column_spacing">2</property>
-            <property name="row_spacing">2</property>
-            <child>
-              <object class="GtkLabel" id="label3">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">Enter the number of nodes to create: </property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkSpinButton" id="add_more_node_number_spin">
-                <property name="width_request">100</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="invisible_char">&#x25CF;</property>
-                <property name="adjustment">add_more_node_number_adjustment</property>
-              </object>
-              <packing>
-                <property name="top_attach">1</property>
-                <property name="bottom_attach">2</property>
-                <property name="x_options">GTK_EXPAND</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="position">1</property>
-          </packing>
-        </child>
-        <child internal-child="action_area">
-          <object class="GtkHButtonBox" id="dialog-action_area1">
-            <property name="visible">True</property>
-            <property name="layout_style">end</property>
-            <child>
-              <object class="GtkButton" id="button1">
-                <property name="label">gtk-ok</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="use_stock">True</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkButton" id="button2">
-                <property name="label">gtk-cancel</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="use_stock">True</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="pack_type">end</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-      </object>
-    </child>
-    <action-widgets>
-      <action-widget response="1">button1</action-widget>
-      <action-widget response="0">button2</action-widget>
-    </action-widgets>
   </object>
   <object class="GtkAdjustment" id="add_more_node_number_adjustment">
     <property name="upper">1000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
-  <object class="GtkAction" id="action1"/>
+  <object class="GtkTable" id="legend_table">
+    <property name="visible">True</property>
+    <property name="border_width">2</property>
+    <property name="n_rows">2</property>
+    <property name="column_spacing">2</property>
+    <property name="row_spacing">5</property>
+    <child>
+      <object class="GtkTable" id="legend_subtable">
+        <property name="visible">True</property>
+        <property name="n_rows">11</property>
+        <property name="n_columns">2</property>
+        <property name="column_spacing">2</property>
+        <child>
+          <object class="GtkLabel" id="label3">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Dead node: </property>
+          </object>
+          <packing>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label4">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Node alive:</property>
+          </object>
+          <packing>
+            <property name="top_attach">1</property>
+            <property name="bottom_attach">2</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label6">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Root node: </property>
+          </object>
+          <packing>
+            <property name="top_attach">4</property>
+            <property name="bottom_attach">5</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label7">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Different seq.
+numbers: </property>
+            <property name="justify">center</property>
+          </object>
+          <packing>
+            <property name="top_attach">5</property>
+            <property name="bottom_attach">6</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label8">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Parent link: </property>
+          </object>
+          <packing>
+            <property name="top_attach">6</property>
+            <property name="bottom_attach">7</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label9">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Sibling link: </property>
+          </object>
+          <packing>
+            <property name="top_attach">8</property>
+            <property name="bottom_attach">9</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label12">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Dead parent
+link: </property>
+            <property name="justify">center</property>
+          </object>
+          <packing>
+            <property name="top_attach">9</property>
+            <property name="bottom_attach">10</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label29">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Dead sibling
+link: </property>
+            <property name="justify">center</property>
+          </object>
+          <packing>
+            <property name="top_attach">10</property>
+            <property name="bottom_attach">11</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label30">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Selected node: </property>
+          </object>
+          <packing>
+            <property name="top_attach">2</property>
+            <property name="bottom_attach">3</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label38">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Hovered node: </property>
+          </object>
+          <packing>
+            <property name="top_attach">3</property>
+            <property name="bottom_attach">4</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label47">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Preferred parent
+link: </property>
+            <property name="justify">center</property>
+          </object>
+          <packing>
+            <property name="top_attach">7</property>
+            <property name="bottom_attach">8</property>
+            <property name="x_options">GTK_FILL</property>
+            <property name="y_options">GTK_FILL</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area1">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area4">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">3</property>
+            <property name="bottom_attach">4</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area5">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">4</property>
+            <property name="bottom_attach">5</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area6">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">5</property>
+            <property name="bottom_attach">6</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area7">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">6</property>
+            <property name="bottom_attach">7</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area8">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">7</property>
+            <property name="bottom_attach">8</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area9">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">8</property>
+            <property name="bottom_attach">9</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area10">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">9</property>
+            <property name="bottom_attach">10</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area11">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">10</property>
+            <property name="bottom_attach">11</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area3">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">2</property>
+            <property name="bottom_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="legend_drawing_area2">
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <signal name="expose_event" handler="cb_legend_drawing_area_expose"/>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="right_attach">2</property>
+            <property name="top_attach">1</property>
+            <property name="bottom_attach">2</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="top_attach">1</property>
+        <property name="bottom_attach">2</property>
+        <property name="y_options">GTK_FILL</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkLabel" id="label48">
+        <property name="visible">True</property>
+        <property name="label" translatable="yes">&lt;b&gt;Legend&lt;/b&gt;</property>
+        <property name="use_markup">True</property>
+      </object>
+      <packing>
+        <property name="y_options">GTK_FILL</property>
+      </packing>
+    </child>
+  </object>
 </interface>

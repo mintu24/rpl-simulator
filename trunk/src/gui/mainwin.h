@@ -29,7 +29,10 @@ typedef struct display_params_t {
 } display_params_t;
 
 
-void                main_win_init();
+extern GtkBuilder * gtk_builder;
+
+
+bool                main_win_init();
 
 node_t *            main_win_get_selected_node();
 void                main_win_set_selected_node(node_t *node);
@@ -39,6 +42,11 @@ void                main_win_node_to_gui(node_t *node);
 void                main_win_display_to_gui();
 
 display_params_t *  main_win_get_display_params();
+
+void                main_win_update_sim_status();
+void                main_win_update_nodes_status();
+void                main_win_update_sim_time_status();
+void                main_win_update_xy_status(coord_t x, coord_t y);
 
     /* events */
 void                main_win_event_after_node_wake(node_t *node);

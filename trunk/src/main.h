@@ -8,22 +8,20 @@
 #define                 AUTOINC_ADDRESS_PART        16
 
 
-extern                  GThread *rs_main_thread;
-
-
 void                    rs_open();
 void                    rs_save();
 void                    rs_quit();
 
 void                    rs_start();
+void                    rs_pause();
 void                    rs_stop();
 
-node_t *                rs_add_node();
+node_t *                rs_add_node(coord_t x, coord_t y);
 void                    rs_rem_node(node_t *node);
 void                    rs_wake_node(node_t *node);
 void                    rs_kill_node(node_t *node);
 
-void                    rs_add_more_nodes(uint16 node_count);
+void                    rs_add_more_nodes(uint16 node_number, uint8 pattern, coord_t horiz_dist, coord_t vert_dist, uint16 row_length);
 void                    rs_rem_all_nodes();
 void                    rs_wake_all_nodes();
 void                    rs_kill_all_nodes();

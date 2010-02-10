@@ -19,7 +19,7 @@
 
 #define SIM_FIELD_TEXT_FONT                     "sans"
 #define SIM_FIELD_TEXT_SIZE                     12.0
-#define SIM_FIELD_TEXT_BG_COLOR                 0xFF303030
+#define SIM_FIELD_TEXT_BG_COLOR                 0x80303030
 #define SIM_FIELD_TEXT_NAME_FG_COLOR            0xFFFFFF00
 #define SIM_FIELD_TEXT_RANK_FG_COLOR            0xFFFFFF00
 #define SIM_FIELD_TEXT_ADDRESS_FG_COLOR         0xFFFFFF00
@@ -32,8 +32,26 @@
 #define SIM_FIELD_HOVER_COLOR                   0xFFFFFFFF
 #define SIM_FIELD_SELECTED_COLOR                0xFFFFFFFF
 
+#define SIM_FIELD_REDRAW_INTERVAL               50
+
+
+#define EXPAND_COLOR(color, r, g, b, a) { \
+        r = (((color) & 0x00FF0000) >> 16) / 255.0; \
+        g = (((color) & 0x0000FF00) >> 8) / 255.0; \
+        b = (((color) & 0x000000FF)) / 255.0; \
+        a = (((color) & 0xFF000000) >> 24) / 255.0; \
+}
+
+
+
 GtkWidget *     sim_field_create();
 void            sim_field_redraw();
+
+void            sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y);
+void            sim_field_draw_parent_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, uint32 color, bool packet);
+void            sim_field_draw_sibling_arrow(cairo_t *cr, double start_pixel_x, double start_pixel_y, double stop_pixel_x, double stop_pixel_y, uint32 color, bool packet, bool draw_line);
+void            sim_field_draw_arrow(cairo_t *cr, double start_x, double start_y, double end_x, double end_y, double radius, uint32 color, bool draw_line, double thickness, bool dashed);
+void            sim_field_draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_color, uint32 bg_color);
 
 
 #endif /* SIMFIELD_H_ */
