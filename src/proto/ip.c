@@ -5,12 +5,35 @@
 #include "../system.h"
 
 
+    /**** global variables ****/
+
+uint16              ip_event_id_after_node_wake;
+uint16              ip_event_id_before_node_kill;
+uint16              ip_event_id_after_pdu_sent;
+uint16              ip_event_id_after_pdu_received;
+
+
     /**** local function prototypes ****/
 
 static uint8 *      route_expand_to_bits(char *dst, uint8 prefix_len);
 
 
     /**** exported functions ****/
+
+bool ip_init()
+{
+    ip_event_id_after_node_wake = event_register("ip_after_node_wake", (event_handler_t) ip_event_after_node_wake);
+    ip_event_id_before_node_kill = event_register("ip_before_node_kill", (event_handler_t) ip_event_before_node_kill);
+    ip_event_id_after_pdu_sent = event_register("ip_after_pdu_sent", (event_handler_t) ip_event_after_pdu_sent);
+    ip_event_id_after_pdu_received = event_register("ip_after_pdu_received", (event_handler_t) ip_event_after_pdu_received);
+
+    return TRUE;
+}
+
+bool ip_done()
+{
+    return TRUE;
+}
 
 ip_pdu_t *ip_pdu_create(char *dst_address, char *src_address)
 {
@@ -82,8 +105,6 @@ void ip_node_init(node_t *node, char *address)
 
     node->ip_info->route_list = NULL;
     node->ip_info->route_count = 0;
-
-    g_static_rec_mutex_init(&node->ip_info->mutex);
 }
 
 void ip_node_done(node_t *node)
@@ -91,8 +112,6 @@ void ip_node_done(node_t *node)
     rs_assert(node != NULL);
 
     if (node->ip_info != NULL) {
-        ip_node_lock(node);
-
         if (node->ip_info->address != NULL)
             free(node->ip_info->address);
 
@@ -110,19 +129,8 @@ void ip_node_done(node_t *node)
             free(node->ip_info->route_list);
         }
 
-        ip_node_unlock(node);
-
-        g_static_rec_mutex_free(&node->ip_info->mutex);
-
         free(node->ip_info);
     }
-}
-
-char *ip_node_get_address(node_t *node)
-{
-    rs_assert(node != NULL);
-
-    return node->ip_info->address;
 }
 
 void ip_node_set_address(node_t *node, const char *address)
@@ -130,14 +138,10 @@ void ip_node_set_address(node_t *node, const char *address)
     rs_assert(node != NULL);
     rs_assert(address != NULL);
 
-    ip_node_lock(node);
-
     if (node->ip_info->address != NULL)
         free(node->ip_info->address);
 
     node->ip_info->address = strdup(address);
-
-    ip_node_unlock(node);
 }
 
 void ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop, bool aggregate)
@@ -153,20 +157,14 @@ void ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, no
     route->next_hop = next_hop;
     route->dst_bit_expanded = route_expand_to_bits(dst, prefix_len);
 
-    ip_node_lock(node);
-
     node->ip_info->route_list = realloc(node->ip_info->route_list, (node->ip_info->route_count + 1) * sizeof(ip_route_t *));
     node->ip_info->route_list[node->ip_info->route_count++] = route;
-
-    ip_node_unlock(node);
 }
 
 bool ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len)
 {
     rs_assert(node != NULL);
     rs_assert(dst != NULL);
-
-    ip_node_lock(node);
 
     int32 pos = -1, i;
     for (i = 0; i < node->ip_info->route_count; i++) {
@@ -179,8 +177,7 @@ bool ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len)
     }
 
     if (pos == -1) {
-        rs_error("node '%s' does not have a route for '%s/%d'", phy_node_get_name(node), dst, prefix_len);
-        ip_node_unlock(node);
+        rs_error("node '%s' does not have a route for '%s/%d'", node->phy_info->name, dst, prefix_len);
 
         return FALSE;
     }
@@ -195,30 +192,17 @@ bool ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len)
     node->ip_info->route_count--;
     node->ip_info->route_list = realloc(node->ip_info->route_list, node->ip_info->route_count * sizeof(ip_route_t *));
 
-    ip_node_unlock(node);
-
     return TRUE;
-}
-
-ip_route_t **ip_node_get_route_list(node_t *node, uint16 *route_count)
-{
-    rs_assert(node != NULL);
-
-    ip_node_lock(node);
-
-    if (route_count != NULL)
-        *route_count = node->ip_info->route_count;
-
-    ip_route_t **route_list = node->ip_info->route_list;
-
-    ip_node_unlock(node);
-
-    return route_list;
 }
 
 node_t *ip_node_best_match_route(node_t *node, char *dst_address)
 {
     rs_assert(node != NULL);
+    rs_assert(dst_address != NULL);
+
+    if (strcmp(node->ip_info->address, dst_address) == 0) { /* sending to this node itself? */
+        return node;
+    }
 
     uint16 i, j;
     int16 best_prefix_len = -1;
@@ -227,8 +211,6 @@ node_t *ip_node_best_match_route(node_t *node, char *dst_address)
 
     uint8 dst_len = strlen(dst_address) * 4;
     uint8 *dst_bits_expanded = route_expand_to_bits(dst_address, dst_len);
-
-    ip_node_lock(node);
 
     for (i = 0; i < node->ip_info->route_count; i++) {
         ip_route_t *route = node->ip_info->route_list[i];
@@ -262,8 +244,6 @@ node_t *ip_node_best_match_route(node_t *node, char *dst_address)
         }
     }
 
-    ip_node_unlock(node);
-
     if (best_route == NULL) {
         return NULL;
     }
@@ -276,48 +256,10 @@ bool ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu)
 {
     rs_assert(node != NULL);
 
-    if (dst_node == NULL) { /* broadcast */
-        ip_pdu_t *ip_pdu = ip_pdu_create("", ip_node_get_address(node));
-        ip_pdu_set_sdu(ip_pdu, next_header, sdu);
+    ip_pdu_t *ip_pdu = ip_pdu_create(dst_node != NULL ? dst_node->ip_info->address : "", node->ip_info->address);
+    ip_pdu_set_sdu(ip_pdu, next_header, sdu);
 
-        node_execute_event(
-                node,
-                "ip_event_before_pdu_sent",
-                (node_event_t) ip_event_before_pdu_sent,
-                dst_node, ip_pdu,
-                TRUE);
-
-        if (!mac_send(node, NULL, MAC_TYPE_IP, ip_pdu)) {
-            rs_error("failed to send MAC frame");
-            return FALSE;
-        }
-    }
-    else {
-        ip_pdu_t *ip_pdu = ip_pdu_create(ip_node_get_address(dst_node), ip_node_get_address(node));
-        ip_pdu_set_sdu(ip_pdu, next_header, sdu);
-
-        node_execute_event(
-                node,
-                "ip_event_before_pdu_sent",
-                (node_event_t) ip_event_before_pdu_sent,
-                dst_node, ip_pdu,
-                TRUE);
-
-        /* route the packet */
-        node_t *next_hop = ip_node_best_match_route(node, ip_node_get_address(dst_node));
-
-        if (next_hop == NULL) {
-            rs_warn("destination '%s' not reachable by '%s'", ip_node_get_address(dst_node), phy_node_get_name(node));
-            return FALSE;
-        }
-
-        if (!mac_send(node, next_hop, MAC_TYPE_IP, ip_pdu)) {
-            rs_error("failed to send MAC frame");
-            return FALSE;
-        }
-    }
-
-    return TRUE;
+    return event_execute(ip_event_id_after_pdu_sent, node, dst_node, ip_pdu);
 }
 
 bool ip_forward(node_t *node, ip_pdu_t *pdu)
@@ -325,27 +267,9 @@ bool ip_forward(node_t *node, ip_pdu_t *pdu)
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute_event(
-            node,
-            "ip_event_before_pdu_sent",
-            (node_event_t) ip_event_before_pdu_sent,
-            NULL, pdu,
-            TRUE);
+    pdu = ip_pdu_duplicate(pdu);
 
-    /* route the packet */
-    node_t *next_hop = ip_node_best_match_route(node, pdu->dst_address);
-
-    if (next_hop == NULL) {
-        rs_warn("destination '%s' not reachable by '%s'", pdu->dst_address, phy_node_get_name(node));
-        return FALSE;
-    }
-
-    if (!mac_send(node, next_hop, MAC_TYPE_IP, pdu)) {
-        rs_error("failed to send MAC frame");
-        return FALSE;
-    }
-
-    return TRUE;
+    return event_execute(ip_event_id_after_pdu_sent, node, NULL, pdu);
 }
 
 bool ip_receive(node_t *node, node_t *src_node, ip_pdu_t *pdu)
@@ -353,56 +277,78 @@ bool ip_receive(node_t *node, node_t *src_node, ip_pdu_t *pdu)
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    node_execute_event(
-            node,
-            "ip_event_after_pdu_received",
-            (node_event_t) ip_event_after_pdu_received,
-            src_node, pdu,
-            TRUE);
+    bool all_ok = event_execute(ip_event_id_after_pdu_received, node, src_node, pdu);
 
-    /* if the packet is not intended for us, we forward it */
-    if (strcmp(ip_node_get_address(node), pdu->dst_address) != 0 && (strlen(pdu->dst_address) > 0)) {
-        return ip_forward(node, pdu);
-    }
-
-    bool all_ok = TRUE;
-
-    switch (pdu->next_header) {
-
-        case IP_NEXT_HEADER_ICMP: {
-            icmp_pdu_t *icmp_pdu = pdu->sdu;
-            if (!icmp_receive(node, src_node, icmp_pdu)) {
-                rs_error("failed to recevie ICMP pdu from node '%s'", phy_node_get_name(src_node));
-                all_ok = FALSE;
-            }
-
-            break;
-        }
-
-        default:
-            rs_error("unknown IP next header '0x%04X'", pdu->next_header);
-            all_ok = FALSE;
-    }
-
-     ip_pdu_destroy(pdu);
+    ip_pdu_destroy(pdu);
 
     return all_ok;
 }
 
-void ip_event_after_node_wake(node_t *node)
+
+bool ip_event_after_node_wake(node_t *node)
 {
+    return TRUE;
 }
 
-void ip_event_before_node_kill(node_t *node)
+bool ip_event_before_node_kill(node_t *node)
 {
+    return TRUE;
 }
 
-void ip_event_before_pdu_sent(node_t *node, node_t *dst_node, ip_pdu_t *pdu)
+bool ip_event_after_pdu_sent(node_t *node, node_t *dst_node, ip_pdu_t *pdu)
 {
+    if (dst_node == NULL) { /* broadcast */
+        if (!mac_send(node, NULL, MAC_TYPE_IP, pdu)) {
+            rs_error("node '%s': failed to send MAC frame", node->phy_info->name);
+            return FALSE;
+        }
+    }
+    else {
+        /* route the packet */
+        node_t *next_hop = ip_node_best_match_route(node, dst_node->ip_info->address);
+
+        if (next_hop == NULL) {
+            rs_warn("node '%s': destination '%s' not reachable", node->phy_info->name, dst_node->ip_info->address);
+            return FALSE;
+        }
+
+        if (!mac_send(node, next_hop, MAC_TYPE_IP, pdu)) {
+            rs_error("node '%s': failed to send MAC frame", node->phy_info->name);
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
-void ip_event_after_pdu_received(node_t *node, node_t *src_node, ip_pdu_t *pdu)
+bool ip_event_after_pdu_received(node_t *node, node_t *src_node, ip_pdu_t *pdu)
 {
+    /* if the packet is not intended for us, neither broadcasted, we forward it */
+    if (strcmp(node->ip_info->address, pdu->dst_address) != 0 && (strlen(pdu->dst_address) > 0)) {
+        return ip_forward(node, pdu);
+    }
+    else {
+        bool all_ok = TRUE;
+
+        switch (pdu->next_header) {
+
+            case IP_NEXT_HEADER_ICMP: {
+                icmp_pdu_t *icmp_pdu = pdu->sdu;
+                if (!icmp_receive(node, src_node, icmp_pdu)) {
+                    rs_error("node '%s': failed to receive ICMP pdu from node '%s'", node->phy_info->name, src_node->phy_info->name);
+                    all_ok = FALSE;
+                }
+
+                break;
+            }
+
+            default:
+                rs_error("node '%s': unknown IP next header '0x%04X'", node->phy_info->name, pdu->next_header);
+                all_ok = FALSE;
+        }
+
+        return all_ok;
+    }
 }
 
 

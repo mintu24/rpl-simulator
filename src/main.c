@@ -3,26 +3,25 @@
 #include <math.h>
 #include <gtk/gtk.h>
 #include <ctype.h>
+#include <libgen.h> /* for dirname() */
 
 #include "main.h"
 #include "system.h"
 #include "gui/mainwin.h"
 #include "gui/simfield.h"
+#include "gui/dialogs.h"
 
 
     /**** global variables ****/
 
-GThread *rs_main_thread = NULL;
+char *              rs_app_dir;
 
 
     /**** local function prototypes ****/
 
 static char *       get_next_name(char *name);
-static void         get_next_coords(coord_t *x, coord_t *y);
 static char *       get_next_mac_address(char *address);
 static char *       get_next_ip_address(char *address);
-
-static node_t *     find_node_by_thread(GThread *thread);
 
 
     /**** exported functions ****/
@@ -39,92 +38,53 @@ void rs_save(char *filename)
 
 void rs_quit()
 {
+    rs_system_stop();
+
     gtk_main_quit();
 }
 
 void rs_start()
 {
-//    // todo: implement me
-//
-//    rs_add_node();
-//    rs_add_node();
-//    rs_add_node();
-//
-//    rs_wake_all_nodes();
-//
-//    node_t *a = rs_system_find_node_by_name("A");
-//    node_t *b = rs_system_find_node_by_name("B");
-//    node_t *c = rs_system_find_node_by_name("C");
-//
-//    if (a == NULL || b == NULL || c == NULL) {
-//        return;
-//    }
-//
-//    ip_node_add_route(a, 0, "0000", 0, b, FALSE);
-//    ip_node_add_route(b, 0, "0000", 0, c, FALSE);
-//
-//    if (a->alive && b->alive && c->alive)
-//        rpl_send_dis(a, c);
-//
-//    sim_field_redraw();
-//
-//    /************************************/
+    rs_system_start();
+
+    main_win_update_sim_status();
 }
 
-void rs_stop(char *filename)
+void rs_pause()
 {
-    // todo: implement me
+    rs_system_pause();
 
-    system_lock();
-
-    uint16 node_count;
-    int32 index;
-    node_t **node_list = rs_system_get_node_list(&node_count);
-
-    for (index = 0; index < node_count; index++) {
-        node_t *node = node_list[index];
-        printf("node '%s':\n", phy_node_get_name(node));
-
-        icmp_node_lock(node);
-
-        uint32 meas_count, i;
-        icmp_ping_measure_t **measures = icmp_node_get_ping_measure_list(node, &meas_count);
-        for (i = 0; i < meas_count; i++) {
-            icmp_ping_measure_t *measure = measures[i];
-            printf("    to '%s': failures %d/%d\n",
-                    phy_node_get_name(measure->dst_node),
-                    measure->failed_count,
-                    measure->total_count);
-        }
-
-        icmp_node_unlock(node);
-    }
-
-    system_unlock();
-
-    /** fixme test **********************/
+    main_win_update_sim_status();
 }
 
-node_t *rs_add_node()
+void rs_stop()
 {
+    rs_system_stop();
+
+    main_win_update_sim_status();
+}
+
+node_t *rs_add_node(coord_t x, coord_t y)
+{
+    nodes_lock();
+
     char *new_name = NULL;
     char *new_mac_address = NULL;
     char *new_ip_address = NULL;
-    coord_t new_x, new_y;
 
-    uint16 node_count;
     int32 index;
-    node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
-    for (index = node_count - 1; index >= 0; index--) {
+    for (index = rs_system->node_count - 1; index >= 0; index--) {
+        node_t *node = rs_system->node_list[index];
+
         if (new_name == NULL)
-            new_name = get_next_name(phy_node_get_name(node_list[index]));
+            new_name = get_next_name(node->phy_info->name);
 
         if (new_mac_address == NULL)
-            new_mac_address = get_next_mac_address(mac_node_get_address(node_list[index]));
+            new_mac_address = get_next_mac_address(node->mac_info->address);
 
         if (new_ip_address == NULL)
-            new_ip_address = get_next_ip_address(ip_node_get_address(node_list[index]));
+            new_ip_address = get_next_ip_address(node->ip_info->address);
 
 
         if (rs_system_find_node_by_name(new_name) != NULL) {
@@ -155,48 +115,28 @@ node_t *rs_add_node()
         new_ip_address = get_next_ip_address(NULL);
     }
 
-    if (node_count > 0) {
-        new_x = phy_node_get_x(node_list[node_count - 1]);
-        new_y = phy_node_get_y(node_list[node_count - 1]);
-    }
-    else {
-        new_x = -1;
-        new_y = -1;
-    }
-
-    get_next_coords(&new_x, &new_y);
-
     node_t *node = node_create();
 
-    phy_node_init(node, new_name, new_x, new_y);
+    phy_node_init(node, new_name, x, y);
     mac_node_init(node, new_mac_address);
     ip_node_init(node, new_ip_address);
     icmp_node_init(node);
     rpl_node_init(node);
 
-    if (node_count == 0) {
-        rpl_node_set_rank(node, RPL_RANK_ROOT);
+    if (rs_system->node_count == 0) {
+        node->rpl_info->rank = RPL_RANK_ROOT;
     }
-
-    /* add routes to everyone */
-
-    for (index = 0; index < node_count; index++) {
-        node_t *dst_node = node_list[index];
-
-        ip_node_add_route(node, IP_ROUTE_TYPE_MANUAL, ip_node_get_address(dst_node), 16, dst_node, FALSE);
-        ip_node_add_route(dst_node, IP_ROUTE_TYPE_MANUAL, ip_node_get_address(node), 16, node, FALSE);
-    }
-
-    free(node_list);
 
     rs_system_add_node(node);
-
 
     free(new_name);
     free(new_mac_address);
     free(new_ip_address);
 
+    nodes_unlock();
+
     main_win_system_to_gui();
+    main_win_update_nodes_status();
 
     return node;
 }
@@ -206,99 +146,151 @@ void rs_rem_node(node_t *node)
     rs_assert(node != NULL);
 
     if (!rs_system_remove_node(node)) {
-        rs_error("failed to remove node '%s' from the system", phy_node_get_name(node));
+        rs_error("failed to remove node '%s' from the system", node->phy_info->name);
         return;
     }
 
-    main_win_system_to_gui();
+    node_destroy(node);
 
-    /* this won't actually destroy the node, but just kill it.
-     * instead, a garbage collector thread will check from time to time
-     * for completely unreferenced nodes, and effectively destroy them.
-     */
-    if (node->alive && !node_kill(node)) {
-        rs_error("failed to kill node '%s'", phy_node_get_name(node));
-    }
+    main_win_system_to_gui();
+    main_win_update_nodes_status();
 }
 
 void rs_wake_node(node_t *node)
 {
     if (!node_wake(node)) {
-        rs_error("failed to wake node '%s'", phy_node_get_name(node));
+        rs_error("failed to wake node '%s'", node->phy_info->name);
     }
+
+    main_win_update_nodes_status();
 }
 
 void rs_kill_node(node_t *node)
 {
     if (!node_kill(node)) {
-        rs_error("failed to kill node '%s'", phy_node_get_name(node));
+        rs_error("failed to kill node '%s'", node->phy_info->name);
     }
+
+    main_win_update_nodes_status();
 }
 
-void rs_add_more_nodes(uint16 node_count)
+void rs_add_more_nodes(uint16 node_number, uint8 pattern, coord_t horiz_dist, coord_t vert_dist, uint16 row_length)
 {
-    int i;
-    for (i = 0; i < node_count; i++) {
-        rs_add_node();
+    switch (pattern) {
+        case ADD_MORE_DIALOG_PATTERN_RECTANGULAR : {
+            uint16 i;
+            coord_t x, y;
+
+            for (i = 0; i < node_number; i++) {
+                x = horiz_dist * (i % row_length);
+                y = vert_dist * (i / row_length);
+
+                x += (rs_system->width - (row_length - 1) * horiz_dist) / 2;
+                y += (rs_system->height - ((node_number - 1) / row_length * vert_dist)) / 2;
+
+                rs_add_node(x, y);
+            }
+
+            break;
+        }
+
+        case ADD_MORE_DIALOG_PATTERN_TRIANGULAR : {
+            uint16 i, row_count, row_index, max_row_count;
+            coord_t x, y;
+
+            row_index = 0;
+            row_count = 1;
+            for (i = 0; i < node_number; i++) {
+                if (row_index < row_count - 1) {
+                    row_index++;
+                }
+                else {
+                    row_index = 0;
+                    row_count++;
+                }
+            }
+            max_row_count = row_count;
+
+            row_index = 0;
+            row_count = 1;
+            for (i = 0; i < node_number; i++) {
+                x = rs_system->width / 2 + (horiz_dist * (row_index - row_count / 2));
+                if (row_count % 2 == 0) {
+                    x += horiz_dist / 2;
+                }
+
+                y = (rs_system->height - (max_row_count - 1) * vert_dist) / 2 + vert_dist * (row_count - 1);
+
+                rs_add_node(x, y);
+
+                if (row_index < row_count - 1) {
+                    row_index++;
+                }
+                else {
+                    row_index = 0;
+                    row_count++;
+                }
+            }
+
+            break;
+        }
+
+        case ADD_MORE_DIALOG_PATTERN_RANDOM : {
+            uint16 i;
+
+            for (i = 0; i < node_number; i++) {
+                rs_add_node(rand() % (uint16) rs_system->width, rand() % (uint16) rs_system->height);
+            }
+
+            break;
+        }
     }
 }
 
 void rs_rem_all_nodes()
 {
-    system_lock();
+    nodes_lock();
 
-    node_t **node_list;
-    uint16 node_count;
-
-    node_list = rs_system_get_node_list(&node_count);
-    while (node_count > 0) {
-        node_t *node = node_list[node_count - 1];
-
-        rs_rem_node(node);
-        node_list = rs_system_get_node_list(&node_count);
+    while (rs_system->node_count > 0) {
+        rs_rem_node(rs_system->node_list[rs_system->node_count - 1]);
     }
 
-    system_unlock();
+    nodes_unlock();
 }
 
 void rs_wake_all_nodes()
 {
-    system_lock();
+    nodes_lock();
 
-    node_t **node_list;
-    uint16 node_count, index;
-
-    node_list = rs_system_get_node_list(&node_count);
-
-    for (index = 0; index < node_count; index++) {
-        node_t *node = node_list[index];
+    uint16 index;
+    for (index = 0; index < rs_system->node_count; index++) {
+        node_t *node = rs_system->node_list[index];
         if (!node->alive && !node_wake(node)) {
-            rs_error("failed to wake node '%s'", phy_node_get_name(node));
+            rs_error("failed to wake node '%s'", node->phy_info->name);
         }
     }
 
-    system_unlock();
+    nodes_unlock();
+
+    main_win_update_nodes_status();
 }
 
 void rs_kill_all_nodes()
 {
-    system_lock();
+    nodes_lock();
 
-    node_t **node_list;
-    uint16 node_count, index;
-
-    node_list = rs_system_get_node_list(&node_count);
-
-    for (index = 0; index < node_count; index++) {
-        node_t *node = node_list[index];
+    uint16 index;
+    for (index = 0; index < rs_system->node_count; index++) {
+        node_t *node = rs_system->node_list[index];
         if (node->alive && !node_kill(node)) {
-            rs_error("failed to kill node '%s'", phy_node_get_name(node));
+            rs_error("failed to kill node '%s'", node->phy_info->name);
         }
     }
 
-    system_unlock();
-}
+    nodes_unlock();
 
+    main_win_update_nodes_status();
+}
 
 void rs_print(FILE *stream, char *sym, const char *file, int line, const char *function, const char *fmt, ...)
 {
@@ -313,34 +305,25 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
     vsnprintf(string, sizeof(string), fmt, ap);
     va_end(ap);
 
-    node_t *node = NULL;
-    if (g_thread_get_initialized() && (rs_system != NULL) && (g_thread_self() != rs_system->main_thread))
-        node = find_node_by_thread(g_thread_self());
-
-    char *context;
-    if (node == NULL) {
-        if (rs_system != NULL && (g_thread_self() == rs_system->gc_thread)) {
-            context = "garbage collector";
-        }
-        else {
-            context = "main";
-        }
+    char thread[256];
+    if (g_thread_self()->func == 0) {
+        snprintf(thread, sizeof(thread), "main");
     }
     else {
-        context = phy_node_get_name(node);
+        snprintf(thread, sizeof(thread), "0x%X", (uint32) g_thread_self()->func);
     }
 
     if (strlen(string) > 0) {
         if (file != NULL && strlen(file) > 0) {
-            fprintf(stream, "%s%s: [in %s() at %s:%d]\n", sym, context, function, file, line);
+            fprintf(stream, "%s[in %s/%s() at %s:%d]\n", sym, thread, function, file, line);
             fprintf(stream, "    %s\n", string);
         }
         else {
-            fprintf(stream, "%s%s: %s\n", sym, context, string);
+            fprintf(stream, "%s%s\n", sym, string);
         }
     }
     else {
-        fprintf(stream, "%s%s: [in %s() at %s:%d]\n", sym, context, function, file, line);
+        fprintf(stream, "%s[in %s/%s() at %s:%d]\n", sym, thread, function, file, line);
     }
 }
 
@@ -396,24 +379,6 @@ static char *get_next_name(char *name)
     return new_name;
 }
 
-static void get_next_coords(coord_t *x, coord_t *y)
-{
-    rs_assert(x != NULL);
-    rs_assert(y != NULL);
-
-    // todo arrange the nodes a little bit more nice
-
-    if (*x == -1)
-        *x = rs_system_get_width() / 2;
-    else
-        *x = rand() % (uint32) rs_system_get_width();
-
-    if (*y == -1)
-        *y = rs_system_get_height() / 2;
-    else
-        *y = rand() % (uint32) rs_system_get_height();
-}
-
 static char *get_next_mac_address(char *address)
 {
     char *new_address = malloc(256);
@@ -461,39 +426,23 @@ static char *get_next_ip_address(char *address)
 }
 
 
-static node_t *find_node_by_thread(GThread *thread)
-{
-    uint16 node_count, index;
-    node_t **node_list;
-    node_list = rs_system_get_node_list_copy(&node_count);
-
-    for (index = 0; index < node_count; index++) {
-        node_t *node = node_list[index];
-
-        if (node->life == thread) {
-            free(node_list);
-
-            return node;
-        }
-    }
-
-    free(node_list);
-
-    return NULL;
-}
-
-
 int main(int argc, char *argv[])
 {
 	rs_info("hello");
 
+	rs_app_dir = strdup(dirname(argv[0]));
+
 	g_thread_init(NULL);
-	rs_main_thread = g_thread_self();
 
 	rs_system_create();
 
     gtk_init(&argc, &argv);
-    main_win_init();
+
+    if (!main_win_init()) {
+        rs_error("failed to initialize main window");
+        return -1;
+    }
+
 	gtk_main();
 
 	rs_system_destroy();

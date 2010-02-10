@@ -1,9 +1,10 @@
 
 NODES = $(subst .svg,.png,$(wildcard node-*-*-*.svg))
+PATTERNS = $(subst .svg,.png,$(wildcard *-pattern.svg))
 RSVG = rsvg -f png
 RM = rm -f
 
-all: $(NODES)
+all: $(NODES) $(PATTERNS)
 
 clean:
 	$(RM) $(NODES)

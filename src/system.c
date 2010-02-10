@@ -3,17 +3,28 @@
 #include <math.h>
 
 #include "system.h"
+#include "gui/simfield.h"
+#include "gui/mainwin.h"
 
 
     /**** global variables ****/
 
-rs_system_t *           rs_system = NULL;
+rs_system_t *               rs_system = NULL;
+uint16                      sys_event_id_after_node_wake;
+uint16                      sys_event_id_before_node_kill;
+uint16                      sys_event_id_after_message_transmitted;
 
 
     /**** local function prototypes ****/
 
-void *                  garbage_collector_core(void *data);
-void                    destroy_all_unreferenced_nodes();
+static void *               system_core(void *data);
+
+static event_schedule_t *   schedule_create(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
+static bool                 schedule_destroy(event_schedule_t *schedule);
+
+#ifdef DEBUG_EVENTS
+static void                 print_scheduled_events();
+#endif /* DEBUG_EVENTS */
 
 
     /**** exported functions ****/
@@ -27,29 +38,49 @@ bool rs_system_create()
 
     rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
     rs_system->no_link_quality_thresh = DEFAULT_NO_LINK_QUALITY_THRESH;
-    rs_system->phy_transmit_mode = DEFAULT_PHY_TRANSMIT_MODE;
 
     rs_system->width = DEFAULT_SYS_WIDTH;
     rs_system->height = DEFAULT_SYS_HEIGHT;
 
-    rs_system->node_core_sleep = DEFAULT_NODE_CORE_SLEEP;
+    rs_system->auto_wake_nodes = TRUE;
 
-    rs_system->gc_list = NULL;
-    rs_system->gc_count = 0;
-    rs_system->gc_running = FALSE;
-    rs_system->gc_mutex = g_mutex_new();
+    rs_system->simulation_second = DEFAULT_SIMULATION_SECOND;
 
-    rs_system->main_thread = g_thread_self();
+    rs_system->schedules = NULL;
 
-    g_static_rec_mutex_init(&rs_system->mutex);
+    rs_system->started = FALSE;
+    rs_system->paused = FALSE;
+    rs_system->now = 0;
+    rs_system->event_count = 0;
 
-    /* start the garbage collector */
-    GError *error;
-    rs_system->gc_thread = g_thread_create(garbage_collector_core, NULL, TRUE, &error);
-    if (rs_system->gc_thread == NULL) {
-        rs_error("g_thread_create() failed: %s", error->message);
+    sys_event_id_after_node_wake = event_register("sys_after_node_wake", (event_handler_t) sys_event_after_node_wake);
+    sys_event_id_before_node_kill = event_register("sys_before_node_kill", (event_handler_t) sys_event_before_node_kill);
+    sys_event_id_after_message_transmitted = event_register("sys_after_message_transmitted", (event_handler_t) sys_event_after_message_transmitted);
+
+    if (!phy_init()) {
+        rs_error("failed to initialize PHY layer");
         return FALSE;
     }
+    if (!mac_init()) {
+        rs_error("failed to initialize MAC layer");
+        return FALSE;
+    }
+    if (!ip_init()) {
+        rs_error("failed to initialize IP layer");
+        return FALSE;
+    }
+    if (!icmp_init()) {
+        rs_error("failed to initialize ICMP layer");
+        return FALSE;
+    }
+    if (!rpl_init()) {
+        rs_error("failed to initialize RPL layer");
+        return FALSE;
+    }
+
+    g_static_rec_mutex_init(&rs_system->events_mutex);
+    g_static_rec_mutex_init(&rs_system->schedules_mutex);
+    g_static_rec_mutex_init(&rs_system->nodes_mutex);
 
     return TRUE;
 }
@@ -58,22 +89,46 @@ bool rs_system_destroy()
 {
     rs_assert(rs_system != NULL);
 
-    /* try to stop the GC */
-    rs_system->gc_running = FALSE;
-
-    uint16 node_count;
-    node_t **node_list = rs_system_get_node_list_copy(&node_count);
-
     int i;
-    for (i = 0; i < node_count; i++) {
-        node_t *node = node_list[i];
+    for (i = 0; i < rs_system->node_count; i++) {
+        node_t *node = rs_system->node_list[i];
         node_destroy(node);
     }
 
     if (rs_system->node_list != NULL)
         free(rs_system->node_list);
 
-    g_static_rec_mutex_free(&rs_system->mutex);
+    while (rs_system->schedules != NULL) {
+        event_schedule_t *schedule = rs_system->schedules;
+        rs_system->schedules = rs_system->schedules->next;
+
+        schedule_destroy(schedule);
+    }
+
+    if (!rpl_done()) {
+        rs_error("failed to deinitialize RPL layer");
+        return FALSE;
+    }
+    if (!icmp_done()) {
+        rs_error("failed to initialize ICMP layer");
+        return FALSE;
+    }
+    if (!ip_done()) {
+        rs_error("failed to initialize IP layer");
+        return FALSE;
+    }
+    if (!mac_done()) {
+        rs_error("failed to initialize MAC layer");
+        return FALSE;
+    }
+    if (!phy_done()) {
+        rs_error("failed to initialize PHY layer");
+        return FALSE;
+    }
+
+    g_static_rec_mutex_free(&rs_system->nodes_mutex);
+    g_static_rec_mutex_free(&rs_system->schedules_mutex);
+    g_static_rec_mutex_free(&rs_system->events_mutex);
 
     free(rs_system);
     rs_system = NULL;
@@ -81,105 +136,27 @@ bool rs_system_destroy()
     return TRUE;
 }
 
-coord_t rs_system_get_no_link_dist_thresh()
-{
-    rs_assert(rs_system != NULL);
-
-    return rs_system->no_link_dist_thresh;
-}
-
-void rs_system_set_no_link_dist_thresh(coord_t thresh)
-{
-    rs_assert(rs_system != NULL);
-
-    rs_system->no_link_dist_thresh = thresh;
-}
-
-percent_t rs_system_get_no_link_quality_thresh()
-{
-    rs_assert(rs_system != NULL);
-
-    return rs_system->no_link_quality_thresh;
-}
-
-void rs_system_set_no_link_quality_thresh(percent_t thresh)
-{
-    rs_assert(rs_system != NULL);
-
-    rs_system->no_link_quality_thresh = thresh;
-}
-
-uint8 rs_system_get_transmit_mode()
-{
-    rs_assert(rs_system != NULL);
-
-    return rs_system->phy_transmit_mode;
-}
-
-void rs_system_set_transmit_mode(uint8 mode)
-{
-    rs_assert(rs_system != NULL);
-
-    rs_system->phy_transmit_mode = mode;
-}
-
-coord_t rs_system_get_width()
-{
-    rs_assert(rs_system != NULL);
-
-    return rs_system->width;
-}
-
-coord_t rs_system_get_height()
-{
-    rs_assert(rs_system != NULL);
-
-    return rs_system->height;
-}
-
-void rs_system_set_width_height(coord_t width, coord_t height)
-{
-    rs_assert(rs_system != NULL);
-
-    rs_system->width = width;
-    rs_system->height = height;
-}
-
-uint32 rs_system_get_node_core_sleep()
-{
-    rs_assert(rs_system != NULL);
-
-    return rs_system->node_core_sleep;
-}
-
-void rs_system_set_node_core_sleep(uint32 node_core_sleep)
-{
-    rs_assert(rs_system != NULL);
-
-    rs_system->node_core_sleep = node_core_sleep;
-}
-
 bool rs_system_add_node(node_t *node)
 {
+    nodes_lock();
+
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
-
-    system_lock();
 
     rs_system->node_list = realloc(rs_system->node_list, (++rs_system->node_count) * sizeof(node_t *));
     rs_system->node_list[rs_system->node_count - 1] = node;
 
-    system_unlock();
+    nodes_unlock();
 
     return TRUE;
 }
 
 bool rs_system_remove_node(node_t *node)
 {
+    nodes_lock();
+
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
-
-    system_lock();
 
     int i, pos = -1;
     for (i = 0; i < rs_system->node_count; i++) {
@@ -191,7 +168,7 @@ bool rs_system_remove_node(node_t *node)
 
     if (pos == -1) {
         rs_error("node '%s' not found", rs_system->node_list[i]);
-        system_unlock();
+        nodes_unlock();
 
         return FALSE;
     }
@@ -203,129 +180,207 @@ bool rs_system_remove_node(node_t *node)
     rs_system->node_count--;
     rs_system->node_list = realloc(rs_system->node_list, (rs_system->node_count) * sizeof(node_t *));
 
-    system_unlock();
+    /* nullify all the references to this node */
+    for (i = 0; i < rs_system->node_count; i++) {
+        node_t *other_node = rs_system->node_list[i];
 
-    /* add the removed node to the garbge collector's list */
-    g_mutex_lock(rs_system->gc_mutex);
-    rs_system->gc_list = realloc(rs_system->gc_list, sizeof(node_t *) * rs_system->gc_count + 1);
-    rs_system->gc_list[rs_system->gc_count++] = node;
-    g_mutex_unlock(rs_system->gc_mutex);
+        /* nullify rpl parent refs */
+        rpl_remote_node_t *remote_node = rpl_node_find_parent_by_node(other_node, node);
+        if (remote_node != NULL) {
+            remote_node->node = NULL;
+        }
+
+        /* nullify rpl sibling refs */
+        remote_node = rpl_node_find_sibling_by_node(other_node, node);
+        if (remote_node != NULL) {
+            remote_node->node = NULL;
+        }
+
+        /* nullify rpl neighbor refs */
+        remote_node = rpl_node_find_neighbor_by_node(other_node, node);
+        if (remote_node != NULL) {
+            remote_node->node = NULL;
+        }
+
+        /* nullify ip route refs */
+
+        events_lock();
+
+        uint32 j;
+        for (j = 0; j < other_node->ip_info->route_count; j++) {
+            ip_route_t *route = other_node->ip_info->route_list[j];
+
+            if (route->next_hop != node)
+                continue;
+
+            uint32 k;
+            for (k = j; k < other_node->ip_info->route_count - 1; k++) {
+                other_node->ip_info->route_list[k] = other_node->ip_info->route_list[k + 1];
+            }
+
+            other_node->ip_info->route_count--;
+            other_node->ip_info->route_list = realloc(other_node->ip_info->route_list, other_node->ip_info->route_count * sizeof(ip_route_t *));
+
+            free(route->dst);
+            free(route);
+        }
+
+        events_unlock();
+    }
+
+    nodes_unlock();
 
     return TRUE;
 }
 
 int32 rs_system_get_node_pos(node_t *node)
 {
+    nodes_lock();
+
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
-
-    system_lock();
 
     uint16 i;
     for (i = 0; i < rs_system->node_count; i++) {
         if (rs_system->node_list[i] == node) {
-            system_unlock();
+            nodes_unlock();
+
             return i;
         }
     }
 
-    system_unlock();
+    nodes_unlock();
 
     return -1;
 }
 
 node_t *rs_system_find_node_by_name(char *name)
 {
+    nodes_lock();
+
     rs_assert(rs_system != NULL);
     rs_assert(name != NULL);
-
-    system_lock();
 
     int i;
     node_t *node = NULL;
     for (i = 0; i < rs_system->node_count; i++) {
-        if (!strcmp(phy_node_get_name(rs_system->node_list[i]), name)) {
+        if (!strcmp(rs_system->node_list[i]->phy_info->name, name)) {
             node = rs_system->node_list[i];
             break;
         }
     }
 
-    system_unlock();
+    nodes_unlock();
 
     return node;
 }
 
 node_t *rs_system_find_node_by_mac_address(char *address)
 {
+    nodes_lock();
+
     rs_assert(rs_system != NULL);
     rs_assert(address != NULL);
-
-    system_lock();
 
     int i;
     node_t *node = NULL;
     for (i = 0; i < rs_system->node_count; i++) {
-        if (!strcmp(mac_node_get_address(rs_system->node_list[i]), address)) {
+        if (!strcmp(rs_system->node_list[i]->mac_info->address, address)) {
             node = rs_system->node_list[i];
             break;
         }
     }
 
-    system_unlock();
+    nodes_unlock();
 
     return node;
 }
 
 node_t *rs_system_find_node_by_ip_address(char *address)
 {
+    nodes_lock();
+
     rs_assert(rs_system != NULL);
     rs_assert(address != NULL);
-
-    system_lock();
 
     int i;
     node_t *node = NULL;
     for (i = 0; i < rs_system->node_count; i++) {
-        if (!strcmp(ip_node_get_address(rs_system->node_list[i]), address)) {
+        if (!strcmp(rs_system->node_list[i]->ip_info->address, address)) {
             node = rs_system->node_list[i];
             break;
         }
     }
 
-    system_unlock();
+    nodes_unlock();
 
     return node;
 }
 
-node_t **rs_system_get_node_list(uint16 *node_count)
+void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time)
 {
+    schedules_lock();
+
     rs_assert(rs_system != NULL);
 
-    if (node_count != NULL)
-        *node_count = rs_system->node_count;
+    time += rs_system->now; /* make the time absolute */
 
-    return rs_system->node_list;
-}
+    event_schedule_t *new_schedule = schedule_create(node, event_id, data1, data2, time);
 
-node_t **rs_system_get_node_list_copy(uint16 *node_count)
-{
-    rs_assert(rs_system != NULL);
+    event_schedule_t *schedule = rs_system->schedules;
+    event_schedule_t *prev_schedule = NULL;
 
-    system_lock();
 
-    if (node_count != NULL)
-        *node_count = rs_system->node_count;
-
-    uint16 index;
-    node_t **copy_node_list = malloc(rs_system->node_count * sizeof(node_t *));
-
-    for (index = 0; index < rs_system->node_count; index++) {
-        copy_node_list[index] = rs_system->node_list[index];
+    while ((schedule != NULL) && (schedule->time <= time)) {
+        prev_schedule = schedule;
+        schedule = schedule->next;
     }
 
-    system_unlock();
+    new_schedule->next = schedule;
+    if (prev_schedule == NULL) {
+        rs_system->schedules = new_schedule;
+    }
+    else {
+        prev_schedule->next = new_schedule;
+    }
 
-    return copy_node_list;
+    schedules_unlock();
+}
+
+bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(src_node != NULL);
+
+    if (dst_node == NULL) { /* broadcast */
+        nodes_lock();
+
+        uint16 i;
+        for (i = 0; i < rs_system->node_count; i++) {
+            dst_node = rs_system->node_list[i];
+
+            percent_t quality = rs_system_get_link_quality(src_node, dst_node);
+            if (quality < rs_system->no_link_quality_thresh) { /* no physical link */
+                continue;
+            }
+
+            if (i < rs_system->node_count - 1) {
+                rs_system_send(src_node, dst_node, phy_pdu_duplicate(message));
+            }
+            else {
+                rs_system_send(src_node, dst_node, message);
+            }
+
+        }
+
+        nodes_unlock();
+    }
+    else {
+        // todo implement collisions
+        rs_system_schedule_event(src_node, sys_event_id_after_message_transmitted, dst_node, message, DEFAULT_TRANSMIT_TIME);
+    }
+
+    return TRUE;
 }
 
 percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
@@ -334,96 +389,271 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
     rs_assert(src_node != NULL);
     rs_assert(dst_node != NULL);
 
-    coord_t distance = sqrt(pow(phy_node_get_x(src_node) - phy_node_get_x(dst_node), 2) + pow(phy_node_get_y(src_node) - phy_node_get_y(dst_node), 2));
-    if (distance > rs_system_get_no_link_dist_thresh()) {
-        distance = rs_system_get_no_link_dist_thresh();
+    if (src_node == dst_node) { /* the quality between a node and itself is considered perfect */
+        return 1.0;
+    }
+
+    coord_t distance = sqrt(
+            pow(src_node->phy_info->cx - dst_node->phy_info->cx, 2) +
+            pow(src_node->phy_info->cy - dst_node->phy_info->cy, 2));
+
+    if (distance > rs_system->no_link_dist_thresh) {
+        distance = rs_system->no_link_dist_thresh;
     }
 
     percent_t dist_factor = (percent_t) (rs_system->no_link_dist_thresh - distance) / rs_system->no_link_dist_thresh;
-    percent_t quality = phy_node_get_tx_power(src_node) * dist_factor;
+    percent_t quality = src_node->phy_info->tx_power * dist_factor;
 
     return quality;
+}
+
+void rs_system_start()
+{
+    rs_assert(rs_system != NULL);
+
+    if (rs_system->paused) {
+        rs_system->paused = FALSE;
+        rs_debug(DEBUG_SYSTEM, "system core resumed");
+    }
+    else {
+        rs_system->paused = FALSE;
+
+        // todo cleanup measurements & stuff
+        rs_system->now = 0;
+        rs_system->event_count = 0;
+
+        GError *error;
+        rs_system->sys_thread = g_thread_create(system_core, NULL, TRUE, &error);
+        if (rs_system->sys_thread == NULL) {
+            rs_error("g_thread_create() failed: %s", error->message);
+        }
+
+        /* wait till started */
+        while (!rs_system->started) {
+            usleep(SYS_CORE_SLEEP);
+        }
+    }
+
+    schedules_lock();
+    nodes_lock();
+
+    if (rs_system->auto_wake_nodes) {
+        uint16 i;
+        for (i = 0; i < rs_system->node_count; i++) {
+            node_t *node = rs_system->node_list[i];
+
+            if (!node->alive && !node_wake(node)) {
+                rs_error("failed to wake node '%s'", node->phy_info->name);
+            }
+        }
+    }
+
+    main_win_update_nodes_status();
+    main_win_update_sim_time_status();
+
+    nodes_unlock();
+    schedules_unlock();
+}
+
+void rs_system_stop()
+{
+    rs_assert(rs_system != NULL);
+
+    rs_system->started = FALSE;
+    rs_system->paused = FALSE;
+
+    /* this schedules_lock() waits for the system core to terminate */
+
+    schedules_lock();
+    nodes_lock();
+
+    uint16 index;
+    for (index = 0; index < rs_system->node_count; index++) {
+        node_t *node = rs_system->node_list[index];
+        if (node->alive && !node_kill(node)) {
+            rs_error("failed to kill node '%s'", node->phy_info->name);
+        }
+    }
+
+    nodes_unlock();
+    schedules_unlock();
+}
+
+void rs_system_pause()
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(!rs_system->paused);
+
+    rs_system->paused = TRUE;
+
+    rs_debug(DEBUG_SYSTEM, "system core paused");
+}
+
+bool sys_event_after_node_wake(node_t *node)
+{
+    if (!event_execute(phy_event_id_after_node_wake, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(mac_event_id_after_node_wake, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(ip_event_id_after_node_wake, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(icmp_event_id_after_node_wake, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(rpl_event_id_after_node_wake, node, NULL, NULL))
+        return FALSE;
+
+    rpl_send_dis(node, node);
+
+    return TRUE;
+}
+
+bool sys_event_before_node_kill(node_t *node)
+{
+    if (!event_execute(rpl_event_id_before_node_kill, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(icmp_event_id_before_node_kill, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(ip_event_id_before_node_kill, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(mac_event_id_before_node_kill, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(phy_event_id_before_node_kill, node, NULL, NULL))
+        return FALSE;
+
+    return TRUE;
+}
+
+bool sys_event_after_message_transmitted(node_t *src_node, node_t *dst_node, phy_pdu_t *message)
+{
+    bool all_ok = TRUE;
+
+    if (!phy_receive(dst_node, src_node, message)) {
+        rs_error("node '%s': failed to receive PHY pdu from node '%s'", dst_node->phy_info->name, src_node->phy_info->name);
+        all_ok = FALSE;
+    }
+
+    return all_ok;
 }
 
 
     /**** local functions ****/
 
-void *garbage_collector_core(void *data)
+static void *system_core(void *data)
 {
-    rs_debug(DEBUG_SYSTEM, "garbage collector started");
+    rs_debug(DEBUG_SYSTEM, "system core started");
 
-    rs_system->gc_running = TRUE;
+    rs_system->started = TRUE;
+    rs_system->paused = FALSE;
 
-    while (rs_system->gc_running) {
-        usleep(GARBAGE_COLLECTOR_INTERVAL);
+    while (rs_system->started) {
+        if (rs_system->paused) {
+            usleep(SYS_CORE_SLEEP);
+            continue;
+        }
 
-        destroy_all_unreferenced_nodes();
+        usleep(SYS_CORE_SLEEP);
+
+        schedules_lock();
+
+        if (rs_system->schedules != NULL) {
+
+#ifdef DEBUG_EVENTS
+            print_scheduled_events();
+#endif /* DEBUG_EVENTS */
+
+            if (rs_system->simulation_second > 0) {
+                sim_time_t diff = rs_system->schedules->time - rs_system->now;
+
+                if (diff * rs_system->simulation_second > SYS_CORE_SLEEP) {
+                    schedules_unlock(); // todo this could lead to bad synchronisation, it has to be tested
+                    usleep(diff * rs_system->simulation_second - SYS_CORE_SLEEP);
+                    schedules_lock();
+                }
+            }
+
+            /* if system was paused while sleeping... */
+            if (rs_system->paused || !rs_system->started) {
+                schedules_unlock();
+                continue;
+            }
+
+            rs_system->now = rs_system->schedules->time;
+            rs_debug(DEBUG_SYSTEM, "time is now %d", rs_system->now);
+            main_win_update_sim_time_status();
+
+            while ((rs_system->schedules != NULL) && (rs_system->schedules->time == rs_system->now)) {
+                event_schedule_t *schedule = rs_system->schedules;
+                rs_system->schedules = rs_system->schedules->next;
+
+                /* test to see if the concerned node still exists and is alive */
+                nodes_lock();
+                if (rs_system_has_node(schedule->node) && schedule->node->alive)
+                    event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
+                nodes_unlock();
+
+                schedule_destroy(schedule);
+            }
+        }
+
+        schedules_unlock();
     }
 
-    rs_debug(DEBUG_SYSTEM, "garbage collector stopped");
+    rs_system->paused = FALSE;
+
+    rs_debug(DEBUG_SYSTEM, "system core stopped");
 
     g_thread_exit(NULL);
 
     return NULL;
 }
 
-void destroy_all_unreferenced_nodes()
+static event_schedule_t *schedule_create(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time)
 {
-    uint16 index, ref_node_index;
+    event_schedule_t *schedule = malloc(sizeof(event_schedule_t));
 
-    g_mutex_lock(rs_system->gc_mutex);
+    schedule->node = node;
+    schedule->event_id = event_id;
+    schedule->data1 = data1;
+    schedule->data2 = data2;
+    schedule->time = time;
 
-    for (index = 0; index < rs_system->gc_count; index++) {
-        node_t *node = rs_system->gc_list[index];
+    schedule->next = NULL;
 
-        bool referenced = FALSE;
-        for (ref_node_index = 0; ref_node_index < rs_system->node_count; ref_node_index++) {
-            node_t *ref_node = rs_system->node_list[ref_node_index];
-
-            rpl_node_lock(ref_node);
-
-            if (rpl_node_has_parent(ref_node, node)) {
-                referenced = TRUE;
-            }
-
-            if (rpl_node_has_sibling(ref_node, node)) {
-                referenced = TRUE;
-            }
-
-            if (rpl_node_has_neighbor(ref_node, node)) {
-                referenced = TRUE;
-            }
-
-            rpl_node_unlock(ref_node);
-        }
-
-        if (!referenced) {
-            rs_debug(DEBUG_SYSTEM, "node '%s' is not referenced anymore, will be destroyed", phy_node_get_name(node));
-
-            rpl_node_done(node);
-            icmp_node_done(node);
-            ip_node_done(node);
-            mac_node_done(node);
-            phy_node_done(node);
-
-            /* destroy it, once and for all !! */
-            if (!node_destroy(node)) {
-                rs_error("failed to destroy node at 0x%X", node);
-            }
-
-            /* remove it from the garbage collector's list */
-            for (ref_node_index = index; ref_node_index < rs_system->gc_count - 1; ref_node_index++) {
-                rs_system->gc_list[ref_node_index] = rs_system->gc_list[ref_node_index + 1];
-            }
-
-            rs_system->gc_count--;
-            rs_system->gc_list = realloc(rs_system->gc_list, sizeof(node_t *) * rs_system->gc_count);
-
-            /* this position is now occupied by a (possible) next node in the list */
-            index--;
-        }
-    }
-
-    g_mutex_unlock(rs_system->gc_mutex);
+    return schedule;
 }
 
+
+static bool schedule_destroy(event_schedule_t *schedule)
+{
+    rs_assert(schedule != NULL);
+
+    free(schedule);
+
+    return TRUE;
+}
+
+#ifdef DEBUG_EVENTS
+
+static void print_scheduled_events()
+{
+    event_schedule_t *schedule = rs_system->schedules;
+
+    fprintf(stderr, "######## event list @%d ########\n", rs_system->now);
+
+    while (schedule != NULL) {
+        event_t event = event_find_by_id(schedule->event_id);
+
+        fprintf(stderr, "event: name = '%s', node = '%s', data1 = %p, data2 = %p, time = @%d\n",
+                event.name,
+                schedule->node->phy_info->name,
+                schedule->data1,
+                schedule->data2,
+                schedule->time);
+
+        schedule = schedule->next;
+    }
+
+    fprintf(stderr, "######## event list end ########\n");
+}
+
+#endif /* DEBUG_EVENTS */
