@@ -154,6 +154,8 @@ bool                rpl_node_add_neighbor(node_t *node, node_t *neighbor_node, r
 bool                rpl_node_remove_neighbor(node_t *node, rpl_remote_node_t *neighbor);
 rpl_remote_node_t * rpl_node_find_neighbor_by_node(node_t *node, node_t *neighbor_node);
 
+node_t *            rpl_node_get_next_hop(node_t *node, char *dst_address);
+
 bool                rpl_send_dis(node_t *node, node_t *dst_node);
 bool                rpl_receive_dis(node_t *node, node_t *src_node);
 bool                rpl_send_dio(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu);

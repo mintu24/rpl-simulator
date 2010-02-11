@@ -3,6 +3,7 @@
 
 #include "rpl.h"
 #include "../system.h"
+#include "../measure.h"
 
 
     /**** global variables ****/
@@ -338,7 +339,9 @@ bool rpl_node_remove_parent(node_t *node, rpl_remote_node_t *parent)
     }
 
     if (pos == -1) {
-        rs_error("node '%s' does not have node '%s' as a parent", node->phy_info->name, parent->node->phy_info->name);
+        if (parent->node != NULL)
+            rs_error("node '%s' does not have node '%s' as a parent", node->phy_info->name, parent->node->phy_info->name);
+
         return FALSE;
     }
 
@@ -392,7 +395,9 @@ bool rpl_node_remove_sibling(node_t *node, rpl_remote_node_t *sibling)
     }
 
     if (pos == -1) {
-        rs_error("node '%s' does not have node '%s' as a sibling", node->phy_info->name, sibling->node->phy_info->name);
+        if (sibling->node != NULL)
+            rs_error("node '%s' does not have node '%s' as a sibling", node->phy_info->name, sibling->node->phy_info->name);
+
         return FALSE;
     }
 
@@ -449,7 +454,9 @@ bool rpl_node_remove_neighbor(node_t *node, rpl_remote_node_t *neighbor)
     }
 
     if (pos == -1) {
-        rs_error("node '%s' does not have node '%s' as a neighbor", node->phy_info->name, neighbor->node->phy_info->name);
+        if (neighbor->node != NULL)
+            rs_error("node '%s' does not have node '%s' as a neighbor", node->phy_info->name, neighbor->node->phy_info->name);
+
         return FALSE;
     }
 
@@ -480,6 +487,11 @@ rpl_remote_node_t *rpl_node_find_neighbor_by_node(node_t *node, node_t *neighbor
     }
 
     return remote_node;
+}
+
+node_t *rpl_node_get_next_hop(node_t *node, char *dst_address)
+{
+    return NULL;
 }
 
 bool rpl_send_dis(node_t *node, node_t *dst_node)
@@ -558,6 +570,10 @@ bool rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node)
 {
     rs_system_schedule_event(node, rpl_event_id_after_dis_pdu_sent, node, NULL, 1000);
 
+    measure_connect_update_output();
+    measure_sp_comp_update_output();
+    measure_converg_update_output();
+
     return TRUE;
 }
 
@@ -573,6 +589,10 @@ bool rpl_event_after_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t 
 
 bool rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
 {
+    measure_connect_update_output();
+    measure_sp_comp_update_output();
+    measure_converg_update_output();
+
     return TRUE;
 }
 
@@ -588,6 +608,10 @@ bool rpl_event_after_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t 
 
 bool rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 {
+    measure_connect_update_output();
+    measure_sp_comp_update_output();
+    measure_converg_update_output();
+
     return TRUE;
 }
 

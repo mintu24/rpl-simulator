@@ -452,6 +452,10 @@ static gboolean draw_sim_field(void *data)
                 for (parent_index = 0; parent_index < node->rpl_info->parent_count; parent_index++) {
                     node_t *parent = node->rpl_info->parent_list[parent_index]->node;
 
+                    if (parent == NULL) { /* if the node has been removed in the mean time */
+                        continue;
+                    }
+
                     end_pixel_x = parent->phy_info->cx * scale_x;
                     end_pixel_y = parent->phy_info->cy * scale_y;
 
@@ -476,6 +480,10 @@ static gboolean draw_sim_field(void *data)
             if (main_win_get_display_params()->show_sibling_arrows) {
                 for (sibling_index = 0; sibling_index < node->rpl_info->sibling_count; sibling_index++) {
                     node_t *sibling = node->rpl_info->sibling_list[sibling_index]->node;
+
+                    if (sibling == NULL) { /* if the node has been removed in the mean time */
+                        continue;
+                    }
 
                     end_pixel_x = sibling->phy_info->cx * scale_x;
                     end_pixel_y = sibling->phy_info->cy * scale_y;

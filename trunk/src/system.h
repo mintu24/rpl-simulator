@@ -21,7 +21,7 @@
 #define DEFAULT_SIMULATION_SECOND       1000
 #define SYS_CORE_SLEEP                  10000
 
-#define DEFAULT_TRANSMIT_TIME           20   // todo make this configurable
+#define DEFAULT_TRANSMISSION_TIME       20
 
 #define DEFAULT_NODE_NAME               "A"
 #define DEFAULT_NODE_MAC_ADDRESS        "0001"
@@ -63,6 +63,18 @@
         rs_debug(DEBUG_NODES_MUTEX, "NODES(%d) mutex: unlocked", rs_system->nodes_mutex.depth); \
 }
 
+#define measures_lock() { \
+        rs_debug(DEBUG_MEASURES_MUTEX, "MEASURES(%d) mutex: locking", rs_system->measures_mutex.depth); \
+        g_static_rec_mutex_lock(&rs_system->measures_mutex); \
+        rs_debug(DEBUG_MEASURES_MUTEX, "MEASURES(%d) mutex: locked", rs_system->measures_mutex.depth); \
+}
+
+#define measures_unlock() { \
+        if (rs_system->measures_mutex.depth == 1) rs_system->measures_mutex.depth--; \
+        g_static_rec_mutex_unlock(&rs_system->measures_mutex); \
+        rs_debug(DEBUG_MEASURES_MUTEX, "MEASURES(%d) mutex: unlocked", rs_system->measures_mutex.depth); \
+}
+
 
 
 #define rs_system_has_node(node)        (rs_system_get_node_pos(node) >= 0)
@@ -86,6 +98,7 @@ typedef struct rs_system_t {
     /* params */
     coord_t             no_link_dist_thresh;
     percent_t           no_link_quality_thresh;
+    sim_time_t          transmission_time;
 
     coord_t             width;
     coord_t             height;
@@ -108,6 +121,7 @@ typedef struct rs_system_t {
     GStaticRecMutex     events_mutex;
     GStaticRecMutex     schedules_mutex;
     GStaticRecMutex     nodes_mutex;
+    GStaticRecMutex     measures_mutex;
 
     event_schedule_t *  schedules;
 
@@ -138,6 +152,8 @@ percent_t               rs_system_get_link_quality(node_t *src_node, node_t *dst
 void                    rs_system_start();
 void                    rs_system_stop();
 void                    rs_system_pause();
+
+char *                  rs_system_sim_time_to_string(sim_time_t time);
 
     /* events */
 bool                    sys_event_after_node_wake(node_t *node);
