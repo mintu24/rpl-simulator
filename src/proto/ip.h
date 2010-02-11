@@ -69,7 +69,7 @@ void                ip_node_set_address(node_t *node, const char *address);
 
 void                ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop, bool aggregate);
 bool                ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len);
-node_t *            ip_node_best_match_route(node_t *node, char *dst_address);
+node_t *            ip_node_get_next_hop(node_t *node, char *dst_address);
 
 bool                ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu);
 bool                ip_forward(node_t *node, ip_pdu_t *pdu);

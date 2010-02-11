@@ -3,8 +3,10 @@
 #include <math.h>
 
 #include "system.h"
+#include "measure.h"
 #include "gui/simfield.h"
 #include "gui/mainwin.h"
+#include "gui/measurement.h"
 
 
     /**** global variables ****/
@@ -38,6 +40,7 @@ bool rs_system_create()
 
     rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
     rs_system->no_link_quality_thresh = DEFAULT_NO_LINK_QUALITY_THRESH;
+    rs_system->transmission_time = DEFAULT_TRANSMISSION_TIME;
 
     rs_system->width = DEFAULT_SYS_WIDTH;
     rs_system->height = DEFAULT_SYS_HEIGHT;
@@ -81,6 +84,7 @@ bool rs_system_create()
     g_static_rec_mutex_init(&rs_system->events_mutex);
     g_static_rec_mutex_init(&rs_system->schedules_mutex);
     g_static_rec_mutex_init(&rs_system->nodes_mutex);
+    g_static_rec_mutex_init(&rs_system->measures_mutex);
 
     return TRUE;
 }
@@ -106,26 +110,27 @@ bool rs_system_destroy()
     }
 
     if (!rpl_done()) {
-        rs_error("failed to deinitialize RPL layer");
+        rs_error("failed to destroy RPL layer");
         return FALSE;
     }
     if (!icmp_done()) {
-        rs_error("failed to initialize ICMP layer");
+        rs_error("failed to destroy ICMP layer");
         return FALSE;
     }
     if (!ip_done()) {
-        rs_error("failed to initialize IP layer");
+        rs_error("failed to destroy IP layer");
         return FALSE;
     }
     if (!mac_done()) {
-        rs_error("failed to initialize MAC layer");
+        rs_error("failed to destroy MAC layer");
         return FALSE;
     }
     if (!phy_done()) {
-        rs_error("failed to initialize PHY layer");
+        rs_error("failed to destroy PHY layer");
         return FALSE;
     }
 
+    g_static_rec_mutex_free(&rs_system->measures_mutex);
     g_static_rec_mutex_free(&rs_system->nodes_mutex);
     g_static_rec_mutex_free(&rs_system->schedules_mutex);
     g_static_rec_mutex_free(&rs_system->events_mutex);
@@ -224,6 +229,28 @@ bool rs_system_remove_node(node_t *node)
             free(route->dst);
             free(route);
         }
+
+        /* remove measurement entries that refer to this node */
+        measures_lock();
+
+        uint16 i;
+        for (i = 0; i < measure_connect_entry_get_count(); i++) {
+            measure_connect_t *measure = measure_connect_entry_get(i);
+
+            if (measure->src_node == node || measure->dst_node == node) {
+                measure_connect_entry_remove(i);
+            }
+        }
+
+        for (i = 0; i < measure_sp_comp_entry_get_count(); i++) {
+            measure_sp_comp_t *measure = measure_sp_comp_entry_get(i);
+
+            if (measure->src_node == node || measure->dst_node == node) {
+                measure_sp_comp_entry_remove(i);
+            }
+        }
+
+        measures_unlock();
 
         events_unlock();
     }
@@ -377,7 +404,7 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
     }
     else {
         // todo implement collisions
-        rs_system_schedule_event(src_node, sys_event_id_after_message_transmitted, dst_node, message, DEFAULT_TRANSMIT_TIME);
+        rs_system_schedule_event(src_node, sys_event_id_after_message_transmitted, dst_node, message, rs_system->transmission_time);
     }
 
     return TRUE;
@@ -418,7 +445,12 @@ void rs_system_start()
     else {
         rs_system->paused = FALSE;
 
-        // todo cleanup measurements & stuff
+        measure_connect_reset_output();
+        measure_sp_comp_reset_output();
+        measure_converg_reset_output();
+
+        measurement_output_to_gui();
+
         rs_system->now = 0;
         rs_system->event_count = 0;
 
@@ -487,6 +519,31 @@ void rs_system_pause()
     rs_system->paused = TRUE;
 
     rs_debug(DEBUG_SYSTEM, "system core paused");
+}
+
+char *rs_system_sim_time_to_string(sim_time_t time)
+{
+    char *text = malloc(256);
+
+    if (time < 1000) {
+        snprintf(text, 256, "%d ms", time);
+    }
+    else if (time < 60000) {
+        snprintf(text, 256, "%.3f s", time / 1000.0);
+    }
+    else if (time < 3600000) {
+        uint32 m = time / 60000;
+        uint32 s = (time - m * 60000) / 1000;
+        snprintf(text, 256, "%02d:%02d", m, s);
+    }
+    else {
+        uint32 h = time / 3600000;
+        uint32 m = (time - h * 3600000) / 60000;
+        uint32 s = (time - h * 3600000 - m * 60000) / 1000;
+        snprintf(text, 256, "%02d:%02d:%02d", h, m, s);
+    }
+
+    return text;
 }
 
 bool sys_event_after_node_wake(node_t *node)

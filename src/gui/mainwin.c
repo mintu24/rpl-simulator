@@ -5,6 +5,7 @@
 #include "simfield.h"
 #include "legend.h"
 #include "dialogs.h"
+#include "measurement.h"
 #include "../system.h"
 #include "../main.h"
 
@@ -34,6 +35,7 @@ static GtkWidget *              params_config_button = NULL;
 static GtkWidget *              params_config_vbox = NULL;
 static GtkWidget *              params_system_no_link_dist_spin = NULL;
 static GtkWidget *              params_system_no_link_quality_spin = NULL;
+static GtkWidget *              params_system_transmission_time_spin = NULL;
 static GtkWidget *              params_system_width_spin = NULL;
 static GtkWidget *              params_system_height_spin = NULL;
 static GtkWidget *              params_system_real_time_sim_check = NULL;
@@ -80,6 +82,12 @@ static GtkWidget *              params_nodes_seq_num_spin = NULL;
 static GtkWidget *              params_nodes_rank_spin = NULL;
 
 
+    /* measures widgets */
+
+static GtkWidget *              measures_button = NULL;
+static GtkWidget *              measures_vbox = NULL;
+
+
     /* other widgets */
 
 static GtkWidget *              open_menu_item = NULL;
@@ -115,6 +123,7 @@ static bool                     signals_disabled = FALSE;
 
 void                cb_params_system_button_clicked(GtkWidget *button, gpointer data);
 void                cb_params_nodes_button_clicked(GtkWidget *button, gpointer data);
+void                cb_measures_button_clicked(GtkWidget *button, gpointer data);
 void                cb_gui_system_updated(GtkSpinButton *spin, gpointer data);
 void                cb_gui_node_updated(GtkWidget *widget, gpointer data);
 void                cb_gui_display_updated(GtkWidget *widget, gpointer data);
@@ -156,7 +165,7 @@ static void         gui_to_system();
 static void         gui_to_node(node_t *node);
 static void         gui_to_display();
 
-static gboolean     sim_field_redraw_wrapper(void *data);
+static gboolean     gui_update_wrapper(void *data);
 static gboolean     status_bar_update_wrapper(void *data);
 
 
@@ -199,6 +208,11 @@ bool main_win_init()
     gtk_box_pack_start(GTK_BOX(vbox), tool_bar, FALSE, TRUE, 0);
 
     GtkWidget *content_widget = create_content_widget();
+    if (content_widget == NULL) {
+        rs_error("failed to create content widget");
+        return FALSE;
+    }
+
     gtk_box_pack_start(GTK_BOX(vbox), content_widget, TRUE, TRUE, 0);
 
     GtkWidget *status_bar_box = create_status_bar();
@@ -217,7 +231,7 @@ bool main_win_init()
     gtk_builder_connect_signals(gtk_builder, NULL);
     initialize_widgets();
 
-    g_timeout_add(SIM_FIELD_REDRAW_INTERVAL, sim_field_redraw_wrapper, NULL);
+    g_timeout_add(SIM_FIELD_REDRAW_INTERVAL, gui_update_wrapper, NULL);
 
     main_win_update_sim_status();
     main_win_update_nodes_status();
@@ -252,6 +266,7 @@ void main_win_system_to_gui()
 
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin), rs_system->no_link_dist_thresh);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin), rs_system->no_link_quality_thresh * 100);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin), rs_system->transmission_time);
 
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_width_spin), rs_system->width);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_height_spin), rs_system->height);
@@ -294,6 +309,8 @@ void main_win_system_to_gui()
     if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_route_dst_store), NULL) > 0)
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_dst_combo), 0);
     gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_type_combo), 0);
+
+    measurement_system_to_gui();
 
     signals_enable();
 }
@@ -435,24 +452,10 @@ void main_win_update_nodes_status()
 void main_win_update_sim_time_status()
 {
     char *text = malloc(256);
+    char *time_str = rs_system_sim_time_to_string(rs_system->now);
 
-    if (rs_system->now < 1000) {
-        snprintf(text, 256, "Simulation time: %d ms, Events: %d", rs_system->now, rs_system->event_count);
-    }
-    else if (rs_system->now < 60000) {
-        snprintf(text, 256, "Simulation time: %.3f s, Events: %d", rs_system->now / 1000.0, rs_system->event_count);
-    }
-    else if (rs_system->now < 3600000) {
-        uint32 m = rs_system->now / 60000;
-        uint32 s = (rs_system->now - m * 60000) / 1000;
-        snprintf(text, 256, "Simulation time: %02d:%02d, Events: %d", m, s, rs_system->event_count);
-    }
-    else {
-        uint32 h = rs_system->now / 3600000;
-        uint32 m = (rs_system->now - h * 3600000) / 60000;
-        uint32 s = (rs_system->now - h * 3600000 - m * 60000) / 1000;
-        snprintf(text, 256, "Simulation time: %02d:%02d:%02d, Events: %d", h, m, s, rs_system->event_count);
-    }
+    snprintf(text, 256, "Simulation time: %s, Events: %d", time_str, rs_system->event_count);
+    free(time_str);
 
     void **data = malloc(2 * sizeof(void *));
     data[0] = sim_time_status_bar;
@@ -492,9 +495,11 @@ void cb_params_system_button_clicked(GtkWidget *widget, gpointer data)
 
     gtk_widget_set_visible(params_config_vbox, TRUE);
     gtk_widget_set_visible(params_nodes_vbox, FALSE);
+    gtk_widget_set_visible(measures_vbox, FALSE);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_config_button), TRUE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
 
     signal_leave();
 }
@@ -507,9 +512,28 @@ void cb_params_nodes_button_clicked(GtkWidget *widget, gpointer data)
 
     gtk_widget_set_visible(params_config_vbox, FALSE);
     gtk_widget_set_visible(params_nodes_vbox, TRUE);
+    gtk_widget_set_visible(measures_vbox, FALSE);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_config_button), FALSE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
+
+    signal_leave();
+}
+
+void cb_measures_button_clicked(GtkWidget *widget, gpointer data)
+{
+    signal_enter();
+
+    rs_debug(DEBUG_GUI, NULL);
+
+    gtk_widget_set_visible(params_config_vbox, FALSE);
+    gtk_widget_set_visible(params_nodes_vbox, FALSE);
+    gtk_widget_set_visible(measures_vbox, TRUE);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_config_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), TRUE);
 
     signal_leave();
 }
@@ -976,6 +1000,7 @@ GtkWidget *create_params_widget()
     params_config_vbox = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_vbox");
     params_system_no_link_dist_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_dist_spin");
     params_system_no_link_quality_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_quality_spin");
+    params_system_transmission_time_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_transmission_time_spin");
     params_system_width_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_width_spin");
     params_system_height_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_height_spin");
     params_system_real_time_sim_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_real_time_sim_check");
@@ -1020,6 +1045,14 @@ GtkWidget *create_params_widget()
     params_nodes_dag_id_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_dag_id_entry");
     params_nodes_seq_num_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_seq_num_spin");
     params_nodes_rank_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_rank_spin");
+
+    measures_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_button");
+
+    measures_vbox = measurement_widget_create();
+    if (measures_vbox == NULL) {
+        rs_error("failed to create measurements widget");
+        return NULL;
+    }
 
     GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_route_type_combo), renderer, FALSE);
@@ -1248,12 +1281,27 @@ GtkWidget *create_content_widget()
     GtkWidget *hbox = gtk_hbox_new(FALSE, 5);
 
     GtkWidget *params_widget = create_params_widget();
+    if (params_widget == NULL) {
+        rs_error("failed to create params widget");
+        return NULL;
+    }
+
     gtk_box_pack_start(GTK_BOX(hbox), params_widget, FALSE, TRUE, 0);
 
     GtkWidget *sim_field = sim_field_create();
+    if (sim_field == NULL) {
+        rs_error("failed to create simulation field");
+        return NULL;
+    }
+
     gtk_box_pack_start(GTK_BOX(hbox), sim_field, TRUE, TRUE, 0);
 
     legend_widget = legend_create();
+    if (legend_widget == NULL) {
+        rs_error("failed to create legend widget");
+        return NULL;
+    }
+
     gtk_box_pack_start(GTK_BOX(hbox), legend_widget, FALSE, TRUE, 0);
 
     return hbox;
@@ -1263,6 +1311,7 @@ static void initialize_widgets()
 {
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_config_button), TRUE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
 
     sim_field_redraw();
 
@@ -1355,6 +1404,7 @@ static void gui_to_system()
 
     rs_system->no_link_dist_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin));
     rs_system->no_link_quality_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin)) / 100.0;
+    rs_system->transmission_time = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin));
 
     rs_system->width = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_width_spin));
     rs_system->height = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_height_spin));
@@ -1449,9 +1499,14 @@ static void gui_to_display()
     gtk_widget_queue_draw(legend_widget);
 }
 
-static gboolean sim_field_redraw_wrapper(void *data)
+static gboolean gui_update_wrapper(void *data)
 {
-    return FALSE;
+    if (rs_system->started && !rs_system->paused) {
+        sim_field_redraw();
+        measurement_output_to_gui();
+    }
+
+    return TRUE;
 }
 
 static gboolean status_bar_update_wrapper(void *data)

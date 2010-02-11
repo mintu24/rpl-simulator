@@ -7,6 +7,7 @@
 
 #include "main.h"
 #include "system.h"
+#include "measure.h"
 #include "gui/mainwin.h"
 #include "gui/simfield.h"
 #include "gui/dialogs.h"
@@ -434,7 +435,15 @@ int main(int argc, char *argv[])
 
 	g_thread_init(NULL);
 
-	rs_system_create();
+	if (!rs_system_create()) {
+	    rs_error("failed to initialize the system");
+	    return -1;
+	}
+
+	if (!measure_init()) {
+	    rs_error("failed to initialize measurements");
+	    return -1;
+	}
 
     gtk_init(&argc, &argv);
 
@@ -445,7 +454,15 @@ int main(int argc, char *argv[])
 
 	gtk_main();
 
-	rs_system_destroy();
+	if (!measure_done()) {
+	    rs_error("failed to destroy measurements");
+	    return -1;
+	}
+
+	if (!rs_system_destroy()) {
+	    rs_error("failed to destroy the system");
+	    return -1;
+	}
 
 	rs_info("bye!");
 

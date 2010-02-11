@@ -195,7 +195,7 @@ bool ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len)
     return TRUE;
 }
 
-node_t *ip_node_best_match_route(node_t *node, char *dst_address)
+node_t *ip_node_get_next_hop(node_t *node, char *dst_address)
 {
     rs_assert(node != NULL);
     rs_assert(dst_address != NULL);
@@ -245,7 +245,8 @@ node_t *ip_node_best_match_route(node_t *node, char *dst_address)
     }
 
     if (best_route == NULL) {
-        return NULL;
+        /* if IP didn't suggest any specific route, we proceed as RPL says */
+        return rpl_node_get_next_hop(node, dst_address);
     }
     else {
         return best_route->next_hop;
@@ -305,7 +306,7 @@ bool ip_event_after_pdu_sent(node_t *node, node_t *dst_node, ip_pdu_t *pdu)
     }
     else {
         /* route the packet */
-        node_t *next_hop = ip_node_best_match_route(node, dst_node->ip_info->address);
+        node_t *next_hop = ip_node_get_next_hop(node, dst_node->ip_info->address);
 
         if (next_hop == NULL) {
             rs_warn("node '%s': destination '%s' not reachable", node->phy_info->name, dst_node->ip_info->address);
