@@ -124,10 +124,6 @@ node_t *rs_add_node(coord_t x, coord_t y)
     icmp_node_init(node);
     rpl_node_init(node);
 
-    if (rs_system->node_count == 0) {
-        node->rpl_info->rank = RPL_RANK_ROOT;
-    }
-
     rs_system_add_node(node);
 
     free(new_name);

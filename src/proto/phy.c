@@ -19,10 +19,10 @@ uint16               phy_event_id_after_pdu_received;
 
 bool phy_init()
 {
-    phy_event_id_after_node_wake = event_register("phy_after_node_wake", (event_handler_t) phy_event_after_node_wake);
-    phy_event_id_before_node_kill = event_register("phy_before_node_kill", (event_handler_t) phy_event_before_node_kill);
-    phy_event_id_after_pdu_sent = event_register("phy_after_pdu_sent", (event_handler_t) phy_event_after_pdu_sent);
-    phy_event_id_after_pdu_received = event_register("phy_after_pdu_received", (event_handler_t) phy_event_after_pdu_received);
+    phy_event_id_after_node_wake = event_register("after_node_wake", "phy", (event_handler_t) phy_event_after_node_wake);
+    phy_event_id_before_node_kill = event_register("before_node_kill", "phy", (event_handler_t) phy_event_before_node_kill);
+    phy_event_id_after_pdu_sent = event_register("after_pdu_sent", "phy", (event_handler_t) phy_event_after_pdu_sent);
+    phy_event_id_after_pdu_received = event_register("after_pdu_received", "phy", (event_handler_t) phy_event_after_pdu_received);
 
     return TRUE;
 }

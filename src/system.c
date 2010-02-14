@@ -49,6 +49,11 @@ bool rs_system_create()
 
     rs_system->simulation_second = DEFAULT_SIMULATION_SECOND;
 
+    rs_system->rpl_auto_sn_inc_interval = DEFAULT_RPL_AUTO_SN_INC_INT;
+    rs_system->rpl_prefer_floating = DEFAULT_RPL_PREFER_FLOATING;
+    rs_system->rpl_dao_supported = DEFAULT_RPL_DAO_SUPPORTED;
+    rs_system->rpl_poison_count = DEFAULT_RPL_POISON_COUNT;
+
     rs_system->schedules = NULL;
 
     rs_system->started = FALSE;
@@ -56,9 +61,9 @@ bool rs_system_create()
     rs_system->now = 0;
     rs_system->event_count = 0;
 
-    sys_event_id_after_node_wake = event_register("sys_after_node_wake", (event_handler_t) sys_event_after_node_wake);
-    sys_event_id_before_node_kill = event_register("sys_before_node_kill", (event_handler_t) sys_event_before_node_kill);
-    sys_event_id_after_message_transmitted = event_register("sys_after_message_transmitted", (event_handler_t) sys_event_after_message_transmitted);
+    sys_event_id_after_node_wake = event_register("after_node_wake", "sys", (event_handler_t) sys_event_after_node_wake);
+    sys_event_id_before_node_kill = event_register("before_node_kill", "sys", (event_handler_t) sys_event_before_node_kill);
+    sys_event_id_after_message_transmitted = event_register("after_message_transmitted", "sys", (event_handler_t) sys_event_after_message_transmitted);
 
     if (!phy_init()) {
         rs_error("failed to initialize PHY layer");
@@ -190,7 +195,7 @@ bool rs_system_remove_node(node_t *node)
         node_t *other_node = rs_system->node_list[i];
 
         /* nullify rpl parent refs */
-        rpl_remote_node_t *remote_node = rpl_node_find_parent_by_node(other_node, node);
+        rpl_neighbor_t *remote_node = rpl_node_find_parent_by_node(other_node, node);
         if (remote_node != NULL) {
             remote_node->node = NULL;
         }
