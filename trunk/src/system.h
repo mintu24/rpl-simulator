@@ -19,13 +19,19 @@
 #define DEFAULT_SYS_WIDTH               100
 #define DEFAULT_SYS_HEIGHT              100
 #define DEFAULT_SIMULATION_SECOND       1000
-#define SYS_CORE_SLEEP                  10000
 
 #define DEFAULT_TRANSMISSION_TIME       20
 
 #define DEFAULT_NODE_NAME               "A"
 #define DEFAULT_NODE_MAC_ADDRESS        "0001"
 #define DEFAULT_NODE_IP_ADDRESS         "AA01"
+
+#define DEFAULT_RPL_AUTO_SN_INC_INT     -1
+#define DEFAULT_RPL_PREFER_FLOATING     FALSE
+#define DEFAULT_RPL_DAO_SUPPORTED       FALSE
+#define DEFAULT_RPL_POISON_COUNT        4
+
+#define SYS_CORE_SLEEP                  10000
 
 #define events_lock() { \
         rs_debug(DEBUG_EVENTS_MUTEX, "EVENTS(%d) mutex: locking", rs_system->events_mutex.depth); \
@@ -106,6 +112,11 @@ typedef struct rs_system_t {
     int32               simulation_second;
 
     bool                auto_wake_nodes;
+
+    int32               rpl_auto_sn_inc_interval;
+    bool                rpl_prefer_floating;
+    bool                rpl_dao_supported;
+    uint8               rpl_poison_count;
 
     /* nodes */
     node_t **           node_list;

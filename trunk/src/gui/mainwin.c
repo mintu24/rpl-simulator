@@ -375,10 +375,12 @@ void main_win_node_to_gui(node_t *node)
 
 */
     /* rpl */
+/*
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_dag_pref_spin), node->rpl_info->dag_pref);
     gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), node->rpl_info->dag_id);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), node->rpl_info->seq_num);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), node->rpl_info->rank);
+*/
 
     update_sensitivity();
 
@@ -1479,10 +1481,12 @@ static void gui_to_node(node_t *node)
 */
 
     /* rpl */
+/*
     rpl_node_set_dag_id(node, (char *) gtk_entry_get_text(GTK_ENTRY(params_nodes_dag_id_entry)));
     node->rpl_info->dag_pref = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_dag_pref_spin));
     node->rpl_info->seq_num = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin));
     node->rpl_info->rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_rank_spin));
+*/
 
     events_unlock();
 }

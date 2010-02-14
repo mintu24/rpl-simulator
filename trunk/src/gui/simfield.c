@@ -117,7 +117,7 @@ void sim_field_redraw()
 void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y)
 {
     percent_t tx_power = node->phy_info->tx_power;
-    uint8 sequence_number = node->rpl_info->seq_num;
+    uint8 sequence_number = (node->rpl_info->joined_dodag != NULL ? node->rpl_info->joined_dodag->seq_num : 0);
 
     cairo_surface_t **images;
 
@@ -127,7 +127,7 @@ void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel
     }
 
     if (node->alive) {
-        if (rpl_node_is_root(node)) {
+        if (node->rpl_info->root_info != NULL) {
             images = node_square_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
         }
         else {
@@ -161,9 +161,11 @@ void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel
     }
 
     /* node rank */
-    if (main_win_get_display_params()->show_node_ranks && node->rpl_info->rank > 0) {
+    if (main_win_get_display_params()->show_node_ranks &&
+            node->rpl_info->joined_dodag != NULL &&
+            node->rpl_info->joined_dodag->rank > 0) {
         char rank_str[256];
-        snprintf(rank_str, sizeof(rank_str), "%d", node->rpl_info->rank);
+        snprintf(rank_str, sizeof(rank_str), "%d", node->rpl_info->joined_dodag->rank);
 
         sim_field_draw_text(cr, rank_str,
                 pixel_x, pixel_y - SIM_FIELD_NODE_RADIUS * 2,
@@ -448,9 +450,9 @@ static gboolean draw_sim_field(void *data)
             start_pixel_x = node->phy_info->cx * scale_x;
             start_pixel_y = node->phy_info->cy * scale_y;
 
-            if (main_win_get_display_params()->show_parent_arrows) {
-                for (parent_index = 0; parent_index < node->rpl_info->parent_count; parent_index++) {
-                    node_t *parent = node->rpl_info->parent_list[parent_index]->node;
+            if (main_win_get_display_params()->show_parent_arrows && node->rpl_info->joined_dodag != NULL) {
+                for (parent_index = 0; parent_index < node->rpl_info->joined_dodag->parent_count; parent_index++) {
+                    node_t *parent = node->rpl_info->joined_dodag->parent_list[parent_index]->node;
 
                     if (parent == NULL) { /* if the node has been removed in the mean time */
                         continue;
@@ -461,7 +463,7 @@ static gboolean draw_sim_field(void *data)
 
                     uint32 color;
                     if (parent->alive) {
-                        if (node->rpl_info->pref_parent == node->rpl_info->sibling_list[parent_index]) {
+                        if (node->rpl_info->joined_dodag->pref_parent == node->rpl_info->joined_dodag->parent_list[parent_index]) {
                             color = SIM_FIELD_PREF_PARENT_ARROW_COLOR;
                         }
                         else {
@@ -477,9 +479,9 @@ static gboolean draw_sim_field(void *data)
                 }
             }
 
-            if (main_win_get_display_params()->show_sibling_arrows) {
-                for (sibling_index = 0; sibling_index < node->rpl_info->sibling_count; sibling_index++) {
-                    node_t *sibling = node->rpl_info->sibling_list[sibling_index]->node;
+            if (main_win_get_display_params()->show_sibling_arrows && node->rpl_info->joined_dodag != NULL) {
+                for (sibling_index = 0; sibling_index < node->rpl_info->joined_dodag->sibling_count; sibling_index++) {
+                    node_t *sibling = node->rpl_info->joined_dodag->sibling_list[sibling_index]->node;
 
                     if (sibling == NULL) { /* if the node has been removed in the mean time */
                         continue;

@@ -22,10 +22,10 @@ static uint8 *      route_expand_to_bits(char *dst, uint8 prefix_len);
 
 bool ip_init()
 {
-    ip_event_id_after_node_wake = event_register("ip_after_node_wake", (event_handler_t) ip_event_after_node_wake);
-    ip_event_id_before_node_kill = event_register("ip_before_node_kill", (event_handler_t) ip_event_before_node_kill);
-    ip_event_id_after_pdu_sent = event_register("ip_after_pdu_sent", (event_handler_t) ip_event_after_pdu_sent);
-    ip_event_id_after_pdu_received = event_register("ip_after_pdu_received", (event_handler_t) ip_event_after_pdu_received);
+    ip_event_id_after_node_wake = event_register("after_node_wake", "ip", (event_handler_t) ip_event_after_node_wake);
+    ip_event_id_before_node_kill = event_register("before_node_kill", "ip", (event_handler_t) ip_event_before_node_kill);
+    ip_event_id_after_pdu_sent = event_register("after_pdu_sent", "ip", (event_handler_t) ip_event_after_pdu_sent);
+    ip_event_id_after_pdu_received = event_register("after_pdu_received", "ip", (event_handler_t) ip_event_after_pdu_received);
 
     return TRUE;
 }
