@@ -46,7 +46,7 @@ void rs_quit()
 
 void rs_start()
 {
-    rs_system_start();
+    rs_system_start(FALSE);
 
     main_win_update_sim_status();
 }
@@ -54,6 +54,18 @@ void rs_start()
 void rs_pause()
 {
     rs_system_pause();
+
+    main_win_update_sim_status();
+}
+
+void rs_step()
+{
+    if (!rs_system->started) {
+        rs_system_start(TRUE);
+    }
+    else {
+        rs_system_step();
+    }
 
     main_win_update_sim_status();
 }
@@ -123,6 +135,15 @@ node_t *rs_add_node(coord_t x, coord_t y)
     ip_node_init(node, new_ip_address);
     icmp_node_init(node);
     rpl_node_init(node);
+
+    // todo this is only for testing purposes
+    // ************************************************
+    if (rs_system->node_count == 0) {
+        rpl_node_configure_as_root(node);
+        node->rpl_info->root_info->dodag_pref = 0x07;
+    }
+
+    // ************************************************
 
     rs_system_add_node(node);
 
@@ -302,12 +323,12 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
     vsnprintf(string, sizeof(string), fmt, ap);
     va_end(ap);
 
-    char thread[256];
+    char *thread;
     if (g_thread_self()->func == 0) {
-        snprintf(thread, sizeof(thread), "main");
+        thread = "main";
     }
     else {
-        snprintf(thread, sizeof(thread), "0x%X", (uint32) g_thread_self()->func);
+        thread = "system";
     }
 
     if (strlen(string) > 0) {

@@ -49,8 +49,8 @@
 #define RES_DIR             "../resources"
 
 #define DEBUG_MAIN          (1 << 0)
-#define DEBUG_SYSTEM        (1 << 1)
-#define DEBUG_EVENT         (1 << 2)
+#define DEBUG_EVENT         (1 << 1)
+#define DEBUG_SYSTEM        (1 << 2)
 #define DEBUG_PHY           (1 << 3)
 #define DEBUG_MAC           (1 << 4)
 #define DEBUG_IP            (1 << 5)
@@ -68,7 +68,7 @@
 #define DEBUG_MUTEX         (DEBUG_EVENTS_MUTEX | DEBUG_SCHEDULES_MUTEX | DEBUG_NODES_MUTEX | DEBUG_MEASURES_MUTEX)
 #define DEBUG_ALL           (DEBUG_MINIMAL | DEBUG_PROTO | DEBUG_GUI | DEBUG_MUTEX)
 
-#define DEBUG               DEBUG_SYSTEM
+#define DEBUG               (DEBUG_MAIN | DEBUG_RPL)
 
 #define rs_info(args...)                rs_print(stdout, "* ", NULL, 0, NULL, args)
 

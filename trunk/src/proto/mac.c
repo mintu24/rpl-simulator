@@ -20,10 +20,10 @@ uint16               mac_event_id_after_pdu_received;
 
 bool mac_init()
 {
-    mac_event_id_after_node_wake = event_register("after_node_wake", "mac", (event_handler_t) mac_event_after_node_wake);
-    mac_event_id_before_node_kill = event_register("before_node_kill", "mac", (event_handler_t) mac_event_before_node_kill);
-    mac_event_id_after_pdu_sent = event_register("after_pdu_sent", "mac", (event_handler_t) mac_event_after_pdu_sent);
-    mac_event_id_after_pdu_received = event_register("after_pdu_received", "mac", (event_handler_t) mac_event_after_pdu_received);
+    mac_event_id_after_node_wake = event_register("after_node_wake", "mac", (event_handler_t) mac_event_after_node_wake, NULL);
+    mac_event_id_before_node_kill = event_register("before_node_kill", "mac", (event_handler_t) mac_event_before_node_kill, NULL);
+    mac_event_id_after_pdu_sent = event_register("after_pdu_sent", "mac", (event_handler_t) mac_event_after_pdu_sent, NULL);
+    mac_event_id_after_pdu_received = event_register("after_pdu_received", "mac", (event_handler_t) mac_event_after_pdu_received, NULL);
 
     return TRUE;
 }

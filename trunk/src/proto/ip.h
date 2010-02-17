@@ -12,6 +12,15 @@
 #define IP_ROUTE_TYPE_RPL_DAO_UCAST 2
 #define IP_ROUTE_TYPE_RPL_DIO       3
 
+#define IP_NEIGHBOR_CACHE_TIMEOUT   2000
+
+
+typedef struct ip_neighbor_t {
+
+    node_t *                node;
+    sim_time_t              last_packet_time;
+
+} ip_neighbor_t;
 
     /* a struct defining a route record */
 typedef struct ip_route_t {
@@ -34,6 +43,9 @@ typedef struct ip_node_info_t {
     ip_route_t **           route_list;
     uint16                  route_count;
 
+    ip_neighbor_t **        neighbor_list;
+    uint16                  neighbor_count;
+
 } ip_node_info_t;
 
     /* fields contained in a IP packet */
@@ -50,8 +62,11 @@ typedef struct ip_pdu_t {
 
 extern uint16       ip_event_id_after_node_wake;
 extern uint16       ip_event_id_before_node_kill;
+
 extern uint16       ip_event_id_after_pdu_sent;
 extern uint16       ip_event_id_after_pdu_received;
+
+extern uint16       ip_event_id_after_neighbor_cache_timeout;
 
 
 bool                ip_init();
@@ -67,9 +82,13 @@ void                ip_node_done(node_t *node);
 
 void                ip_node_set_address(node_t *node, const char *address);
 
-void                ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop, bool aggregate);
+void                ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop);
 bool                ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len);
 node_t *            ip_node_get_next_hop(node_t *node, char *dst_address);
+
+ip_neighbor_t *     ip_node_add_neighbor(node_t *node, node_t *neighbor_node);
+bool                ip_node_rem_neighbor(node_t *node, ip_neighbor_t *neighbor);
+ip_neighbor_t *     ip_node_find_neighbor_by_node(node_t *node, node_t *neighbor_node);
 
 bool                ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu);
 bool                ip_forward(node_t *node, ip_pdu_t *pdu);
@@ -82,6 +101,8 @@ bool                ip_event_before_node_kill(node_t *node);
 
 bool                ip_event_after_pdu_sent(node_t *node, node_t *dst_node, ip_pdu_t *pdu);
 bool                ip_event_after_pdu_received(node_t *node, node_t *src_node, ip_pdu_t *pdu);
+
+bool                ip_event_after_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor);
 
 
 #endif /* IP_H_ */

@@ -34,6 +34,11 @@
 #define rpl_node_has_sibling(node, sibling)     (rpl_node_find_sibling_by_node(node, sibling) != NULL)
 #define rpl_node_has_neighbor(node, neighbor)   (rpl_node_find_neighbor_by_node(node, neighbor) != NULL)
 
+#define rpl_node_is_pref_parent(node, neighbor) ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->pref_parent == neighbor)
+
+#define rpl_node_is_root(node)                  ((node)->rpl_info->joined_dodag == NULL && (node)->rpl_info->root_info != NULL)
+#define rpl_node_is_floating(node)              (rpl_node_is_root(node) && (node)->rpl_info->root_info->dodag_pref == 0x00)
+
 
     /* data structure that holds remote RPL node information, for avoiding a node_t * reference */
 typedef struct rpl_neighbor_t {
@@ -81,6 +86,7 @@ typedef struct rpl_dodag_t {
     uint8               min_hop_rank_inc;
 
     uint8               seq_num;
+    uint8               lowest_rank;
     uint8               rank;
 
     rpl_neighbor_t**    parent_list;
@@ -100,7 +106,7 @@ typedef struct rpl_node_info_t {
     bool                storing;
 
     uint8               trickle_i_doublings_so_far;
-    uint8               trickle_i;
+    sim_time_t          trickle_i;
     uint8               trickle_c;
 
     rpl_neighbor_t**    neighbor_list;
@@ -197,6 +203,9 @@ void                rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address);
 
 bool                rpl_node_init(node_t *node);
 void                rpl_node_done(node_t *node);
+
+void                rpl_node_configure_as_root(node_t *node);
+void                rpl_node_configure_as_normal(node_t *node);
 
 void                rpl_node_add_neighbor(node_t *node, node_t *neighbor_node);
 bool                rpl_node_remove_neighbor(node_t *node, rpl_neighbor_t *neighbor);

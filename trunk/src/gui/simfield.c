@@ -127,7 +127,7 @@ void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel
     }
 
     if (node->alive) {
-        if (node->rpl_info->root_info != NULL) {
+        if (rpl_node_is_root(node)) {
             images = node_square_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
         }
         else {
@@ -161,11 +161,18 @@ void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel
     }
 
     /* node rank */
-    if (main_win_get_display_params()->show_node_ranks &&
-            node->rpl_info->joined_dodag != NULL &&
-            node->rpl_info->joined_dodag->rank > 0) {
+    if (main_win_get_display_params()->show_node_ranks) {
         char rank_str[256];
-        snprintf(rank_str, sizeof(rank_str), "%d", node->rpl_info->joined_dodag->rank);
+
+        if (node->rpl_info->joined_dodag != NULL) {
+            snprintf(rank_str, sizeof(rank_str), "%d", node->rpl_info->joined_dodag->rank);
+        }
+        else if (rpl_node_is_root(node)) {
+            snprintf(rank_str, sizeof(rank_str), "%d", 1);
+        }
+        else {
+            rank_str[0] = '\0';
+        }
 
         sim_field_draw_text(cr, rank_str,
                 pixel_x, pixel_y - SIM_FIELD_NODE_RADIUS * 2,

@@ -95,6 +95,7 @@ static GtkWidget *              save_menu_item = NULL;
 static GtkWidget *              quit_menu_item = NULL;
 static GtkWidget *              start_menu_item = NULL;
 static GtkWidget *              pause_menu_item = NULL;
+static GtkWidget *              step_menu_item = NULL;
 static GtkWidget *              stop_menu_item = NULL;
 static GtkWidget *              add_menu_item = NULL;
 static GtkWidget *              rem_menu_item = NULL;
@@ -110,6 +111,7 @@ static GtkWidget *              add_node_toolbar_item = NULL;
 static GtkWidget *              rem_node_toolbar_item = NULL;
 static GtkWidget *              start_toolbar_item = NULL;
 static GtkWidget *              pause_toolbar_item = NULL;
+static GtkWidget *              step_toolbar_item = NULL;
 static GtkWidget *              stop_toolbar_item = NULL;
 static GtkWidget *              wake_toolbar_item = NULL;
 static GtkWidget *              kill_toolbar_item = NULL;
@@ -138,6 +140,7 @@ static void         cb_save_menu_item_activate(GtkWidget *widget, gpointer *data
 static void         cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
 static void         cb_start_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_pause_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void         cb_step_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_add_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void         cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data);
@@ -642,7 +645,7 @@ void cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data)
         next_hop = rs_system->node_list[next_hop_pos];
     }
 
-    ip_node_add_route(selected_node, type, (char *) dst, prefix_len, next_hop, FALSE);
+    ip_node_add_route(selected_node, type, (char *) dst, prefix_len, next_hop);
 
     signal_leave();
 
@@ -781,6 +784,20 @@ static void cb_pause_menu_item_activate(GtkWidget *widget, gpointer *data)
     rs_debug(DEBUG_GUI, NULL);
 
     rs_pause();
+
+    sim_field_redraw();
+    update_sensitivity();
+
+    signal_leave();
+}
+
+static void cb_step_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(DEBUG_GUI, NULL);
+
+    rs_step();
 
     sim_field_redraw();
     update_sensitivity();
@@ -1119,6 +1136,11 @@ GtkWidget *create_menu_bar()
     gtk_signal_connect(GTK_OBJECT(pause_menu_item), "activate", GTK_SIGNAL_FUNC(cb_pause_menu_item_activate), NULL);
     gtk_menu_append(simulation_menu, pause_menu_item);
 
+    step_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_MEDIA_FORWARD, NULL);
+    gtk_menu_item_set_label(GTK_MENU_ITEM(step_menu_item), "_One Step");
+    gtk_signal_connect(GTK_OBJECT(step_menu_item), "activate", GTK_SIGNAL_FUNC(cb_step_menu_item_activate), NULL);
+    gtk_menu_append(simulation_menu, step_menu_item);
+
     stop_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_MEDIA_STOP, NULL);
     gtk_menu_item_set_label(GTK_MENU_ITEM(stop_menu_item), "S_top Simulation");
     gtk_signal_connect(GTK_OBJECT(stop_menu_item), "activate", GTK_SIGNAL_FUNC(cb_stop_menu_item_activate), NULL);
@@ -1228,6 +1250,13 @@ GtkWidget *create_tool_bar()
     gtk_tool_item_set_is_important(GTK_TOOL_ITEM(pause_toolbar_item), TRUE);
     gtk_signal_connect(GTK_OBJECT(pause_toolbar_item), "clicked", G_CALLBACK(cb_pause_menu_item_activate), NULL);
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(pause_toolbar_item), -1);
+
+    step_toolbar_item = (GtkWidget *) gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_FORWARD);
+    gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(step_toolbar_item), "Go one step forward");
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(step_toolbar_item), "Step");
+    gtk_tool_item_set_is_important(GTK_TOOL_ITEM(step_toolbar_item), TRUE);
+    gtk_signal_connect(GTK_OBJECT(step_toolbar_item), "clicked", G_CALLBACK(cb_step_menu_item_activate), NULL);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), GTK_TOOL_ITEM(step_toolbar_item), -1);
 
     stop_toolbar_item = (GtkWidget *) gtk_tool_button_new_from_stock(GTK_STOCK_MEDIA_STOP);
     gtk_tool_item_set_tooltip_text(GTK_TOOL_ITEM(stop_toolbar_item), "Stop simulation");
@@ -1377,6 +1406,9 @@ static void update_sensitivity()
 
     gtk_widget_set_sensitive(pause_menu_item, sim_started && !sim_paused);
     gtk_widget_set_sensitive(pause_toolbar_item, sim_started && !sim_paused);
+
+    gtk_widget_set_sensitive(step_menu_item, !sim_started || sim_paused);
+    gtk_widget_set_sensitive(step_toolbar_item, !sim_started || sim_paused);
 
     gtk_widget_set_sensitive(stop_menu_item, sim_started);
     gtk_widget_set_sensitive(stop_toolbar_item, sim_started);

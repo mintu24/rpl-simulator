@@ -14,6 +14,7 @@ void                    rs_quit();
 
 void                    rs_start();
 void                    rs_pause();
+void                    rs_step();
 void                    rs_stop();
 
 node_t *                rs_add_node(coord_t x, coord_t y);

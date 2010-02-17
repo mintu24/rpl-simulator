@@ -51,7 +51,7 @@ bool node_wake(node_t* node)
 
     node->alive = TRUE;
 
-    rs_system_schedule_event(node ,sys_event_id_after_node_wake, NULL, NULL, 0);
+    rs_system_schedule_event(node, sys_event_id_after_node_wake, NULL, NULL, 0);
 
     return TRUE;
 }
