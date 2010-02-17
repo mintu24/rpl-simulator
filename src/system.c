@@ -528,6 +528,13 @@ void rs_system_stop()
         }
     }
 
+    while (rs_system->schedules != NULL) {
+        event_schedule_t *schedule = rs_system->schedules;
+        rs_system->schedules = rs_system->schedules->next;
+
+        schedule_destroy(schedule);
+    }
+
     nodes_unlock();
     schedules_unlock();
 }
