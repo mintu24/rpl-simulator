@@ -125,6 +125,7 @@ static void draw_legend1(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_node(node, cr, pixel_width / 2, pixel_height / 2);
 
+    node->alive = FALSE;
     node_destroy(node);
 
     /* do the actual double-buffered paint */
@@ -166,6 +167,7 @@ static void draw_legend2(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_node(node, cr, pixel_width / 2, pixel_height / 2);
 
+    node->alive = FALSE;
     node_destroy(node);
 
     /* do the actual double-buffered paint */
@@ -210,6 +212,7 @@ static void draw_legend3(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_node(node, cr, pixel_x, pixel_y);
 
+    node->alive = FALSE;
     node_destroy(node);
 
     EXPAND_COLOR(SIM_FIELD_SELECTED_COLOR, r, g, b, a);
@@ -267,6 +270,7 @@ static void draw_legend4(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_node(node, cr, pixel_x, pixel_y);
 
+    node->alive = FALSE;
     node_destroy(node);
 
     sim_field_draw_arrow(cr,
@@ -324,6 +328,7 @@ static void draw_legend5(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_node(node, cr, pixel_x, pixel_y);
 
+    node->alive = FALSE;
     node_destroy(node);
 
     /* do the actual double-buffered paint */
@@ -373,6 +378,7 @@ static void draw_legend6(GdkWindow *window, GdkGC *gc)
         sim_field_draw_node(node, cr, pixel_x, pixel_y);
     }
 
+    node->alive = FALSE;
     node_destroy(node);
 
     /* do the actual double-buffered paint */
@@ -432,6 +438,8 @@ static void draw_legend7(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_parent_arrow(cr, pixel_x1, pixel_y, pixel_x2, pixel_y, SIM_FIELD_PARENT_ARROW_COLOR, FALSE);
 
+    node1->alive = FALSE;
+    node2->alive = FALSE;
     node_destroy(node1);
     node_destroy(node2);
 
@@ -492,6 +500,8 @@ static void draw_legend8(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_parent_arrow(cr, pixel_x1, pixel_y, pixel_x2, pixel_y, SIM_FIELD_PREF_PARENT_ARROW_COLOR, FALSE);
 
+    node1->alive = FALSE;
+    node2->alive = FALSE;
     node_destroy(node1);
     node_destroy(node2);
 
@@ -552,6 +562,8 @@ static void draw_legend9(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_sibling_arrow(cr, pixel_x1, pixel_y, pixel_x2, pixel_y, SIM_FIELD_SIBLING_ARROW_COLOR, FALSE, TRUE);
 
+    node1->alive = FALSE;
+    node2->alive = FALSE;
     node_destroy(node1);
     node_destroy(node2);
 
@@ -612,6 +624,8 @@ static void draw_legend10(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_parent_arrow(cr, pixel_x1, pixel_y, pixel_x2, pixel_y, SIM_FIELD_DEAD_ARROW_COLOR, FALSE);
 
+    node1->alive = FALSE;
+    node2->alive = FALSE;
     node_destroy(node1);
     node_destroy(node2);
 
@@ -672,6 +686,8 @@ static void draw_legend11(GdkWindow *window, GdkGC *gc)
 
     sim_field_draw_sibling_arrow(cr, pixel_x1, pixel_y, pixel_x2, pixel_y, SIM_FIELD_DEAD_ARROW_COLOR, FALSE, TRUE);
 
+    node1->alive = FALSE;
+    node2->alive = FALSE;
     node_destroy(node1);
     node_destroy(node2);
 

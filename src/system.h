@@ -102,39 +102,40 @@ typedef struct event_schedule_t {
 typedef struct rs_system_t {
 
     /* params */
-    coord_t             no_link_dist_thresh;
-    percent_t           no_link_quality_thresh;
-    sim_time_t          transmission_time;
+    coord_t                     no_link_dist_thresh;
+    percent_t                   no_link_quality_thresh;
+    sim_time_t                  transmission_time;
 
-    coord_t             width;
-    coord_t             height;
+    coord_t                     width;
+    coord_t                     height;
 
-    int32               simulation_second;
+    int32                       simulation_second;
 
-    bool                auto_wake_nodes;
+    bool                        auto_wake_nodes;
 
-    int32               rpl_auto_sn_inc_interval;
-    bool                rpl_prefer_floating;
-    bool                rpl_dao_supported;
-    uint8               rpl_poison_count;
+    int32                       rpl_auto_sn_inc_interval;
+    bool                        rpl_prefer_floating;
+    bool                        rpl_dao_supported;
+    uint8                       rpl_poison_count;
 
     /* nodes */
-    node_t **           node_list;
-    uint16              node_count;
+    node_t **                   node_list;
+    uint16                      node_count;
 
-    sim_time_t          now;
-    uint32              event_count;
+    sim_time_t                  now;
+    uint32                      event_count;
 
-    GThread *           sys_thread;
-    bool                started;
-    bool                paused;
+    GThread *                   sys_thread;
+    bool                        started;
+    bool                        paused;
+    bool                        step;
 
-    GStaticRecMutex     events_mutex;
-    GStaticRecMutex     schedules_mutex;
-    GStaticRecMutex     nodes_mutex;
-    GStaticRecMutex     measures_mutex;
+    GStaticRecMutex             events_mutex;
+    GStaticRecMutex             schedules_mutex;
+    GStaticRecMutex             nodes_mutex;
+    GStaticRecMutex             measures_mutex;
 
-    event_schedule_t *  schedules;
+    event_schedule_t *          schedules;
 
 } rs_system_t;
 
@@ -160,9 +161,10 @@ void                    rs_system_schedule_event(node_t *node, uint16 event_id, 
 bool                    rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message);
 percent_t               rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
 
-void                    rs_system_start();
+void                    rs_system_start(bool start_paused);
 void                    rs_system_stop();
 void                    rs_system_pause();
+void                    rs_system_step();
 
 char *                  rs_system_sim_time_to_string(sim_time_t time);
 

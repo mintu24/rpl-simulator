@@ -58,12 +58,13 @@ bool rs_system_create()
 
     rs_system->started = FALSE;
     rs_system->paused = FALSE;
+    rs_system->step = FALSE;
     rs_system->now = 0;
     rs_system->event_count = 0;
 
-    sys_event_id_after_node_wake = event_register("after_node_wake", "sys", (event_handler_t) sys_event_after_node_wake);
-    sys_event_id_before_node_kill = event_register("before_node_kill", "sys", (event_handler_t) sys_event_before_node_kill);
-    sys_event_id_after_message_transmitted = event_register("after_message_transmitted", "sys", (event_handler_t) sys_event_after_message_transmitted);
+    sys_event_id_after_node_wake = event_register("after_node_wake", "sys", (event_handler_t) sys_event_after_node_wake, NULL);
+    sys_event_id_before_node_kill = event_register("before_node_kill", "sys", (event_handler_t) sys_event_before_node_kill, NULL);
+    sys_event_id_after_message_transmitted = event_register("after_message_transmitted", "sys", (event_handler_t) sys_event_after_message_transmitted, NULL);
 
     if (!phy_init()) {
         rs_error("failed to initialize PHY layer");
@@ -235,6 +236,8 @@ bool rs_system_remove_node(node_t *node)
             free(route);
         }
 
+        // todo nullify ip neighbors
+
         /* remove measurement entries that refer to this node */
         measures_lock();
 
@@ -351,9 +354,13 @@ node_t *rs_system_find_node_by_ip_address(char *address)
 
 void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time)
 {
-    schedules_lock();
-
     rs_assert(rs_system != NULL);
+
+    if (!rs_system->started) { /* don't schedule anything if not started */
+        return;
+    }
+
+    schedules_lock();
 
     time += rs_system->now; /* make the time absolute */
 
@@ -390,6 +397,14 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
         uint16 i;
         for (i = 0; i < rs_system->node_count; i++) {
             dst_node = rs_system->node_list[i];
+
+            if (dst_node == src_node) { /* don't process our own broadcast */
+                continue;
+            }
+
+            if (!dst_node->alive) { /* dont't send messages to dead nodes */
+                continue;
+            }
 
             percent_t quality = rs_system_get_link_quality(src_node, dst_node);
             if (quality < rs_system->no_link_quality_thresh) { /* no physical link */
@@ -439,7 +454,7 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
     return quality;
 }
 
-void rs_system_start()
+void rs_system_start(bool start_paused)
 {
     rs_assert(rs_system != NULL);
 
@@ -448,7 +463,8 @@ void rs_system_start()
         rs_debug(DEBUG_SYSTEM, "system core resumed");
     }
     else {
-        rs_system->paused = FALSE;
+        rs_system->paused = start_paused;
+        rs_system->step = FALSE;
 
         measure_connect_reset_output();
         measure_sp_comp_reset_output();
@@ -522,8 +538,19 @@ void rs_system_pause()
     rs_assert(!rs_system->paused);
 
     rs_system->paused = TRUE;
+    rs_system->step = FALSE;
 
     rs_debug(DEBUG_SYSTEM, "system core paused");
+}
+
+void rs_system_step()
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(rs_system->paused);
+
+    rs_system->step = TRUE;
+
+    rs_debug(DEBUG_SYSTEM, "system core stepped");
 }
 
 char *rs_system_sim_time_to_string(sim_time_t time)
@@ -564,8 +591,6 @@ bool sys_event_after_node_wake(node_t *node)
     if (!event_execute(rpl_event_id_after_node_wake, node, NULL, NULL))
         return FALSE;
 
-    rpl_send_dis(node, node);
-
     return TRUE;
 }
 
@@ -605,15 +630,13 @@ static void *system_core(void *data)
     rs_debug(DEBUG_SYSTEM, "system core started");
 
     rs_system->started = TRUE;
-    rs_system->paused = FALSE;
 
     while (rs_system->started) {
-        if (rs_system->paused) {
-            usleep(SYS_CORE_SLEEP);
+        usleep(SYS_CORE_SLEEP);
+
+        if (rs_system->paused && !rs_system->step) {
             continue;
         }
-
-        usleep(SYS_CORE_SLEEP);
 
         schedules_lock();
 
@@ -623,20 +646,20 @@ static void *system_core(void *data)
             print_scheduled_events();
 #endif /* DEBUG_EVENTS */
 
-            if (rs_system->simulation_second > 0) {
+            if (rs_system->simulation_second > 0 && !rs_system->step) {
                 sim_time_t diff = rs_system->schedules->time - rs_system->now;
 
                 if (diff * rs_system->simulation_second > SYS_CORE_SLEEP) {
-                    schedules_unlock(); // todo this could lead to bad synchronisation, it has to be tested
+                    schedules_unlock();
                     usleep(diff * rs_system->simulation_second - SYS_CORE_SLEEP);
                     schedules_lock();
                 }
-            }
 
-            /* if system was paused while sleeping... */
-            if (rs_system->paused || !rs_system->started) {
-                schedules_unlock();
-                continue;
+                /* if system was paused or stopped while sleeping... */
+                if (rs_system->paused || !rs_system->started) {
+                    schedules_unlock();
+                    continue;
+                }
             }
 
             rs_system->now = rs_system->schedules->time;
@@ -648,16 +671,23 @@ static void *system_core(void *data)
                 rs_system->schedules = rs_system->schedules->next;
 
                 /* test to see if the concerned node still exists and is alive */
+                // todo this makes event executions crash right after a rs_system_remove_node()
                 nodes_lock();
-                if (rs_system_has_node(schedule->node) && schedule->node->alive)
-                    event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
+                bool node_existent_and_alive = rs_system_has_node(schedule->node) && schedule->node->alive;
                 nodes_unlock();
+
+                if (node_existent_and_alive)
+                    event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
 
                 schedule_destroy(schedule);
             }
         }
 
         schedules_unlock();
+
+        if (rs_system->paused) {
+            rs_system->step = FALSE;
+        }
     }
 
     rs_system->paused = FALSE;
