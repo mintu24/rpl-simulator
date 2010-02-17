@@ -242,6 +242,10 @@ void sim_field_draw_arrow(cairo_t *cr, double start_x, double start_y, double en
 
 void sim_field_draw_text(cairo_t *cr, char *text, double x, double y, uint32 fg_color, uint32 bg_color)
 {
+    if (strlen(text) == 0) {
+        return;
+    }
+
     double r, g, b, a;
     cairo_text_extents_t te;
     double tx, ty, tw, th;

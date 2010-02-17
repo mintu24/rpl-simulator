@@ -121,6 +121,7 @@ static void draw_legend1(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node);
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node->rpl_info->joined_dodag->seq_num = 0;
     node->rpl_info->joined_dodag->rank = 3;
 
     sim_field_draw_node(node, cr, pixel_width / 2, pixel_height / 2);
@@ -163,6 +164,7 @@ static void draw_legend2(GdkWindow *window, GdkGC *gc)
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node->rpl_info->joined_dodag->rank = 3;
+    node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
 
     sim_field_draw_node(node, cr, pixel_width / 2, pixel_height / 2);
@@ -208,6 +210,7 @@ static void draw_legend3(GdkWindow *window, GdkGC *gc)
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node->rpl_info->joined_dodag->rank = 3;
+    node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
 
     sim_field_draw_node(node, cr, pixel_x, pixel_y);
@@ -266,6 +269,7 @@ static void draw_legend4(GdkWindow *window, GdkGC *gc)
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node->rpl_info->joined_dodag->rank = 3;
+    node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
 
     sim_field_draw_node(node, cr, pixel_x, pixel_y);
@@ -324,6 +328,7 @@ static void draw_legend5(GdkWindow *window, GdkGC *gc)
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node->rpl_info->joined_dodag->rank = 1;
+    node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
 
     sim_field_draw_node(node, cr, pixel_x, pixel_y);
@@ -368,6 +373,7 @@ static void draw_legend6(GdkWindow *window, GdkGC *gc)
     node->phy_info->tx_power = 0;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node->rpl_info->joined_dodag->rank = 0;
+    node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
 
     uint8 seq_num;
@@ -420,6 +426,7 @@ static void draw_legend7(GdkWindow *window, GdkGC *gc)
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node1->rpl_info->joined_dodag->rank = 3;
+    node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
@@ -431,6 +438,7 @@ static void draw_legend7(GdkWindow *window, GdkGC *gc)
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node2->rpl_info->joined_dodag->rank = 2;
+    node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = TRUE;
 
     sim_field_draw_node(node1, cr, pixel_x1, pixel_y);
@@ -482,6 +490,7 @@ static void draw_legend8(GdkWindow *window, GdkGC *gc)
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node1->rpl_info->joined_dodag->rank = 3;
+    node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
@@ -493,6 +502,7 @@ static void draw_legend8(GdkWindow *window, GdkGC *gc)
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node2->rpl_info->joined_dodag->rank = 2;
+    node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = TRUE;
 
     sim_field_draw_node(node1, cr, pixel_x1, pixel_y);
@@ -544,6 +554,7 @@ static void draw_legend9(GdkWindow *window, GdkGC *gc)
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node1->rpl_info->joined_dodag->rank = 3;
+    node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
@@ -555,6 +566,7 @@ static void draw_legend9(GdkWindow *window, GdkGC *gc)
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node2->rpl_info->joined_dodag->rank = 3;
+    node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = TRUE;
 
     sim_field_draw_node(node1, cr, pixel_x1, pixel_y);
@@ -606,6 +618,7 @@ static void draw_legend10(GdkWindow *window, GdkGC *gc)
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node1->rpl_info->joined_dodag->rank = 3;
+    node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
@@ -617,6 +630,7 @@ static void draw_legend10(GdkWindow *window, GdkGC *gc)
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node2->rpl_info->joined_dodag->rank = 2;
+    node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = FALSE;
 
     sim_field_draw_node(node1, cr, pixel_x1, pixel_y);
@@ -668,6 +682,7 @@ static void draw_legend11(GdkWindow *window, GdkGC *gc)
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node1->rpl_info->joined_dodag->rank = 3;
+    node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
@@ -679,6 +694,7 @@ static void draw_legend11(GdkWindow *window, GdkGC *gc)
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
     node2->rpl_info->joined_dodag->rank = 3;
+    node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = FALSE;
 
     sim_field_draw_node(node1, cr, pixel_x1, pixel_y);
