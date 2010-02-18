@@ -26,8 +26,8 @@
 #define DEFAULT_NODE_MAC_ADDRESS        "0001"
 #define DEFAULT_NODE_IP_ADDRESS         "AA01"
 
-#define DEFAULT_RPL_AUTO_SN_INC_INT     -1
-#define DEFAULT_RPL_PREFER_FLOATING     FALSE
+#define DEFAULT_RPL_AUTO_SN_INC_INT     2000
+#define DEFAULT_RPL_STARTUP_SILENT      FALSE
 #define DEFAULT_RPL_DAO_SUPPORTED       FALSE
 #define DEFAULT_RPL_POISON_COUNT        4
 
@@ -114,7 +114,7 @@ typedef struct rs_system_t {
     bool                        auto_wake_nodes;
 
     int32                       rpl_auto_sn_inc_interval;
-    bool                        rpl_prefer_floating;
+    bool                        rpl_start_silent;
     bool                        rpl_dao_supported;
     uint8                       rpl_poison_count;
 
@@ -158,6 +158,7 @@ node_t *                rs_system_find_node_by_mac_address(char *address);
 node_t *                rs_system_find_node_by_ip_address(char *address);
 
 void                    rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
+void                    rs_system_cancel_event(node_t *node, uint16 event_id, void *data1, void *data2, int32 time);
 bool                    rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message);
 percent_t               rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
 

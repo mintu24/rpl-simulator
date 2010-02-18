@@ -117,7 +117,17 @@ void sim_field_redraw()
 void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel_y)
 {
     percent_t tx_power = node->phy_info->tx_power;
-    uint8 sequence_number = (node->rpl_info->joined_dodag != NULL ? node->rpl_info->joined_dodag->seq_num : 0);
+    uint8 sequence_number;
+
+    if (rpl_node_is_root(node)) {
+        sequence_number = node->rpl_info->root_info->seq_num;
+    }
+    else if (rpl_node_is_joined(node)) {
+        sequence_number = node->rpl_info->joined_dodag->seq_num;
+    }
+    else {
+        sequence_number = 0;
+    }
 
     cairo_surface_t **images;
 
@@ -449,7 +459,10 @@ static gboolean draw_sim_field(void *data)
     }
 
     /* arrows */
-    if (main_win_get_display_params()->show_parent_arrows || main_win_get_display_params()->show_sibling_arrows) {
+    if (main_win_get_display_params()->show_parent_arrows ||
+            main_win_get_display_params()->show_sibling_arrows ||
+            main_win_get_display_params()->show_preferred_parent_arrows) {
+
         for (node_index = 0; node_index < rs_system->node_count; node_index++) {
             node_t *node = rs_system->node_list[node_index];
 
@@ -469,17 +482,16 @@ static gboolean draw_sim_field(void *data)
                         continue;
                     }
 
+                    if (node->rpl_info->joined_dodag->pref_parent->node == parent) {
+                        continue;
+                    }
+
                     end_pixel_x = parent->phy_info->cx * scale_x;
                     end_pixel_y = parent->phy_info->cy * scale_y;
 
                     uint32 color;
                     if (parent->alive) {
-                        if (node->rpl_info->joined_dodag->pref_parent == node->rpl_info->joined_dodag->parent_list[parent_index]) {
-                            color = SIM_FIELD_PREF_PARENT_ARROW_COLOR;
-                        }
-                        else {
-                            color = SIM_FIELD_PARENT_ARROW_COLOR;
-                        }
+                        color = SIM_FIELD_PARENT_ARROW_COLOR;
                     }
                     else {
                         color = SIM_FIELD_DEAD_ARROW_COLOR;
@@ -488,6 +500,27 @@ static gboolean draw_sim_field(void *data)
                     bool packet = FALSE; //node_has_pdu_from(parent, node);
                     sim_field_draw_parent_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet);
                 }
+            }
+
+            if (main_win_get_display_params()->show_preferred_parent_arrows &&
+                    node->rpl_info->joined_dodag != NULL &&
+                    node->rpl_info->joined_dodag->pref_parent != NULL &&
+                    node->rpl_info->joined_dodag->pref_parent->node != NULL) {
+                node_t *parent = node->rpl_info->joined_dodag->pref_parent->node;
+
+                end_pixel_x = parent->phy_info->cx * scale_x;
+                end_pixel_y = parent->phy_info->cy * scale_y;
+
+                uint32 color;
+                if (parent->alive) {
+                    color = SIM_FIELD_PREF_PARENT_ARROW_COLOR;
+                }
+                else {
+                    color = SIM_FIELD_DEAD_ARROW_COLOR;
+                }
+
+                bool packet = FALSE; //node_has_pdu_from(parent, node);
+                sim_field_draw_parent_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet);
             }
 
             if (main_win_get_display_params()->show_sibling_arrows && node->rpl_info->joined_dodag != NULL) {
@@ -510,9 +543,7 @@ static gboolean draw_sim_field(void *data)
                         sim_field_draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet, TRUE);
                     }
                     else {
-                        if (rpl_node_has_sibling(sibling, node) &&
-                                sibling->alive &&
-                                rs_system_has_node(sibling)) {
+                        if (rpl_node_has_sibling(sibling, node) && sibling->alive && rs_system_has_node(sibling)) {
                             sim_field_draw_sibling_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet, FALSE);
                         }
                         else {
