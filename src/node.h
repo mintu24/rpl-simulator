@@ -8,6 +8,7 @@
     /* a node in the simulated network */
 typedef struct node_t {
 
+    struct measure_node_info_t *measure_info;
     struct phy_node_info_t *    phy_info;
     struct mac_node_info_t *    mac_info;
     struct ip_node_info_t *     ip_info;

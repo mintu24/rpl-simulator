@@ -462,7 +462,7 @@ void main_win_update_sim_time_status()
     char *text = malloc(256);
     char *time_str = rs_system_sim_time_to_string(rs_system->now);
 
-    snprintf(text, 256, "Simulation time: %s, Events: %d", time_str, rs_system->event_count);
+    snprintf(text, 256, "Simulation time: %s, Events (scheduled/total): %d/%d", time_str, rs_system->schedule_count, rs_system->event_count);
     free(time_str);
 
     void **data = malloc(2 * sizeof(void *));
@@ -1012,7 +1012,7 @@ static void cb_main_window_delete()
 GtkWidget *create_params_widget()
 {
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
-    gtk_widget_set_size_request(scrolled_window, 300, 0);
+    gtk_widget_set_size_request(scrolled_window, 350, 0);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     GtkWidget *params_table = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_table");
@@ -1294,18 +1294,25 @@ GtkWidget *create_status_bar()
     GtkWidget *hbox = gtk_hbox_new(FALSE, 2);
 
     sim_status_bar = gtk_statusbar_new();
+    gtk_widget_set_size_request(sim_status_bar, 100, -1);
+
     nodes_status_bar = gtk_statusbar_new();
+    gtk_widget_set_size_request(nodes_status_bar, 200, -1);
+
     sim_time_status_bar = gtk_statusbar_new();
+    gtk_widget_set_size_request(sim_time_status_bar, 500, -1);
+
     xy_status_bar = gtk_statusbar_new();
+    gtk_widget_set_size_request(xy_status_bar, 150, -1);
 
     gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(sim_status_bar), FALSE);
     gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(nodes_status_bar), FALSE);
     gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(sim_time_status_bar), FALSE);
     gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(xy_status_bar), TRUE);
 
-    gtk_box_pack_start(GTK_BOX(hbox), sim_status_bar, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), nodes_status_bar, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), sim_time_status_bar, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), sim_status_bar, FALSE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), nodes_status_bar, FALSE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), sim_time_status_bar, FALSE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), xy_status_bar, TRUE, TRUE, 0);
 
     return hbox;
@@ -1542,7 +1549,7 @@ static void gui_to_display()
 
 static gboolean gui_update_wrapper(void *data)
 {
-    if (rs_system->started && !rs_system->paused) {
+    if (rs_system->started) {
         sim_field_redraw();
         measurement_output_to_gui();
     }

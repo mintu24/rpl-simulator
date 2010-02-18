@@ -18,7 +18,7 @@ $(EXE) : $(OBJS)
 .o:
 	$(CC) -c $< $(CFLAGS) -o $@
 
-main.o: main.c main.h base.h node.h system.h event.h measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h gui/mainwin.h gui/dialogs.h
+main.o: main.c main.h base.h node.h system.h event.h measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h gui/mainwin.h gui/dialogs.h gui/measurement.h
 
 event.o: event.c event.h base.h node.h system.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
 

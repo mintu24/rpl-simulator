@@ -127,6 +127,9 @@ static void draw_legend1(GdkWindow *window, GdkGC *gc)
     sim_field_draw_node(node, cr, pixel_width / 2, pixel_height / 2);
 
     node->alive = FALSE;
+
+    // todo call *_node_done()...
+
     node_destroy(node);
 
     /* do the actual double-buffered paint */
