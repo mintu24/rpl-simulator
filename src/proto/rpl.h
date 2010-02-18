@@ -36,8 +36,11 @@
 
 #define rpl_node_is_pref_parent(node, neighbor) ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->pref_parent == neighbor)
 
-#define rpl_node_is_root(node)                  ((node)->rpl_info->joined_dodag == NULL && (node)->rpl_info->root_info != NULL)
-#define rpl_node_is_floating(node)              (rpl_node_is_root(node) && (node)->rpl_info->root_info->dodag_pref == 0x00)
+#define rpl_node_is_isolated(node)              ((node)->rpl_info->joined_dodag == NULL && (node)->rpl_info->root_info->dodag_id == NULL)
+#define rpl_node_is_root(node)                  ((node)->rpl_info->joined_dodag == NULL && (node)->rpl_info->root_info->dodag_id != NULL)
+#define rpl_node_is_joined(node)                ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->rank < 0xFF)
+#define rpl_node_is_poisoning(node)             ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->rank == 0xFF)
+
 
 
     /* data structure that holds remote RPL node information, for avoiding a node_t * reference */
@@ -203,9 +206,6 @@ void                rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address);
 
 bool                rpl_node_init(node_t *node);
 void                rpl_node_done(node_t *node);
-
-void                rpl_node_configure_as_root(node_t *node);
-void                rpl_node_configure_as_normal(node_t *node);
 
 void                rpl_node_add_neighbor(node_t *node, node_t *neighbor_node);
 bool                rpl_node_remove_neighbor(node_t *node, rpl_neighbor_t *neighbor);

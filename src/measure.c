@@ -68,6 +68,9 @@ void measure_connect_entry_remove(uint16 index)
 
     measure_connect_count--;
     measure_connect_list = realloc(measure_connect_list, measure_connect_count * sizeof(measure_connect_t));
+    if (measure_connect_count == 0) {
+        measure_connect_list = NULL;
+    }
 
     measures_unlock();
 }
@@ -154,6 +157,9 @@ void measure_sp_comp_entry_remove(uint16 index)
 
     measure_sp_comp_count--;
     measure_sp_comp_list = realloc(measure_sp_comp_list, measure_sp_comp_count * sizeof(measure_sp_comp_t));
+    if (measure_sp_comp_count == 0) {
+        measure_sp_comp_list = NULL;
+    }
 
     measures_unlock();
 }

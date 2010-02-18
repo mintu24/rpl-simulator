@@ -50,7 +50,7 @@ bool rs_system_create()
     rs_system->simulation_second = DEFAULT_SIMULATION_SECOND;
 
     rs_system->rpl_auto_sn_inc_interval = DEFAULT_RPL_AUTO_SN_INC_INT;
-    rs_system->rpl_prefer_floating = DEFAULT_RPL_PREFER_FLOATING;
+    rs_system->rpl_start_silent = DEFAULT_RPL_STARTUP_SILENT;
     rs_system->rpl_dao_supported = DEFAULT_RPL_DAO_SUPPORTED;
     rs_system->rpl_poison_count = DEFAULT_RPL_POISON_COUNT;
 
@@ -190,6 +190,9 @@ bool rs_system_remove_node(node_t *node)
 
     rs_system->node_count--;
     rs_system->node_list = realloc(rs_system->node_list, (rs_system->node_count) * sizeof(node_t *));
+    if (rs_system->node_count == 0) {
+        rs_system->node_list = NULL;
+    }
 
     /* nullify all the references to this node */
     for (i = 0; i < rs_system->node_count; i++) {
@@ -214,7 +217,7 @@ bool rs_system_remove_node(node_t *node)
         }
 
         /* nullify ip route refs */
-
+        // todo cleanup/organize this code
         events_lock();
 
         uint32 j;
@@ -231,6 +234,9 @@ bool rs_system_remove_node(node_t *node)
 
             other_node->ip_info->route_count--;
             other_node->ip_info->route_list = realloc(other_node->ip_info->route_list, other_node->ip_info->route_count * sizeof(ip_route_t *));
+            if (other_node->ip_info->route_count == 0) {
+                other_node->ip_info->route_list = NULL;
+            }
 
             free(route->dst);
             free(route);
@@ -384,6 +390,39 @@ void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *
     }
 
     schedules_unlock();
+}
+
+void rs_system_cancel_event(node_t *node, uint16 event_id, void *data1, void *data2, int32 time)
+{
+    rs_assert(rs_system != NULL);
+
+    event_schedule_t *schedule = rs_system->schedules;
+    event_schedule_t *prev_schedule = NULL;
+
+    if (time < 0) {
+        time = rs_system->now - time;
+    }
+
+    while (schedule != NULL) {
+        if ((schedule->event_id == event_id) &&
+                (node == NULL || node == schedule->node) &&
+                (data1 == NULL || data1 == schedule->data1) &&
+                (data2 == NULL || data2 == schedule->data2) &&
+                (time == 0 || time == schedule->time)) {
+
+            if (prev_schedule == NULL) {
+                rs_system->schedules = schedule->next;
+            }
+            else {
+                prev_schedule->next = schedule->next;
+            }
+
+            schedule_destroy(schedule);
+        }
+
+        prev_schedule = schedule;
+        schedule = schedule->next;
+    }
 }
 
 bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)

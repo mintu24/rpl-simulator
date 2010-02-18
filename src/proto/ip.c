@@ -203,6 +203,9 @@ bool ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len)
 
     node->ip_info->route_count--;
     node->ip_info->route_list = realloc(node->ip_info->route_list, node->ip_info->route_count * sizeof(ip_route_t *));
+    if (node->ip_info->route_count == 0) {
+        node->ip_info->route_list = NULL;
+    }
 
     return TRUE;
 }
@@ -312,6 +315,9 @@ bool ip_node_rem_neighbor(node_t *node, ip_neighbor_t *neighbor)
 
     node->ip_info->neighbor_list = realloc(node->ip_info->neighbor_list, (node->ip_info->neighbor_count - 1) * sizeof(ip_neighbor_t *));
     node->ip_info->neighbor_count--;
+    if (node->ip_info->neighbor_count == 0) {
+        node->ip_info->neighbor_list = NULL;
+    }
 
     /* remove the route to this neighbor */
     if (neighbor->node != NULL) {

@@ -1,4 +1,13 @@
 
+// todo add/remove nodes is too slow
+// todo add measure for packet/event counters
+// todo intelligent IP/RPL routing + source routing
+// todo implement RPL forwarding error handling
+// todo implement RPL forwarding failure handling
+// todo implement simple configurable ICMP ping
+// todo convergence measurement
+// todo connectivity measurement
+
 #include <unistd.h>
 #include <math.h>
 #include <gtk/gtk.h>
@@ -139,8 +148,12 @@ node_t *rs_add_node(coord_t x, coord_t y)
     // todo this is only for testing purposes
     // ************************************************
     if (rs_system->node_count == 0) {
-        rpl_node_configure_as_root(node);
         node->rpl_info->root_info->dodag_pref = 0x07;
+        node->rpl_info->root_info->grounded = TRUE;
+    }
+    else if (rs_system->node_count == 1) {
+        node->rpl_info->root_info->dodag_pref = 0x06;
+        node->rpl_info->root_info->grounded = TRUE;
     }
 
     // ************************************************
