@@ -386,7 +386,10 @@ bool ip_event_after_node_wake(node_t *node)
 bool ip_event_before_node_kill(node_t *node)
 {
     while (node->ip_info->neighbor_count > 0) {
-        ip_node_rem_neighbor(node, node->ip_info->neighbor_list[node->ip_info->neighbor_count - 1]);
+        ip_neighbor_t *neighbor = node->ip_info->neighbor_list[node->ip_info->neighbor_count - 1];
+
+        event_execute(rpl_event_id_after_neighbor_detach, node, neighbor->node, NULL);
+        ip_node_rem_neighbor(node, neighbor);
     }
 
     return TRUE;

@@ -26,7 +26,7 @@
 #define DEFAULT_NODE_MAC_ADDRESS        "0001"
 #define DEFAULT_NODE_IP_ADDRESS         "AA01"
 
-#define DEFAULT_RPL_AUTO_SN_INC_INT     2000
+#define DEFAULT_RPL_AUTO_SN_INC_INT     10000
 #define DEFAULT_RPL_STARTUP_SILENT      FALSE
 #define DEFAULT_RPL_DAO_SUPPORTED       FALSE
 #define DEFAULT_RPL_POISON_COUNT        4
@@ -136,6 +136,7 @@ typedef struct rs_system_t {
     GStaticRecMutex             measures_mutex;
 
     event_schedule_t *          schedules;
+    uint32                      schedule_count; /* redundant size counter */
 
 } rs_system_t;
 

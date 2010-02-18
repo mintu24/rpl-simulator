@@ -55,6 +55,7 @@ bool rs_system_create()
     rs_system->rpl_poison_count = DEFAULT_RPL_POISON_COUNT;
 
     rs_system->schedules = NULL;
+    rs_system->schedule_count = 0;
 
     rs_system->started = FALSE;
     rs_system->paused = FALSE;
@@ -114,6 +115,7 @@ bool rs_system_destroy()
 
         schedule_destroy(schedule);
     }
+    rs_system->schedule_count = 0;
 
     if (!rpl_done()) {
         rs_error("failed to destroy RPL layer");
@@ -242,34 +244,48 @@ bool rs_system_remove_node(node_t *node)
             free(route);
         }
 
-        // todo nullify ip neighbors
-
-        /* remove measurement entries that refer to this node */
-        measures_lock();
-
-        uint16 i;
-        for (i = 0; i < measure_connect_entry_get_count(); i++) {
-            measure_connect_t *measure = measure_connect_entry_get(i);
-
-            if (measure->src_node == node || measure->dst_node == node) {
-                measure_connect_entry_remove(i);
-            }
+        /* remove ip neighbors */
+        ip_neighbor_t *ip_neighbor = ip_node_find_neighbor_by_node(other_node, node);
+        if (ip_neighbor != NULL) {
+            ip_node_rem_neighbor(other_node, ip_neighbor);
+            event_execute(rpl_event_id_after_neighbor_detach, other_node, node, NULL);
         }
-
-        for (i = 0; i < measure_sp_comp_entry_get_count(); i++) {
-            measure_sp_comp_t *measure = measure_sp_comp_entry_get(i);
-
-            if (measure->src_node == node || measure->dst_node == node) {
-                measure_sp_comp_entry_remove(i);
-            }
-        }
-
-        measures_unlock();
 
         events_unlock();
     }
 
     nodes_unlock();
+
+    /* remove measurement entries that refer to this node */
+    measures_lock();
+
+    for (i = 0; i < measure_connect_entry_get_count(); i++) {
+        measure_connect_t *measure = measure_connect_entry_get(i);
+
+        if (measure->src_node == node || measure->dst_node == node) {
+            measure_connect_entry_remove(i);
+        }
+    }
+
+    for (i = 0; i < measure_sp_comp_entry_get_count(); i++) {
+        measure_sp_comp_t *measure = measure_sp_comp_entry_get(i);
+
+        if (measure->src_node == node || measure->dst_node == node) {
+            measure_sp_comp_entry_remove(i);
+        }
+    }
+
+    for (i = 0; i < measure_stat_entry_get_count(); i++) {
+        measure_stat_t *measure = measure_stat_entry_get(i);
+
+        if (measure->node == node) {
+            measure_stat_entry_remove(i);
+        }
+    }
+
+    measures_unlock();
+
+    measurement_entries_to_gui();
 
     return TRUE;
 }
@@ -375,7 +391,6 @@ void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *
     event_schedule_t *schedule = rs_system->schedules;
     event_schedule_t *prev_schedule = NULL;
 
-
     while ((schedule != NULL) && (schedule->time <= time)) {
         prev_schedule = schedule;
         schedule = schedule->next;
@@ -388,6 +403,8 @@ void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *
     else {
         prev_schedule->next = new_schedule;
     }
+
+    rs_system->schedule_count++;
 
     schedules_unlock();
 }
@@ -418,6 +435,7 @@ void rs_system_cancel_event(node_t *node, uint16 event_id, void *data1, void *da
             }
 
             schedule_destroy(schedule);
+            rs_system->schedule_count--;
         }
 
         prev_schedule = schedule;
@@ -508,6 +526,7 @@ void rs_system_start(bool start_paused)
         measure_connect_reset_output();
         measure_sp_comp_reset_output();
         measure_converg_reset_output();
+        measure_stat_reset_output();
 
         measurement_output_to_gui();
 
@@ -574,6 +593,8 @@ void rs_system_stop()
         schedule_destroy(schedule);
     }
 
+    rs_system->schedule_count = 0;
+
     nodes_unlock();
     schedules_unlock();
 }
@@ -626,6 +647,8 @@ char *rs_system_sim_time_to_string(sim_time_t time)
 
 bool sys_event_after_node_wake(node_t *node)
 {
+    measure_node_reset(node);
+
     if (!event_execute(phy_event_id_after_node_wake, node, NULL, NULL))
         return FALSE;
     if (!event_execute(mac_event_id_after_node_wake, node, NULL, NULL))
@@ -726,6 +749,7 @@ static void *system_core(void *data)
                     event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
 
                 schedule_destroy(schedule);
+                rs_system->schedule_count--;
             }
         }
 

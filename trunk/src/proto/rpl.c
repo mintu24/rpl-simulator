@@ -56,6 +56,8 @@ static void                 update_dodag_config(node_t *node, rpl_dio_pdu_t *dio
 static void                 reset_trickle_timer(node_t *node);
 
 static rpl_dio_pdu_t *      create_current_dio_message(node_t *node, bool include_dodag_config);
+static rpl_dio_pdu_t *      create_root_dio_message(node_t *node, bool include_dodag_config);
+static rpl_dio_pdu_t *      create_joined_dio_message(node_t *node, bool include_dodag_config);
 static void                 update_neighbor_dio_message(rpl_neighbor_t *neighbor, rpl_dio_pdu_t *dio_pdu);
 
 static int8                 compare_ranks(uint8 rank1, uint8 rank2, uint8 min_hop_rank_inc);
@@ -598,11 +600,10 @@ bool rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 
 bool rpl_event_after_node_wake(node_t *node)
 {
-    if (node->rpl_info->root_info->grounded) { /* if preconfigured as grounded root */
-        if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
-            rs_system_schedule_event(node, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
-        }
+    measure_node_add_rpl_event(node);
+    measure_stat_update_output(node);
 
+    if (node->rpl_info->root_info->grounded) { /* if preconfigured as grounded root */
         start_as_root(node);
     }
     else { /* preconfigured as normal node */
@@ -619,6 +620,9 @@ bool rpl_event_after_node_wake(node_t *node)
 
 bool rpl_event_before_node_kill(node_t *node)
 {
+    measure_node_add_rpl_event(node);
+    measure_stat_update_output(node);
+
     /* put the node into "initial" state */
     if (node->rpl_info->root_info->dodag_id != NULL) {
         free(node->rpl_info->root_info->dodag_id);
@@ -637,6 +641,10 @@ bool rpl_event_before_node_kill(node_t *node)
 
 bool rpl_event_after_dis_pdu_sent(node_t *node, node_t *dst_node)
 {
+    measure_node_add_rpl_event(node);
+    measure_node_add_rpl_dis_message(node, TRUE);
+    measure_stat_update_output(node);
+
     if (!icmp_send(node, dst_node, ICMP_TYPE_RPL, ICMP_RPL_CODE_DIS, NULL)) {
         rs_error("node '%s': failed to send ICMP message", node->phy_info->name);
         return FALSE;
@@ -647,21 +655,25 @@ bool rpl_event_after_dis_pdu_sent(node_t *node, node_t *dst_node)
 
 bool rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node)
 {
+    measure_node_add_rpl_event(node);
+    measure_node_add_rpl_dis_message(node, FALSE);
+    measure_stat_update_output(node);
+
     rpl_dio_pdu_t *dio_pdu = create_current_dio_message(node, TRUE);
 
     if (dio_pdu != NULL) {
         rpl_send_dio(node, src_node, dio_pdu);
     }
 
-    measure_connect_update_output();
-    measure_sp_comp_update_output();
-    measure_converg_update_output();
-
     return TRUE;
 }
 
 bool rpl_event_after_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu)
 {
+    measure_node_add_rpl_event(node);
+    measure_node_add_rpl_dio_message(node, TRUE);
+    measure_stat_update_output(node);
+
     if (!icmp_send(node, dst_node, ICMP_TYPE_RPL, ICMP_RPL_CODE_DIO, pdu)) {
         rs_error("node '%s': failed to send ICMP message", node->phy_info->name);
         return FALSE;
@@ -672,6 +684,10 @@ bool rpl_event_after_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t 
 
 bool rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
 {
+    measure_node_add_rpl_event(node);
+    measure_node_add_rpl_dio_message(node, FALSE);
+    measure_stat_update_output(node);
+
     rpl_neighbor_t *neighbor = rpl_node_find_neighbor_by_node(node, src_node);
 
     if (neighbor == NULL) { /* don't process DIO messages from unknown neighbors */
@@ -710,6 +726,7 @@ bool rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pd
                 if (preferred_dodag_pdu != NULL) {
                     join_dodag_iteration(node, preferred_dodag_pdu);
                     rs_assert(choose_parents_and_siblings(node));
+                    reset_trickle_timer(node);
                 }
                 else {
                     start_as_root(node);
@@ -718,7 +735,7 @@ bool rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pd
             else {
                 if (dodag_config_changed) {
                     update_dodag_config(node, pdu);
-                    reset_trickle_timer(node); // todo why doesn't this have an effect ??
+                    reset_trickle_timer(node);
                 }
                 rs_assert(choose_parents_and_siblings(node));
             }
@@ -737,6 +754,10 @@ bool rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pd
 
 bool rpl_event_after_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu)
 {
+    measure_node_add_rpl_event(node);
+    measure_node_add_rpl_dao_message(node, TRUE);
+    measure_stat_update_output(node);
+
     if (!icmp_send(node, dst_node, ICMP_TYPE_RPL, ICMP_RPL_CODE_DAO, pdu)) {
         rs_error("node '%s': failed to send ICMP message", node->phy_info->name);
         return FALSE;
@@ -747,15 +768,18 @@ bool rpl_event_after_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t 
 
 bool rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 {
-    measure_connect_update_output();
-    measure_sp_comp_update_output();
-    measure_converg_update_output();
+    measure_node_add_rpl_event(node);
+    measure_node_add_rpl_dao_message(node, FALSE);
+    measure_stat_update_output(node);
 
     return TRUE;
 }
 
 bool rpl_event_after_neighbor_attach(node_t *node, node_t *neighbor_node)
 {
+    measure_node_add_rpl_event(node);
+    measure_stat_update_output(node);
+
     rpl_node_add_neighbor(node, neighbor_node);
 
     return TRUE;
@@ -764,6 +788,9 @@ bool rpl_event_after_neighbor_attach(node_t *node, node_t *neighbor_node)
 bool rpl_event_after_neighbor_detach(node_t *node, node_t *neighbor_node)
 {
     // todo remove routes through this neighbor
+
+    measure_node_add_rpl_event(node);
+    measure_stat_update_output(node);
 
     bool lost_pref_parent = FALSE;
     rpl_neighbor_t *parent = rpl_node_find_parent_by_node(node, neighbor_node);
@@ -799,7 +826,9 @@ bool rpl_event_after_neighbor_detach(node_t *node, node_t *neighbor_node)
 
 bool rpl_event_after_forward_failure(node_t *node)
 {
-    // todo measure failures number
+    measure_node_add_rpl_event(node);
+    measure_node_add_forward_failure(node);
+    measure_stat_update_output(node);
 
     reset_trickle_timer(node);
 
@@ -808,7 +837,9 @@ bool rpl_event_after_forward_failure(node_t *node)
 
 bool rpl_event_after_forward_error(node_t *node)
 {
-    // todo measure errors number
+    measure_node_add_rpl_event(node);
+    measure_node_add_forward_error(node);
+    measure_stat_update_output(node);
 
     reset_trickle_timer(node);
 
@@ -817,6 +848,9 @@ bool rpl_event_after_forward_error(node_t *node)
 
 bool rpl_event_after_trickle_timer_t_timeout(node_t *node)
 {
+    measure_node_add_rpl_event(node);
+    measure_stat_update_output(node);
+
     // todo implement DIO message redundancy detection
 
     if (rpl_node_is_root(node)) {
@@ -846,6 +880,9 @@ bool rpl_event_after_trickle_timer_t_timeout(node_t *node)
 
 bool rpl_event_after_trickle_timer_i_timeout(node_t *node)
 {
+    measure_node_add_rpl_event(node);
+    measure_stat_update_output(node);
+
     if (rpl_node_is_root(node)) {
         if (node->rpl_info->trickle_i_doublings_so_far < node->rpl_info->root_info->dio_interval_doublings) {
             node->rpl_info->trickle_i_doublings_so_far++;
@@ -894,6 +931,9 @@ bool rpl_event_after_trickle_timer_i_timeout(node_t *node)
 
 bool rpl_event_after_seq_num_timer_timeout(node_t *node)
 {
+    measure_node_add_rpl_event(node);
+    measure_stat_update_output(node);
+
     if (!rpl_node_is_root(node)) { /* avoid incrementing the seq_num when we're not root (anymore) */
         return TRUE;
     }
@@ -1131,6 +1171,10 @@ static void start_as_root(node_t *node)
     node->rpl_info->root_info->dodag_id = strdup(node->ip_info->address);
     node->rpl_info->root_info->seq_num = 0;
 
+    if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
+        rs_system_schedule_event(node, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
+    }
+
     reset_trickle_timer(node);
 }
 
@@ -1266,22 +1310,14 @@ static rpl_dio_pdu_t *get_preferred_dodag_dio_pdu(node_t *node, bool *same)
     rs_assert(same != NULL);
 
     rpl_dio_pdu_t *best_dio_pdu = NULL;
-    rpl_dio_pdu_t *fake_dio_pdu = NULL;
+    rpl_dio_pdu_t *root_dio_pdu = NULL;
 
     /* a node has its own passive DODAG iteration, coming from the default root configuration,
      * which should be taken into consideration as well
      * thus we create a fake DIO message corresponding to this own DODAG iteration */
 
-    // todo eliminate this workaround foring the root-based DIO message to be created
-
-    rpl_dodag_t *temp_dodag = node->rpl_info->joined_dodag;
-    node->rpl_info->joined_dodag = NULL;
-    node->rpl_info->root_info->dodag_id = strdup(node->ip_info->address);
-
-    fake_dio_pdu = create_current_dio_message(node, TRUE);
-    best_dio_pdu = fake_dio_pdu;
-
-    node->rpl_info->joined_dodag = temp_dodag;
+    root_dio_pdu = create_root_dio_message(node, TRUE);
+    best_dio_pdu = root_dio_pdu;
 
     uint16 i;
     for (i = 0; i < node->rpl_info->neighbor_count; i++) {
@@ -1291,12 +1327,7 @@ static rpl_dio_pdu_t *get_preferred_dodag_dio_pdu(node_t *node, bool *same)
             continue;
         }
 
-        if (neighbor->last_dio_message->dodag_config_suboption == NULL) { /* ignore neighbors for whom no dodag config info is available */
-            continue;
-        }
-
-        if (best_dio_pdu == NULL) { /* the very first one */
-            best_dio_pdu = neighbor->last_dio_message;
+        if (neighbor->last_dio_message->dodag_config_suboption == NULL) { /* ignore neighbors for whom no DODAG config info is available */
             continue;
         }
 
@@ -1315,6 +1346,7 @@ static rpl_dio_pdu_t *get_preferred_dodag_dio_pdu(node_t *node, bool *same)
         }
     }
 
+    /* are we already joined to/root of this best DODAG iteration? */
     if (best_dio_pdu != NULL) {
         if (rpl_node_is_root(node)) {
             *same = (strcmp(node->rpl_info->root_info->dodag_id, best_dio_pdu->dodag_id) == 0) &&
@@ -1343,9 +1375,9 @@ static rpl_dio_pdu_t *get_preferred_dodag_dio_pdu(node_t *node, bool *same)
         }
     }
 
-    /* destroy a previously created fake DIO message */
-    if (fake_dio_pdu != NULL) {
-        rpl_dio_pdu_destroy(fake_dio_pdu);
+    /* destroy a previously created fake root DIO message */
+    if (root_dio_pdu != NULL && best_dio_pdu != root_dio_pdu) {
+        rpl_dio_pdu_destroy(root_dio_pdu);
     }
 
     return best_dio_pdu;
@@ -1382,62 +1414,86 @@ static rpl_dio_pdu_t *create_current_dio_message(node_t *node, bool include_doda
 
     rs_assert(node != NULL);
 
-    rpl_dio_pdu_t *dio_pdu = NULL;
-
-    if (rpl_node_is_joined(node)) { /* joined node */
-        rpl_dodag_t *dodag = node->rpl_info->joined_dodag;
-        dio_pdu = rpl_dio_pdu_create();
-
-        dio_pdu->dodag_id = strdup(dodag->dodag_id);
-        dio_pdu->dodag_pref = dodag->dodag_pref;
-        dio_pdu->seq_num = dodag->seq_num;
-
-        dio_pdu->rank = dodag->rank;
-        dio_pdu->dstn = 0;
-        dio_pdu->dao_stored = FALSE;
-
-        dio_pdu->grounded = dodag->grounded;
-        dio_pdu->dao_supported = dodag->dao_supported;
-        dio_pdu->dao_trigger = dodag->dao_trigger;
-
-        if (include_dodag_config) {
-            dio_pdu->dodag_config_suboption = rpl_dio_suboption_dodag_config_create();
-
-            dio_pdu->dodag_config_suboption->dio_interval_doublings = dodag->dio_interval_doublings;
-            dio_pdu->dodag_config_suboption->dio_interval_min = dodag->dio_interval_min;
-            dio_pdu->dodag_config_suboption->dio_redundancy_constant = dodag->dio_redundancy_constant;
-            dio_pdu->dodag_config_suboption->max_rank_inc = dodag->max_rank_inc;
-            dio_pdu->dodag_config_suboption->min_hop_rank_inc = dodag->min_hop_rank_inc;
-        }
+    if (rpl_node_is_joined(node)) {
+        return create_joined_dio_message(node, include_dodag_config);
     }
-    else if (rpl_node_is_root(node)) { /* root node */
-        rpl_root_info_t *root_info = node->rpl_info->root_info;
-        dio_pdu = rpl_dio_pdu_create();
-
-        dio_pdu->dodag_id = strdup(root_info->dodag_id);
-        dio_pdu->dodag_pref = root_info->dodag_pref;
-        dio_pdu->seq_num = root_info->seq_num;
-
-        dio_pdu->rank = RPL_RANK_ROOT;
-        dio_pdu->dstn = 0;
-        dio_pdu->dao_stored = FALSE;
-
-        dio_pdu->grounded = root_info->grounded;
-        dio_pdu->dao_supported = root_info->dao_supported;
-        dio_pdu->dao_trigger = root_info->dao_trigger;
-
-        if (include_dodag_config) {
-            dio_pdu->dodag_config_suboption = rpl_dio_suboption_dodag_config_create();
-
-            dio_pdu->dodag_config_suboption->dio_interval_doublings = root_info->dio_interval_doublings;
-            dio_pdu->dodag_config_suboption->dio_interval_min = root_info->dio_interval_min;
-            dio_pdu->dodag_config_suboption->dio_redundancy_constant = root_info->dio_redundancy_constant;
-            dio_pdu->dodag_config_suboption->max_rank_inc = root_info->max_rank_inc;
-            dio_pdu->dodag_config_suboption->min_hop_rank_inc = root_info->min_hop_rank_inc;
-        }
+    else if (rpl_node_is_root(node)) {
+        return create_root_dio_message(node, include_dodag_config);
     }
     else {
-        dio_pdu = NULL;
+        return NULL;
+    }
+}
+
+static rpl_dio_pdu_t *create_root_dio_message(node_t *node, bool include_dodag_config)
+{
+    rs_assert(node != NULL);
+
+    rpl_dio_pdu_t *dio_pdu = NULL;
+
+    rpl_root_info_t *root_info = node->rpl_info->root_info;
+    dio_pdu = rpl_dio_pdu_create();
+
+    if (root_info->dodag_id != NULL) {
+        dio_pdu->dodag_id = strdup(root_info->dodag_id);
+    }
+    else {
+        dio_pdu->dodag_id = strdup(node->ip_info->address);
+    }
+    dio_pdu->dodag_pref = root_info->dodag_pref;
+    dio_pdu->seq_num = root_info->seq_num;
+
+    dio_pdu->rank = RPL_RANK_ROOT;
+    dio_pdu->dstn = 0;
+    dio_pdu->dao_stored = FALSE;
+
+    dio_pdu->grounded = root_info->grounded;
+    dio_pdu->dao_supported = root_info->dao_supported;
+    dio_pdu->dao_trigger = root_info->dao_trigger;
+
+    if (include_dodag_config) {
+        dio_pdu->dodag_config_suboption = rpl_dio_suboption_dodag_config_create();
+
+        dio_pdu->dodag_config_suboption->dio_interval_doublings = root_info->dio_interval_doublings;
+        dio_pdu->dodag_config_suboption->dio_interval_min = root_info->dio_interval_min;
+        dio_pdu->dodag_config_suboption->dio_redundancy_constant = root_info->dio_redundancy_constant;
+        dio_pdu->dodag_config_suboption->max_rank_inc = root_info->max_rank_inc;
+        dio_pdu->dodag_config_suboption->min_hop_rank_inc = root_info->min_hop_rank_inc;
+    }
+
+    return dio_pdu;
+}
+
+static rpl_dio_pdu_t *create_joined_dio_message(node_t *node, bool include_dodag_config)
+{
+    rs_assert(node != NULL);
+    rs_assert(node->rpl_info->joined_dodag != NULL);
+
+    rpl_dio_pdu_t *dio_pdu = NULL;
+
+    rpl_dodag_t *dodag = node->rpl_info->joined_dodag;
+    dio_pdu = rpl_dio_pdu_create();
+
+    dio_pdu->dodag_id = strdup(dodag->dodag_id);
+    dio_pdu->dodag_pref = dodag->dodag_pref;
+    dio_pdu->seq_num = dodag->seq_num;
+
+    dio_pdu->rank = dodag->rank;
+    dio_pdu->dstn = 0;
+    dio_pdu->dao_stored = FALSE;
+
+    dio_pdu->grounded = dodag->grounded;
+    dio_pdu->dao_supported = dodag->dao_supported;
+    dio_pdu->dao_trigger = dodag->dao_trigger;
+
+    if (include_dodag_config) {
+        dio_pdu->dodag_config_suboption = rpl_dio_suboption_dodag_config_create();
+
+        dio_pdu->dodag_config_suboption->dio_interval_doublings = dodag->dio_interval_doublings;
+        dio_pdu->dodag_config_suboption->dio_interval_min = dodag->dio_interval_min;
+        dio_pdu->dodag_config_suboption->dio_redundancy_constant = dodag->dio_redundancy_constant;
+        dio_pdu->dodag_config_suboption->max_rank_inc = dodag->max_rank_inc;
+        dio_pdu->dodag_config_suboption->min_hop_rank_inc = dodag->min_hop_rank_inc;
     }
 
     return dio_pdu;

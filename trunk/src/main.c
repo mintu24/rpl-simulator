@@ -20,6 +20,7 @@
 #include "gui/mainwin.h"
 #include "gui/simfield.h"
 #include "gui/dialogs.h"
+#include "gui/measurement.h"
 
 
     /**** global variables ****/
@@ -139,6 +140,7 @@ node_t *rs_add_node(coord_t x, coord_t y)
 
     node_t *node = node_create();
 
+    measure_node_init(node);
     phy_node_init(node, new_name, x, y);
     mac_node_init(node, new_mac_address);
     ip_node_init(node, new_ip_address);
@@ -180,6 +182,13 @@ void rs_rem_node(node_t *node)
         rs_error("failed to remove node '%s' from the system", node->phy_info->name);
         return;
     }
+
+    rpl_node_done(node);
+    icmp_node_done(node);
+    ip_node_done(node);
+    mac_node_done(node);
+    phy_node_done(node);
+    measure_node_done(node);
 
     node_destroy(node);
 
@@ -283,10 +292,45 @@ void rs_rem_all_nodes()
     nodes_lock();
 
     while (rs_system->node_count > 0) {
-        rs_rem_node(rs_system->node_list[rs_system->node_count - 1]);
+        node_t *node = rs_system->node_list[rs_system->node_count - 1];
+
+        rs_system_remove_node(node);
     }
 
     nodes_unlock();
+
+    measures_lock();
+
+    uint16 i;
+    for (i = 0; i < measure_connect_entry_get_count(); i++) {
+        measure_connect_t *measure = measure_connect_entry_get(i);
+
+        if (measure->src_node != NULL || measure->dst_node != NULL) {
+            measure_connect_entry_remove(i);
+        }
+    }
+
+    for (i = 0; i < measure_sp_comp_entry_get_count(); i++) {
+        measure_sp_comp_t *measure = measure_sp_comp_entry_get(i);
+
+        if (measure->src_node != NULL || measure->dst_node != NULL) {
+            measure_sp_comp_entry_remove(i);
+        }
+    }
+
+    for (i = 0; i < measure_stat_entry_get_count(); i++) {
+        measure_stat_t *measure = measure_stat_entry_get(i);
+
+        if (measure->node != NULL) {
+            measure_stat_entry_remove(i);
+        }
+    }
+
+    measures_unlock();
+
+    measurement_entries_to_gui();
+    main_win_system_to_gui();
+    main_win_update_nodes_status();
 }
 
 void rs_wake_all_nodes()

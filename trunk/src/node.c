@@ -14,6 +14,7 @@ node_t *node_create()
 {
     node_t *node = malloc(sizeof(node_t));
 
+    node->measure_info = NULL;
     node->phy_info = NULL;
     node->mac_info = NULL;
     node->ip_info = NULL;
