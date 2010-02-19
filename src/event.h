@@ -19,7 +19,7 @@ typedef struct event_t {
     char *                      layer;
     event_handler_t             handler;
     event_arg_str_t             str_func;
-
+    bool                        loggable;
 
 } event_t;
 
@@ -27,6 +27,7 @@ typedef struct event_t {
 uint16                  event_register(char *name, char *layer, event_handler_t handler, event_arg_str_t str_func);
 bool                    event_execute(uint16 event_id, node_t *node, void *data1, void *data2);
 event_t                 event_find_by_id(uint16 event_id);
+void                    event_set_logging(uint16 event_id, bool loggable);
 
 
 #endif /* EVENT_H_ */

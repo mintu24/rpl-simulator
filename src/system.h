@@ -29,7 +29,6 @@
 
 #define DEFAULT_RPL_AUTO_SN_INC_INT     10000
 #define DEFAULT_RPL_STARTUP_SILENT      FALSE
-#define DEFAULT_RPL_DAO_SUPPORTED       FALSE
 #define DEFAULT_RPL_POISON_COUNT        4
 
 #define SYS_CORE_SLEEP                  100
@@ -116,7 +115,6 @@ typedef struct rs_system_t {
 
     int32                       rpl_auto_sn_inc_interval;
     bool                        rpl_start_silent;
-    bool                        rpl_dao_supported;
     uint8                       rpl_poison_count;
 
     /* nodes */

@@ -28,6 +28,7 @@ uint16 event_register(char *name, char *layer, event_handler_t handler, event_ar
     event_list[event_count].layer = strdup(layer);
     event_list[event_count].handler = handler;
     event_list[event_count].str_func = str_func;
+    event_list[event_count].loggable = FALSE;
 
     return event_count++;
 }
@@ -53,7 +54,7 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
     write_log = write_log || ((strcmp(event->layer, "icmp") == 0) && (DEBUG & DEBUG_ICMP));
     write_log = write_log || ((strcmp(event->layer, "rpl") == 0) && (DEBUG & DEBUG_RPL));
 
-    if (write_log) {
+    if (write_log && event->loggable) {
         event_log(event_id, node, data1, data2);
         level++;
     }
@@ -62,7 +63,7 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
         all_ok = FALSE;
     }
 
-    if (write_log) {
+    if (write_log && event->loggable) {
         level--;
     }
 
@@ -78,6 +79,13 @@ event_t event_find_by_id(uint16 event_id)
     rs_assert(event_id < event_count);
 
     return event_list[event_id];
+}
+
+void event_set_logging(uint16 event_id, bool loggable)
+{
+    rs_assert(event_id < event_count);
+
+    event_list[event_id].loggable = loggable;
 }
 
 

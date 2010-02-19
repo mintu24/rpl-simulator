@@ -51,7 +51,6 @@ bool rs_system_create()
 
     rs_system->rpl_auto_sn_inc_interval = DEFAULT_RPL_AUTO_SN_INC_INT;
     rs_system->rpl_start_silent = DEFAULT_RPL_STARTUP_SILENT;
-    rs_system->rpl_dao_supported = DEFAULT_RPL_DAO_SUPPORTED;
     rs_system->rpl_poison_count = DEFAULT_RPL_POISON_COUNT;
 
     rs_system->schedules = NULL;
@@ -232,7 +231,7 @@ bool rs_system_remove_node(node_t *node)
             free(route);
         }
 
-        /* nullify ip neighbors */
+        /* ip neighbors */
         ip_neighbor_t *ip_neighbor = ip_node_find_neighbor_by_node(other_node, node);
         if (ip_neighbor != NULL) {
             rs_system_cancel_event(other_node, ip_event_id_after_neighbor_cache_timeout, ip_neighbor, NULL, 0);
