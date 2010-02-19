@@ -17,6 +17,14 @@
 #endif
 
 
+#define MAIN_WIN_NODE_TO_GUI_PHY                    (1 << 0)
+#define MAIN_WIN_NODE_TO_GUI_MAC                    (1 << 1)
+#define MAIN_WIN_NODE_TO_GUI_IP                     (1 << 2)
+#define MAIN_WIN_NODE_TO_GUI_ICMP                   (1 << 3)
+#define MAIN_WIN_NODE_TO_GUI_RPL                    (1 << 4)
+#define MAIN_WIN_NODE_TO_GUI_ALL                    0xFFFF
+
+
 typedef struct display_params_t {
 
     bool            show_node_names;
@@ -39,7 +47,7 @@ node_t *            main_win_get_selected_node();
 void                main_win_set_selected_node(node_t *node);
 
 void                main_win_system_to_gui();
-void                main_win_node_to_gui(node_t *node);
+void                main_win_node_to_gui(node_t *node, uint32 what);
 void                main_win_display_to_gui();
 
 display_params_t *  main_win_get_display_params();

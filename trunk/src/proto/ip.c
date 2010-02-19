@@ -388,6 +388,8 @@ bool ip_event_before_node_kill(node_t *node)
 {
     while (node->ip_info->neighbor_count > 0) {
         ip_neighbor_t *neighbor = node->ip_info->neighbor_list[node->ip_info->neighbor_count - 1];
+
+        event_execute(rpl_event_id_after_neighbor_detach, node, neighbor->node, NULL);
         ip_node_rem_neighbor(node, neighbor);
     }
 
@@ -469,7 +471,13 @@ bool ip_event_after_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor
 
     if (diff >= IP_NEIGHBOR_CACHE_TIMEOUT) {
         event_execute(rpl_event_id_after_neighbor_detach, node, neighbor->node, NULL);
-        ip_node_rem_neighbor(node, neighbor);
+
+        if (!ip_node_rem_neighbor(node, neighbor)) {
+            if (neighbor->node != NULL)
+                rs_error("node '%s': no longer has neighbor '%s'", node->phy_info->name, neighbor->node->phy_info->name);
+
+            return FALSE;
+        }
     }
     else {
         if (neighbor->node != NULL) {

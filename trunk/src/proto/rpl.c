@@ -53,14 +53,15 @@ static bool                 choose_parents_and_siblings(node_t *node);
 static rpl_dio_pdu_t *      get_preferred_dodag_dio_pdu(node_t *node, bool *same);
 static void                 update_dodag_config(node_t *node, rpl_dio_pdu_t *dio_pdu);
 static void                 reset_trickle_timer(node_t *node);
+static void                 forget_neighbor_messages(node_t *node);
 
 static rpl_dio_pdu_t *      create_current_dio_message(node_t *node, bool include_dodag_config);
 static rpl_dio_pdu_t *      create_root_dio_message(node_t *node, bool include_dodag_config);
 static rpl_dio_pdu_t *      create_joined_dio_message(node_t *node, bool include_dodag_config);
 static void                 update_neighbor_dio_message(rpl_neighbor_t *neighbor, rpl_dio_pdu_t *dio_pdu);
 
-static int8                 compare_ranks(uint8 rank1, uint8 rank2, uint8 min_hop_rank_inc);
-static uint8                compute_candidate_rank(node_t *node, rpl_neighbor_t *neighbor);
+static int8                 compare_ranks(uint16 rank1, uint16 rank2, uint8 min_hop_rank_inc);
+static uint16               compute_candidate_rank(node_t *node, rpl_neighbor_t *neighbor);
 
 static void                 event_arg_str_one_node_func(void *data1, void *data2, char *str1, char *str2, uint16 len);
 
@@ -110,7 +111,7 @@ rpl_dio_pdu_t *rpl_dio_pdu_create()
     pdu->dao_stored = FALSE;
 
     pdu->grounded = FALSE;
-    pdu->dao_supported = rs_system->rpl_dao_supported;
+    pdu->dao_supported = RPL_DEFAULT_DAO_SUPPORTED;
     pdu->dao_trigger = FALSE;
 
     pdu->dodag_config_suboption = NULL;
@@ -582,6 +583,82 @@ bool rpl_node_neighbor_is_sibling(node_t *node, rpl_neighbor_t *neighbor)
     return FALSE;
 }
 
+void rpl_node_start_as_root(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    start_as_root(node);
+}
+
+void rpl_node_isolate(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    if (rpl_node_is_joined(node)) {
+        rpl_dodag_destroy(node->rpl_info->joined_dodag);
+        node->rpl_info->joined_dodag = NULL;
+    }
+
+    if (node->rpl_info->root_info->dodag_id != NULL) {
+        free(node->rpl_info->root_info->dodag_id);
+        node->rpl_info->root_info->dodag_id = NULL;
+    }
+
+    rs_system_cancel_event(node, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, 0);
+    rs_system_cancel_event(node, rpl_event_id_after_trickle_timer_i_timeout, NULL, NULL, 0);
+    rs_system_cancel_event(node, rpl_event_id_after_trickle_timer_t_timeout, NULL, NULL, 0);
+}
+
+void rpl_node_force_dodag_it_eval(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    bool same;
+    rpl_dio_pdu_t *preferred_dodag_pdu = get_preferred_dodag_dio_pdu(node, &same);
+
+    if (rpl_node_is_isolated(node)) {
+        if (preferred_dodag_pdu != NULL) {
+            join_dodag_iteration(node, preferred_dodag_pdu);
+            choose_parents_and_siblings(node);
+            reset_trickle_timer(node);
+        }
+        else {
+            /* don't start as root, since we were configured to start as isolated */
+        }
+    }
+    else if (rpl_node_is_root(node)) {
+        if (preferred_dodag_pdu != NULL) {
+            join_dodag_iteration(node, preferred_dodag_pdu);
+            choose_parents_and_siblings(node);
+            reset_trickle_timer(node);
+        }
+        else {
+            /* we're already root */
+        }
+    }
+    else if (rpl_node_is_poisoning(node)) {
+        /* we ignore everything in this temporary state */
+    }
+    else if (rpl_node_is_joined(node)) {
+        if (!same) {
+            if (preferred_dodag_pdu != NULL) {
+                join_dodag_iteration(node, preferred_dodag_pdu);
+                choose_parents_and_siblings(node);
+                reset_trickle_timer(node);
+            }
+            else {
+                start_as_root(node);
+            }
+        }
+        else {
+            choose_parents_and_siblings(node);
+        }
+    }
+    else {
+        rs_warn("node '%s': not root, not joined, not poisoning and not isolated either, what are we anyway?");
+    }
+}
+
 node_t *rpl_node_get_next_hop(node_t *node, char *dst_address)
 {
     return NULL;
@@ -675,7 +752,7 @@ bool rpl_event_before_node_kill(node_t *node)
         node->rpl_info->joined_dodag = NULL;
     }
 
-    rpl_node_remove_all_neighbors(node);
+    /* the IP layer should trigger the removal of all our neighbors */
 
     return TRUE;
 }
@@ -732,6 +809,7 @@ bool rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pd
     rpl_neighbor_t *neighbor = rpl_node_find_neighbor_by_node(node, src_node);
 
     if (neighbor == NULL) { /* don't process DIO messages from unknown neighbors */
+        rs_warn("node '%s': received a message from an unknown neighbor '%s'", node->phy_info->name, src_node->phy_info->name);
         return FALSE; /* this should never happen */
     }
 
@@ -786,10 +864,11 @@ bool rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pd
                     reset_trickle_timer(node);
                 }
 
-                rs_assert(choose_parents_and_siblings(node));
+                choose_parents_and_siblings(node); /* if rank is too big, this will start poisoning */
             }
         }
         else {
+            rs_warn("node '%s': not root, not joined, not poisoning and not isolated either, what are we anyway?");
             return FALSE; /* this should never happen */
         }
     }
@@ -829,9 +908,14 @@ bool rpl_event_after_neighbor_attach(node_t *node, node_t *neighbor_node)
     measure_node_add_rpl_event(node);
     measure_stat_update_output(node);
 
-    rpl_node_add_neighbor(node, neighbor_node);
-
-    return TRUE;
+    if (rpl_node_find_neighbor_by_node(node, neighbor_node)) {
+        rs_warn("node '%s': already has neighbor '%s'", node->phy_info->name, neighbor_node->phy_info->name);
+        return FALSE;
+    }
+    else {
+        rpl_node_add_neighbor(node, neighbor_node);
+        return TRUE;
+    }
 }
 
 bool rpl_event_after_neighbor_detach(node_t *node, node_t *neighbor_node)
@@ -874,7 +958,7 @@ bool rpl_event_after_neighbor_detach(node_t *node, node_t *neighbor_node)
     else {
         neighbor = rpl_node_find_neighbor_by_node(node, neighbor_node);
         if (neighbor == NULL) {
-            rs_error("node '%s': has no neighbor '%s'", node->phy_info->name, neighbor_node->phy_info->name);
+            rs_warn("node '%s': has no neighbor '%s'", node->phy_info->name, neighbor_node->phy_info->name);
             return FALSE;
         }
 
@@ -946,10 +1030,11 @@ bool rpl_event_after_trickle_timer_t_timeout(node_t *node)
         }
     }
     else if (!rpl_node_is_poisoning(node)) {
+        rs_warn("node '%s': is isolated, but the trickle timer ticked", node->phy_info->name);
         return FALSE; /* this should never happen */
     }
 
-    rpl_dio_pdu_t *dio_pdu = create_current_dio_message(node, TRUE);
+    rpl_dio_pdu_t *dio_pdu = create_current_dio_message(node, TRUE); // todo from time to time avoid sending the dodag config
     if (dio_pdu != NULL)
         rpl_send_dio(node, NULL, dio_pdu);
 
@@ -1059,8 +1144,8 @@ static rpl_root_info_t *rpl_root_info_create()
     root_info->dodag_id = NULL;
     root_info->dodag_pref = RPL_DEFAULT_DAG_PREF;
     root_info->grounded = FALSE;
-    root_info->dao_supported = rs_system->rpl_dao_supported;
-    //root_info->dao_trigger = FALSE; todo make this a #define somewhere
+    root_info->dao_supported = RPL_DEFAULT_DAO_SUPPORTED;
+    root_info->dao_trigger = RPL_DEFAULT_DAO_TRIGGER;
 
     root_info->dio_interval_doublings = RPL_DEFAULT_DIO_INTERVAL_DOUBLINGS;
     root_info->dio_interval_min = RPL_DEFAULT_DIO_INTERVAL_MIN;
@@ -1230,6 +1315,7 @@ static void start_dio_poisoning(node_t *node)
     rpl_node_remove_all_parents(node);
     rpl_node_remove_all_siblings(node);
     node->rpl_info->joined_dodag->pref_parent = NULL;
+    forget_neighbor_messages(node);
 
     node->rpl_info->joined_dodag->rank = RPL_RANK_INFINITY;
     node->rpl_info->joined_dodag->lowest_rank = RPL_RANK_INFINITY;
@@ -1326,6 +1412,10 @@ static bool choose_parents_and_siblings(node_t *node)
             continue;
         }
 
+        if (neighbor->last_dio_message->rank >= RPL_RANK_INFINITY) { /* ignore neighbors that started poisoning */
+            continue;
+        }
+
         matching_ranks[i] = compute_candidate_rank(node, neighbor);
 
         if (best_rank_index == -1) {
@@ -1359,7 +1449,7 @@ static bool choose_parents_and_siblings(node_t *node)
     }
 
     uint8 best_rank = matching_ranks[best_rank_index];
-    if (best_rank - dodag->lowest_rank > dodag->max_rank_inc ) { /* rank would increase too much */
+    if (best_rank - dodag->lowest_rank > dodag->max_rank_inc || best_rank >= RPL_RANK_INFINITY) { /* rank would increase too much */
         start_dio_poisoning(node);
 
         return FALSE;
@@ -1373,7 +1463,7 @@ static bool choose_parents_and_siblings(node_t *node)
     dodag->pref_parent = node->rpl_info->neighbor_list[best_rank_index];
 
     for (i = 0; i < node->rpl_info->neighbor_count; i++) {
-        if (matching_ranks[i] == RPL_RANK_INFINITY) {
+        if (matching_ranks[i] >= RPL_RANK_INFINITY) {
             continue;
         }
 
@@ -1407,6 +1497,10 @@ static rpl_dio_pdu_t *get_preferred_dodag_dio_pdu(node_t *node, bool *same)
         }
 
         if (neighbor->last_dio_message->dodag_config_suboption == NULL) { /* ignore neighbors for whom no DODAG config info is available */
+            continue;
+        }
+
+        if (neighbor->last_dio_message->rank >= RPL_RANK_INFINITY) { /* ignore neighbors that started poisoning */
             continue;
         }
 
@@ -1473,6 +1567,21 @@ static void reset_trickle_timer(node_t *node)
     rs_system_schedule_event(node, rpl_event_id_after_trickle_timer_i_timeout, NULL, NULL, node->rpl_info->trickle_i);
 }
 
+static void forget_neighbor_messages(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    uint16 i;
+    for (i = 0; i < node->rpl_info->neighbor_count; i++) {
+        rpl_neighbor_t *neighbor = node->rpl_info->neighbor_list[i];
+
+        if (neighbor->last_dio_message != NULL) {
+            rpl_dio_pdu_destroy(neighbor->last_dio_message);
+            neighbor->last_dio_message = NULL;
+        }
+    }
+}
+
 static rpl_dio_pdu_t *create_current_dio_message(node_t *node, bool include_dodag_config)
 {
     // todo from time to time avoid to include dodag config
@@ -1484,6 +1593,9 @@ static rpl_dio_pdu_t *create_current_dio_message(node_t *node, bool include_doda
     }
     else if (rpl_node_is_root(node)) {
         return create_root_dio_message(node, include_dodag_config);
+    }
+    else if (rpl_node_is_poisoning(node)) {
+        return create_joined_dio_message(node, include_dodag_config);
     }
     else {
         return NULL;
@@ -1602,7 +1714,7 @@ static void update_neighbor_dio_message(rpl_neighbor_t *neighbor, rpl_dio_pdu_t 
     }
 }
 
-static int8 compare_ranks(uint8 rank1, uint8 rank2, uint8 min_hop_rank_inc)
+static int8 compare_ranks(uint16 rank1, uint16 rank2, uint8 min_hop_rank_inc)
 {
     if (rank1 / min_hop_rank_inc > rank2 / min_hop_rank_inc) {
         return 1;
@@ -1615,7 +1727,7 @@ static int8 compare_ranks(uint8 rank1, uint8 rank2, uint8 min_hop_rank_inc)
     }
 }
 
-static uint8 compute_candidate_rank(node_t *node, rpl_neighbor_t *neighbor)
+static uint16 compute_candidate_rank(node_t *node, rpl_neighbor_t *neighbor)
 {
     if (neighbor->node == NULL) {
         return RPL_RANK_INFINITY;
@@ -1625,7 +1737,7 @@ static uint8 compute_candidate_rank(node_t *node, rpl_neighbor_t *neighbor)
     percent_t receive_link_quality = rs_system_get_link_quality(neighbor->node, node);
     percent_t link_quality = (send_link_quality + receive_link_quality) / 2;
 
-    uint8 rank = (RPL_MAXIMUM_RANK_INCREMENT - RPL_MINIMUM_RANK_INCREMENT) * pow((1 - link_quality), 2) + RPL_MINIMUM_RANK_INCREMENT;
+    uint16 rank = (RPL_MAXIMUM_RANK_INCREMENT - RPL_MINIMUM_RANK_INCREMENT) * pow((1 - link_quality), 2) + RPL_MINIMUM_RANK_INCREMENT;
 
     return neighbor->last_dio_message->rank + rank;
 }

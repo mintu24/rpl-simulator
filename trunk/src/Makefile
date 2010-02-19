@@ -30,7 +30,7 @@ system.o: system.c system.h base.h node.h event.h measure.h gui/simfield.h gui/m
 
 gui/mainwin.o: gui/mainwin.c gui/mainwin.h base.h node.h main.h system.h event.h measure.h gui/simfield.h gui/dialogs.h gui/measurement.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
 
-gui/simfield.o: gui/simfield.c gui/simfield.h base.h node.h main.h system.h event.h measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h 
+gui/simfield.o: gui/simfield.c gui/simfield.h base.h node.h main.h system.h event.h measure.h gui/mainwin.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h 
 
 gui/legend.o: gui/legend.c gui/legend.h base.h node.h gui/mainwin.h gui/simfield.h system.h event.h measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
 

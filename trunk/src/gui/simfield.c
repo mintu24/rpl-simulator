@@ -320,7 +320,7 @@ static gboolean cb_sim_field_drawing_area_button_press(GtkDrawingArea *widget, G
         moving_node->phy_info->cx = current_x;
         moving_node->phy_info->cy = current_y;
 
-        main_win_node_to_gui(moving_node);
+        main_win_node_to_gui(moving_node, MAIN_WIN_NODE_TO_GUI_ALL);
         sim_field_redraw();
     }
 
@@ -370,7 +370,7 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
         moving_node->phy_info->cx = current_x;
         moving_node->phy_info->cy = current_y;
 
-        main_win_node_to_gui(moving_node);
+        main_win_node_to_gui(moving_node, MAIN_WIN_NODE_TO_GUI_PHY);
     }
 
     draw_sim_field(NULL);
@@ -407,7 +407,7 @@ static gboolean cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEven
         }
     }
 
-    main_win_node_to_gui(node);
+    main_win_node_to_gui(node, MAIN_WIN_NODE_TO_GUI_PHY);
     sim_field_redraw();
 
     return TRUE;

@@ -15,20 +15,23 @@
 
 #define RPL_DEFAULT_DAG_PREF                    0 /* least preferred */
 
-#define RPL_DEFAULT_DIO_INTERVAL_DOUBLINGS      6 /* 6 times */
-#define RPL_DEFAULT_DIO_INTERVAL_MIN            4 /* 2^4 = 16ms */
-#define RPL_DEFAULT_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
+#define RPL_DEFAULT_DAO_SUPPORTED               FALSE
+#define RPL_DEFAULT_DAO_TRIGGER                 FALSE
 
-#define RPL_DEFAULT_MAX_RANK_INC                1
-#define RPL_DEFAULT_MIN_HOP_RANK_INC            1 /* smallest possible granularity */
+#define RPL_DEFAULT_DIO_INTERVAL_DOUBLINGS      6 /* 6 times */ // todo make this configurable in the system
+#define RPL_DEFAULT_DIO_INTERVAL_MIN            4 /* 2^4 = 16ms */ // todo make this configurable in the system
+#define RPL_DEFAULT_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */ // todo make this configurable in the system
+
+#define RPL_DEFAULT_MAX_RANK_INC                1 // todo make this configurable in the system
+#define RPL_DEFAULT_MIN_HOP_RANK_INC            1 /* smallest possible granularity */ // todo make this configurable in the system
 
 #define RPL_DEFAULT_NODE_STORING                TRUE
 
 #define RPL_RANK_ROOT                           1
 #define RPL_RANK_INFINITY                       0xFF
 
-#define RPL_MINIMUM_RANK_INCREMENT              1
-#define RPL_MAXIMUM_RANK_INCREMENT              16
+#define RPL_MINIMUM_RANK_INCREMENT              1 // todo make this configurable in the system
+#define RPL_MAXIMUM_RANK_INCREMENT              16 // todo make this configurable in the system
 
 #define rpl_node_has_parent(node, parent)       (rpl_node_find_parent_by_node(node, parent) != NULL)
 #define rpl_node_has_sibling(node, sibling)     (rpl_node_find_sibling_by_node(node, sibling) != NULL)
@@ -38,8 +41,8 @@
 
 #define rpl_node_is_isolated(node)              ((node)->rpl_info->joined_dodag == NULL && (node)->rpl_info->root_info->dodag_id == NULL)
 #define rpl_node_is_root(node)                  ((node)->rpl_info->joined_dodag == NULL && (node)->rpl_info->root_info->dodag_id != NULL)
-#define rpl_node_is_joined(node)                ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->rank < 0xFF)
-#define rpl_node_is_poisoning(node)             ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->rank == 0xFF)
+#define rpl_node_is_joined(node)                ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->rank < RPL_RANK_INFINITY)
+#define rpl_node_is_poisoning(node)             ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->rank == RPL_RANK_INFINITY)
 
 
 
@@ -89,8 +92,8 @@ typedef struct rpl_dodag_t {
     uint8               min_hop_rank_inc;
 
     uint8               seq_num;
-    uint8               lowest_rank;
-    uint8               rank;
+    uint16              lowest_rank;
+    uint16              rank;
 
     rpl_neighbor_t**    parent_list;
     uint16              parent_count;
@@ -139,7 +142,7 @@ typedef struct rpl_dio_pdu_t {
     uint8               dodag_pref;
     uint8               seq_num;
 
-    uint8               rank;
+    uint16              rank;
     uint8               dstn;
     bool                dao_stored;
 
@@ -223,6 +226,10 @@ bool                rpl_node_remove_sibling(node_t *node, rpl_neighbor_t *siblin
 void                rpl_node_remove_all_siblings(node_t *node);
 rpl_neighbor_t *    rpl_node_find_sibling_by_node(node_t *node, node_t *sibling_node);
 bool                rpl_node_neighbor_is_sibling(node_t *node, rpl_neighbor_t *neighbor);
+
+void                rpl_node_start_as_root(node_t *node);
+void                rpl_node_isolate(node_t *node);
+void                rpl_node_force_dodag_it_eval(node_t *node);
 
 node_t *            rpl_node_get_next_hop(node_t *node, char *dst_address);
 
