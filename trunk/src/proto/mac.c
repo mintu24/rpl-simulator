@@ -116,6 +116,7 @@ void mac_node_done(node_t *node)
             free(node->mac_info->address);
 
         free(node->mac_info);
+        node->mac_info = NULL;
     }
 }
 

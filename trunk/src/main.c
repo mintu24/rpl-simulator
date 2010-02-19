@@ -1,12 +1,11 @@
 
-// todo add/remove nodes is too slow
-// todo add measure for packet/event counters
 // todo intelligent IP/RPL routing + source routing
 // todo implement RPL forwarding error handling
 // todo implement RPL forwarding failure handling
 // todo implement simple configurable ICMP ping
 // todo convergence measurement
 // todo connectivity measurement
+// todo deadlock with lots of nodes and killing one node
 
 #include <unistd.h>
 #include <math.h>
@@ -168,9 +167,6 @@ node_t *rs_add_node(coord_t x, coord_t y)
 
     nodes_unlock();
 
-    main_win_system_to_gui();
-    main_win_update_nodes_status();
-
     return node;
 }
 
@@ -182,13 +178,6 @@ void rs_rem_node(node_t *node)
         rs_error("failed to remove node '%s' from the system", node->phy_info->name);
         return;
     }
-
-    rpl_node_done(node);
-    icmp_node_done(node);
-    ip_node_done(node);
-    mac_node_done(node);
-    phy_node_done(node);
-    measure_node_done(node);
 
     node_destroy(node);
 
@@ -285,6 +274,9 @@ void rs_add_more_nodes(uint16 node_number, uint8 pattern, coord_t horiz_dist, co
             break;
         }
     }
+
+    main_win_system_to_gui();
+    main_win_update_nodes_status();
 }
 
 void rs_rem_all_nodes()
@@ -299,6 +291,7 @@ void rs_rem_all_nodes()
 
     nodes_unlock();
 
+    /* remove all measurements that concern a specific node */
     measures_lock();
 
     uint16 i;
@@ -331,6 +324,9 @@ void rs_rem_all_nodes()
     measurement_entries_to_gui();
     main_win_system_to_gui();
     main_win_update_nodes_status();
+
+    /* remove all scheduled events */
+    rs_system_cancel_event(NULL, -1, NULL, NULL, 0);
 }
 
 void rs_wake_all_nodes()

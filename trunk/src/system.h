@@ -7,6 +7,7 @@
 #include "base.h"
 #include "node.h"
 #include "event.h"
+#include "measure.h"
 
 #include "proto/phy.h"
 #include "proto/mac.h"
@@ -31,7 +32,7 @@
 #define DEFAULT_RPL_DAO_SUPPORTED       FALSE
 #define DEFAULT_RPL_POISON_COUNT        4
 
-#define SYS_CORE_SLEEP                  10000
+#define SYS_CORE_SLEEP                  100
 
 #define events_lock() { \
         rs_debug(DEBUG_EVENTS_MUTEX, "EVENTS(%d) mutex: locking", rs_system->events_mutex.depth); \
@@ -159,7 +160,7 @@ node_t *                rs_system_find_node_by_mac_address(char *address);
 node_t *                rs_system_find_node_by_ip_address(char *address);
 
 void                    rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
-void                    rs_system_cancel_event(node_t *node, uint16 event_id, void *data1, void *data2, int32 time);
+void                    rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *data2, int32 time);
 bool                    rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message);
 percent_t               rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
 

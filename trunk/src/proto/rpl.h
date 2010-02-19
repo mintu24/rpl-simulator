@@ -19,7 +19,7 @@
 #define RPL_DEFAULT_DIO_INTERVAL_MIN            4 /* 2^4 = 16ms */
 #define RPL_DEFAULT_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
 
-#define RPL_DEFAULT_MAX_RANK_INC                8
+#define RPL_DEFAULT_MAX_RANK_INC                1
 #define RPL_DEFAULT_MIN_HOP_RANK_INC            1 /* smallest possible granularity */
 
 #define RPL_DEFAULT_NODE_STORING                TRUE
@@ -216,11 +216,13 @@ void                rpl_node_add_parent(node_t *node, rpl_neighbor_t *parent);
 bool                rpl_node_remove_parent(node_t *node, rpl_neighbor_t *parent);
 void                rpl_node_remove_all_parents(node_t *node);
 rpl_neighbor_t *    rpl_node_find_parent_by_node(node_t *node, node_t *parent_node);
+bool                rpl_node_neighbor_is_parent(node_t *node, rpl_neighbor_t *neighbor);
 
 void                rpl_node_add_sibling(node_t *node, rpl_neighbor_t *sibling);
 bool                rpl_node_remove_sibling(node_t *node, rpl_neighbor_t *sibling);
 void                rpl_node_remove_all_siblings(node_t *node);
 rpl_neighbor_t *    rpl_node_find_sibling_by_node(node_t *node, node_t *sibling_node);
+bool                rpl_node_neighbor_is_sibling(node_t *node, rpl_neighbor_t *neighbor);
 
 node_t *            rpl_node_get_next_hop(node_t *node, char *dst_address);
 

@@ -114,6 +114,7 @@ static void draw_legend1(GdkWindow *window, GdkGC *gc)
     cairo_fill(cr);
 
     node_t *node = node_create();
+    measure_node_init(node);
     phy_node_init(node, "A", 0, 0);
     mac_node_init(node, "mac address");
     ip_node_init(node, "ip address");
@@ -121,14 +122,16 @@ static void draw_legend1(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node);
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node->rpl_info->joined_dodag->dodag_id = NULL;
+    node->rpl_info->joined_dodag->parent_list = NULL;
+    node->rpl_info->joined_dodag->sibling_list = NULL;
+    node->rpl_info->joined_dodag->pref_parent = NULL;
     node->rpl_info->joined_dodag->seq_num = 0;
     node->rpl_info->joined_dodag->rank = 3;
 
     sim_field_draw_node(node, cr, pixel_width / 2, pixel_height / 2);
 
     node->alive = FALSE;
-
-    // todo call *_node_done()...
 
     node_destroy(node);
 
@@ -159,6 +162,7 @@ static void draw_legend2(GdkWindow *window, GdkGC *gc)
     cairo_fill(cr);
 
     node_t *node = node_create();
+    measure_node_init(node);
     phy_node_init(node, "A", 0, 0);
     mac_node_init(node, "mac address");
     ip_node_init(node, "ip address");
@@ -166,6 +170,10 @@ static void draw_legend2(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node);
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node->rpl_info->joined_dodag->dodag_id = NULL;
+    node->rpl_info->joined_dodag->parent_list = NULL;
+    node->rpl_info->joined_dodag->sibling_list = NULL;
+    node->rpl_info->joined_dodag->pref_parent = NULL;
     node->rpl_info->joined_dodag->rank = 3;
     node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
@@ -205,6 +213,7 @@ static void draw_legend3(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node = node_create();
+    measure_node_init(node);
     phy_node_init(node, "A", 0, 0);
     mac_node_init(node, "mac address");
     ip_node_init(node, "ip address");
@@ -212,6 +221,10 @@ static void draw_legend3(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node);
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node->rpl_info->joined_dodag->dodag_id = NULL;
+    node->rpl_info->joined_dodag->parent_list = NULL;
+    node->rpl_info->joined_dodag->sibling_list = NULL;
+    node->rpl_info->joined_dodag->pref_parent = NULL;
     node->rpl_info->joined_dodag->rank = 3;
     node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
@@ -264,6 +277,7 @@ static void draw_legend4(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node = node_create();
+    measure_node_init(node);
     phy_node_init(node, "A", 0, 0);
     mac_node_init(node, "mac address");
     ip_node_init(node, "ip address");
@@ -271,6 +285,10 @@ static void draw_legend4(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node);
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node->rpl_info->joined_dodag->dodag_id = NULL;
+    node->rpl_info->joined_dodag->parent_list = NULL;
+    node->rpl_info->joined_dodag->sibling_list = NULL;
+    node->rpl_info->joined_dodag->pref_parent = NULL;
     node->rpl_info->joined_dodag->rank = 3;
     node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
@@ -323,6 +341,7 @@ static void draw_legend5(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node = node_create();
+    measure_node_init(node);
     phy_node_init(node, "BR", 0, 0);
     mac_node_init(node, "mac address");
     ip_node_init(node, "ip address");
@@ -330,6 +349,10 @@ static void draw_legend5(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node);
     node->phy_info->tx_power = 0.5;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node->rpl_info->joined_dodag->dodag_id = NULL;
+    node->rpl_info->joined_dodag->parent_list = NULL;
+    node->rpl_info->joined_dodag->sibling_list = NULL;
+    node->rpl_info->joined_dodag->pref_parent = NULL;
     node->rpl_info->joined_dodag->rank = 1;
     node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
@@ -368,6 +391,7 @@ static void draw_legend6(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node = node_create();
+    measure_node_init(node);
     phy_node_init(node, "A", 0, 0);
     mac_node_init(node, "");
     ip_node_init(node, "");
@@ -375,6 +399,10 @@ static void draw_legend6(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node);
     node->phy_info->tx_power = 0;
     node->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node->rpl_info->joined_dodag->dodag_id = NULL;
+    node->rpl_info->joined_dodag->parent_list = NULL;
+    node->rpl_info->joined_dodag->sibling_list = NULL;
+    node->rpl_info->joined_dodag->pref_parent = NULL;
     node->rpl_info->joined_dodag->rank = 0;
     node->rpl_info->joined_dodag->seq_num = 0;
     node->alive = TRUE;
@@ -421,6 +449,7 @@ static void draw_legend7(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node1 = node_create();
+    measure_node_init(node1);
     phy_node_init(node1, "C", 0, 0);
     mac_node_init(node1, "");
     ip_node_init(node1, "");
@@ -428,11 +457,16 @@ static void draw_legend7(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node1);
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node1->rpl_info->joined_dodag->dodag_id = NULL;
+    node1->rpl_info->joined_dodag->parent_list = NULL;
+    node1->rpl_info->joined_dodag->sibling_list = NULL;
+    node1->rpl_info->joined_dodag->pref_parent = NULL;
     node1->rpl_info->joined_dodag->rank = 3;
     node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
+    measure_node_init(node2);
     phy_node_init(node2, "P", 0, 0);
     mac_node_init(node2, "");
     ip_node_init(node2, "");
@@ -440,6 +474,10 @@ static void draw_legend7(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node2);
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node2->rpl_info->joined_dodag->dodag_id = NULL;
+    node2->rpl_info->joined_dodag->parent_list = NULL;
+    node2->rpl_info->joined_dodag->sibling_list = NULL;
+    node2->rpl_info->joined_dodag->pref_parent = NULL;
     node2->rpl_info->joined_dodag->rank = 2;
     node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = TRUE;
@@ -485,6 +523,7 @@ static void draw_legend8(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node1 = node_create();
+    measure_node_init(node1);
     phy_node_init(node1, "C", 0, 0);
     mac_node_init(node1, "");
     ip_node_init(node1, "");
@@ -492,11 +531,16 @@ static void draw_legend8(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node1);
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node1->rpl_info->joined_dodag->dodag_id = NULL;
+    node1->rpl_info->joined_dodag->parent_list = NULL;
+    node1->rpl_info->joined_dodag->sibling_list = NULL;
+    node1->rpl_info->joined_dodag->pref_parent = NULL;
     node1->rpl_info->joined_dodag->rank = 3;
     node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
+    measure_node_init(node2);
     phy_node_init(node2, "P", 0, 0);
     mac_node_init(node2, "");
     ip_node_init(node2, "");
@@ -504,6 +548,10 @@ static void draw_legend8(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node2);
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node2->rpl_info->joined_dodag->dodag_id = NULL;
+    node2->rpl_info->joined_dodag->parent_list = NULL;
+    node2->rpl_info->joined_dodag->sibling_list = NULL;
+    node2->rpl_info->joined_dodag->pref_parent = NULL;
     node2->rpl_info->joined_dodag->rank = 2;
     node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = TRUE;
@@ -549,6 +597,7 @@ static void draw_legend9(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node1 = node_create();
+    measure_node_init(node1);
     phy_node_init(node1, "S", 0, 0);
     mac_node_init(node1, "");
     ip_node_init(node1, "");
@@ -556,11 +605,16 @@ static void draw_legend9(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node1);
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node1->rpl_info->joined_dodag->dodag_id = NULL;
+    node1->rpl_info->joined_dodag->parent_list = NULL;
+    node1->rpl_info->joined_dodag->sibling_list = NULL;
+    node1->rpl_info->joined_dodag->pref_parent = NULL;
     node1->rpl_info->joined_dodag->rank = 3;
     node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
+    measure_node_init(node2);
     phy_node_init(node2, "S", 0, 0);
     mac_node_init(node2, "");
     ip_node_init(node2, "");
@@ -568,6 +622,10 @@ static void draw_legend9(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node2);
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node2->rpl_info->joined_dodag->dodag_id = NULL;
+    node2->rpl_info->joined_dodag->parent_list = NULL;
+    node2->rpl_info->joined_dodag->sibling_list = NULL;
+    node2->rpl_info->joined_dodag->pref_parent = NULL;
     node2->rpl_info->joined_dodag->rank = 3;
     node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = TRUE;
@@ -613,6 +671,7 @@ static void draw_legend10(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node1 = node_create();
+    measure_node_init(node1);
     phy_node_init(node1, "C", 0, 0);
     mac_node_init(node1, "");
     ip_node_init(node1, "");
@@ -620,11 +679,16 @@ static void draw_legend10(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node1);
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node1->rpl_info->joined_dodag->dodag_id = NULL;
+    node1->rpl_info->joined_dodag->parent_list = NULL;
+    node1->rpl_info->joined_dodag->sibling_list = NULL;
+    node1->rpl_info->joined_dodag->pref_parent = NULL;
     node1->rpl_info->joined_dodag->rank = 3;
     node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
+    measure_node_init(node2);
     phy_node_init(node2, "P", 0, 0);
     mac_node_init(node2, "");
     ip_node_init(node2, "");
@@ -632,6 +696,10 @@ static void draw_legend10(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node2);
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node2->rpl_info->joined_dodag->dodag_id = NULL;
+    node2->rpl_info->joined_dodag->parent_list = NULL;
+    node2->rpl_info->joined_dodag->sibling_list = NULL;
+    node2->rpl_info->joined_dodag->pref_parent = NULL;
     node2->rpl_info->joined_dodag->rank = 2;
     node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = FALSE;
@@ -677,6 +745,7 @@ static void draw_legend11(GdkWindow *window, GdkGC *gc)
     uint32 pixel_y = pixel_height / 2;
 
     node_t *node1 = node_create();
+    measure_node_init(node1);
     phy_node_init(node1, "S", 0, 0);
     mac_node_init(node1, "");
     ip_node_init(node1, "");
@@ -684,11 +753,16 @@ static void draw_legend11(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node1);
     node1->phy_info->tx_power = 0.5;
     node1->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node1->rpl_info->joined_dodag->dodag_id = NULL;
+    node1->rpl_info->joined_dodag->parent_list = NULL;
+    node1->rpl_info->joined_dodag->sibling_list = NULL;
+    node1->rpl_info->joined_dodag->pref_parent = NULL;
     node1->rpl_info->joined_dodag->rank = 3;
     node1->rpl_info->joined_dodag->seq_num = 0;
     node1->alive = TRUE;
 
     node_t *node2 = node_create();
+    measure_node_init(node2);
     phy_node_init(node2, "S", 0, 0);
     mac_node_init(node2, "");
     ip_node_init(node2, "");
@@ -696,6 +770,10 @@ static void draw_legend11(GdkWindow *window, GdkGC *gc)
     rpl_node_init(node2);
     node2->phy_info->tx_power = 0.5;
     node2->rpl_info->joined_dodag = malloc(sizeof(rpl_dodag_t));
+    node2->rpl_info->joined_dodag->dodag_id = NULL;
+    node2->rpl_info->joined_dodag->parent_list = NULL;
+    node2->rpl_info->joined_dodag->sibling_list = NULL;
+    node2->rpl_info->joined_dodag->pref_parent = NULL;
     node2->rpl_info->joined_dodag->rank = 3;
     node2->rpl_info->joined_dodag->seq_num = 0;
     node2->alive = FALSE;
