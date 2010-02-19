@@ -166,10 +166,15 @@ bool rs_system_add_node(node_t *node)
 
 bool rs_system_remove_node(node_t *node)
 {
-    nodes_lock();
-
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
+
+    nodes_lock();
+    events_lock();
+    measures_lock();
+
+    /* remove all schedules that concern this node */
+    rs_system_cancel_event(node, -1, NULL, NULL, 0);
 
     int i, pos = -1;
     for (i = 0; i < rs_system->node_count; i++) {
@@ -181,6 +186,8 @@ bool rs_system_remove_node(node_t *node)
 
     if (pos == -1) {
         rs_error("node '%s' not found", rs_system->node_list[i]);
+        measures_unlock();
+        events_unlock();
         nodes_unlock();
 
         return FALSE;
@@ -200,27 +207,8 @@ bool rs_system_remove_node(node_t *node)
     for (i = 0; i < rs_system->node_count; i++) {
         node_t *other_node = rs_system->node_list[i];
 
-        /* nullify rpl parent refs */
-        rpl_neighbor_t *remote_node = rpl_node_find_parent_by_node(other_node, node);
-        if (remote_node != NULL) {
-            remote_node->node = NULL;
-        }
-
-        /* nullify rpl sibling refs */
-        remote_node = rpl_node_find_sibling_by_node(other_node, node);
-        if (remote_node != NULL) {
-            remote_node->node = NULL;
-        }
-
-        /* nullify rpl neighbor refs */
-        remote_node = rpl_node_find_neighbor_by_node(other_node, node);
-        if (remote_node != NULL) {
-            remote_node->node = NULL;
-        }
-
         /* nullify ip route refs */
         // todo cleanup/organize this code
-        events_lock();
 
         uint32 j;
         for (j = 0; j < other_node->ip_info->route_count; j++) {
@@ -244,21 +232,16 @@ bool rs_system_remove_node(node_t *node)
             free(route);
         }
 
-        /* remove ip neighbors */
+        /* nullify ip neighbors */
         ip_neighbor_t *ip_neighbor = ip_node_find_neighbor_by_node(other_node, node);
         if (ip_neighbor != NULL) {
-            ip_node_rem_neighbor(other_node, ip_neighbor);
+            rs_system_cancel_event(other_node, ip_event_id_after_neighbor_cache_timeout, ip_neighbor, NULL, 0);
             event_execute(rpl_event_id_after_neighbor_detach, other_node, node, NULL);
+            ip_node_rem_neighbor(other_node, ip_neighbor);
         }
-
-        events_unlock();
     }
 
-    nodes_unlock();
-
     /* remove measurement entries that refer to this node */
-    measures_lock();
-
     for (i = 0; i < measure_connect_entry_get_count(); i++) {
         measure_connect_t *measure = measure_connect_entry_get(i);
 
@@ -283,9 +266,11 @@ bool rs_system_remove_node(node_t *node)
         }
     }
 
-    measures_unlock();
-
     measurement_entries_to_gui();
+
+    measures_unlock();
+    events_unlock();
+    nodes_unlock();
 
     return TRUE;
 }
@@ -377,8 +362,9 @@ node_t *rs_system_find_node_by_ip_address(char *address)
 void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time)
 {
     rs_assert(rs_system != NULL);
+    rs_assert(node != NULL);
 
-    if (!rs_system->started) { /* don't schedule anything if not started */
+    if (!rs_system->started || !node->alive) { /* don't schedule anything if not started or node dead*/
         return;
     }
 
@@ -409,9 +395,11 @@ void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *
     schedules_unlock();
 }
 
-void rs_system_cancel_event(node_t *node, uint16 event_id, void *data1, void *data2, int32 time)
+void rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *data2, int32 time)
 {
     rs_assert(rs_system != NULL);
+
+    schedules_lock();
 
     event_schedule_t *schedule = rs_system->schedules;
     event_schedule_t *prev_schedule = NULL;
@@ -421,11 +409,13 @@ void rs_system_cancel_event(node_t *node, uint16 event_id, void *data1, void *da
     }
 
     while (schedule != NULL) {
-        if ((schedule->event_id == event_id) &&
+        if ((event_id ==-1 || schedule->event_id == event_id) &&
                 (node == NULL || node == schedule->node) &&
                 (data1 == NULL || data1 == schedule->data1) &&
                 (data2 == NULL || data2 == schedule->data2) &&
                 (time == 0 || time == schedule->time)) {
+
+            event_schedule_t *schedule_to_destroy = schedule;
 
             if (prev_schedule == NULL) {
                 rs_system->schedules = schedule->next;
@@ -434,13 +424,17 @@ void rs_system_cancel_event(node_t *node, uint16 event_id, void *data1, void *da
                 prev_schedule->next = schedule->next;
             }
 
-            schedule_destroy(schedule);
+            schedule = schedule->next;
+            schedule_destroy(schedule_to_destroy);
             rs_system->schedule_count--;
         }
-
-        prev_schedule = schedule;
-        schedule = schedule->next;
+        else {
+            prev_schedule = schedule;
+            schedule = schedule->next;
+        }
     }
+
+    schedules_unlock();
 }
 
 bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
@@ -724,8 +718,8 @@ static void *system_core(void *data)
                     schedules_lock();
                 }
 
-                /* if system was paused or stopped while sleeping... */
-                if (rs_system->paused || !rs_system->started) {
+                /* if system was paused or stopped or all the schedules removed while sleeping... */
+                if (rs_system->paused || !rs_system->started || rs_system->schedules == NULL) {
                     schedules_unlock();
                     continue;
                 }
@@ -745,8 +739,14 @@ static void *system_core(void *data)
                 bool node_existent_and_alive = rs_system_has_node(schedule->node) && schedule->node->alive;
                 nodes_unlock();
 
-                if (node_existent_and_alive)
+                if (node_existent_and_alive) {
                     event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
+                }
+                else {
+                    // todo check to see why do some orphan schedules remain in the system
+                    event_t event = event_find_by_id(schedule->event_id);
+                    rs_warn("a '%s.%s' event for a dead/inexistent node was left out in the system", event.layer, event.name);
+                }
 
                 schedule_destroy(schedule);
                 rs_system->schedule_count--;

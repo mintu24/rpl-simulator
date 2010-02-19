@@ -105,6 +105,7 @@ void icmp_node_done(node_t *node)
 
     if (node->icmp_info != NULL) {
         free(node->icmp_info);
+        node->icmp_info = NULL;
     }
 }
 

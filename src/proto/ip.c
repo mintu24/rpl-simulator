@@ -142,6 +142,7 @@ void ip_node_done(node_t *node)
         }
 
         free(node->ip_info);
+        node->ip_info = NULL;
     }
 }
 
@@ -387,8 +388,6 @@ bool ip_event_before_node_kill(node_t *node)
 {
     while (node->ip_info->neighbor_count > 0) {
         ip_neighbor_t *neighbor = node->ip_info->neighbor_list[node->ip_info->neighbor_count - 1];
-
-        event_execute(rpl_event_id_after_neighbor_detach, node, neighbor->node, NULL);
         ip_node_rem_neighbor(node, neighbor);
     }
 
@@ -473,7 +472,9 @@ bool ip_event_after_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor
         ip_node_rem_neighbor(node, neighbor);
     }
     else {
-        rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, IP_NEIGHBOR_CACHE_TIMEOUT - diff);
+        if (neighbor->node != NULL) {
+            rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, IP_NEIGHBOR_CACHE_TIMEOUT - diff);
+        }
     }
 
     return TRUE;
@@ -514,6 +515,12 @@ static void event_arg_str_one_neighbor_func(void *data1, void *data2, char *str1
 {
     ip_neighbor_t *neighbor = data1;
 
-    snprintf(str1, len, "%s", (neighbor != NULL ? neighbor->node->phy_info->name : "broadcast"));
+    if (neighbor == NULL) {
+        snprintf(str1, len, "%s", "broadcast");
+    }
+    else {
+        snprintf(str1, len, "%s", (neighbor->node != NULL ? neighbor->node->phy_info->name : "<<removed>>"));
+    }
+
     str2[0] = '\0';
 }

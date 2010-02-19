@@ -19,9 +19,6 @@ static uint16                       measure_stat_count = 0;
 
     /**** local function prototypes ****/
 
-static measure_node_info_t *        measure_node_info_create();
-static void                         measure_node_info_destroy(measure_node_info_t *measure);
-
 static measure_connect_output_t     measure_connect_compute_output(measure_connect_t *measure);
 static measure_sp_comp_output_t     measure_sp_comp_compute_output(measure_sp_comp_t *measure);
 static measure_converg_output_t     measure_converg_compute_output();
@@ -49,7 +46,18 @@ void measure_node_init(node_t *node)
 {
     rs_assert(node != NULL);
 
-    node->measure_info = measure_node_info_create();
+    /* statistics */
+    node->measure_info = malloc(sizeof(measure_node_info_t));
+
+    node->measure_info->forward_error_count = 0;
+    node->measure_info->forward_failure_count = 0;
+    node->measure_info->rpl_event_count = 0;
+    node->measure_info->rpl_r_dis_message_count = 0;
+    node->measure_info->rpl_r_dio_message_count = 0;
+    node->measure_info->rpl_r_dao_message_count = 0;
+    node->measure_info->rpl_s_dis_message_count = 0;
+    node->measure_info->rpl_s_dio_message_count = 0;
+    node->measure_info->rpl_s_dao_message_count = 0;
 }
 
 void measure_node_done(node_t *node)
@@ -57,7 +65,8 @@ void measure_node_done(node_t *node)
     rs_assert(node != NULL);
 
     if (node->measure_info != NULL) {
-        measure_node_info_destroy(node->measure_info);
+        free(node->measure_info);
+        node->measure_info = NULL;
     }
 }
 
@@ -471,31 +480,6 @@ void measure_stat_update_output(node_t *node)
 
 
     /**** local functions ****/
-
-static measure_node_info_t *measure_node_info_create()
-{
-    measure_node_info_t *measure_node_info = malloc(sizeof(measure_node_info_t));
-
-    /* statistics */
-    measure_node_info->forward_error_count = 0;
-    measure_node_info->forward_failure_count = 0;
-    measure_node_info->rpl_event_count = 0;
-    measure_node_info->rpl_r_dis_message_count = 0;
-    measure_node_info->rpl_r_dio_message_count = 0;
-    measure_node_info->rpl_r_dao_message_count = 0;
-    measure_node_info->rpl_s_dis_message_count = 0;
-    measure_node_info->rpl_s_dio_message_count = 0;
-    measure_node_info->rpl_s_dao_message_count = 0;
-
-    return measure_node_info;
-}
-
-static void measure_node_info_destroy(measure_node_info_t *measure)
-{
-    rs_assert(measure != NULL);
-
-    free(measure);
-}
 
 static measure_connect_output_t measure_connect_compute_output(measure_connect_t *measure)
 {

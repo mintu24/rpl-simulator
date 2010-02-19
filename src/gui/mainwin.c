@@ -832,6 +832,9 @@ static void cb_add_menu_item_activate(GtkWidget *widget, gpointer *data)
     main_win_set_selected_node(node);
     sim_field_redraw();
 
+    main_win_system_to_gui();
+    main_win_update_nodes_status();
+
     update_sensitivity();
 
     signal_leave();

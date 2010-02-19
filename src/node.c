@@ -3,6 +3,7 @@
 
 #include "node.h"
 #include "system.h"
+#include "measure.h"
 #include "gui/mainwin.h"
 
 
@@ -35,6 +36,13 @@ bool node_destroy(node_t *node)
             return FALSE;
         }
     }
+
+    rpl_node_done(node);
+    icmp_node_done(node);
+    ip_node_done(node);
+    mac_node_done(node);
+    phy_node_done(node);
+    measure_node_done(node);
 
     free(node);
 

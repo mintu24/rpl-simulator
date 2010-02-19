@@ -97,6 +97,7 @@ void phy_node_done(node_t *node)
             free(node->phy_info->name);
 
         free(node->phy_info);
+        node->phy_info = NULL;
     }
 }
 

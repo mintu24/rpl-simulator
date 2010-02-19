@@ -94,6 +94,8 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
     char str1[256]; str1[0] = '\0';
     char str2[256]; str2[0] = '\0';
 
+    char *node_name = node->phy_info != NULL ? node->phy_info->name : "<<removed>>";
+
     char indent[256]; indent[0] = '\0';
     uint16 i;
     for (i = 0; i < level; i++) {
@@ -106,14 +108,14 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
 
     if (strlen(str1) > 0) {
         if (strlen(str2) > 0) {
-            snprintf(text, 256, "%s.%s.%s(%s, %s)", node->phy_info->name, event->layer, event->name, str1, str2);
+            snprintf(text, 256, "%s.%s.%s(%s, %s)", node_name, event->layer, event->name, str1, str2);
         }
         else {
-            snprintf(text, 256, "%s.%s.%s(%s)", node->phy_info->name, event->layer, event->name, str1);
+            snprintf(text, 256, "%s.%s.%s(%s)", node_name, event->layer, event->name, str1);
         }
     }
     else {
-        snprintf(text, 256, "%s.%s.%s()", node->phy_info->name, event->layer, event->name);
+        snprintf(text, 256, "%s.%s.%s()", node_name, event->layer, event->name);
     }
 
     fprintf(stderr, "%s : %s%s\n", str_time, indent, text);
