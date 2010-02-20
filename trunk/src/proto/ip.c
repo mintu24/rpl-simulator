@@ -501,8 +501,7 @@ bool ip_event_after_pdu_received(node_t *node, node_t *incoming_node, ip_pdu_t *
         switch (pdu->next_header) {
 
             case IP_NEXT_HEADER_ICMP: {
-                icmp_pdu_t *icmp_pdu = pdu->sdu;
-                if (!icmp_receive(node, incoming_node, icmp_pdu)) {
+                if (!icmp_receive(node, incoming_node, pdu)) { /* yes, we directly pass the IP layer pdu to ICMP */
                     all_ok = FALSE;
                 }
 

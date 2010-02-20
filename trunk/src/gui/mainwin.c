@@ -76,8 +76,8 @@ static GtkListStore *           params_nodes_route_store = NULL;
 static GtkWidget *              params_nodes_enable_ping_measurements_check = NULL;
 static GtkWidget *              params_nodes_ping_interval_spin = NULL;
 static GtkWidget *              params_nodes_ping_timeout_spin = NULL;
-static GtkWidget *              params_nodes_ping_node_combo = NULL;
-static GtkListStore *           params_nodes_ping_node_store = NULL;
+static GtkWidget *              params_nodes_ping_address_combo = NULL;
+static GtkListStore *           params_nodes_ping_address_store = NULL;
 
 static GtkWidget *              params_nodes_storing_check = NULL;
 static GtkWidget *              params_nodes_grounded_check = NULL;
@@ -140,7 +140,6 @@ void                cb_measures_button_clicked(GtkWidget *button, gpointer data)
 void                cb_gui_system_updated(GtkSpinButton *spin, gpointer data);
 void                cb_gui_node_updated(GtkWidget *widget, gpointer data);
 void                cb_gui_display_updated(GtkWidget *widget, gpointer data);
-//void                cb_params_nodes_route_tree_view_cursor_changed(GtkTreeView *tree_view, gpointer data); todo remove this
 void                cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data);
 void                cb_params_nodes_route_rem_button_clicked(GtkButton *button, gpointer data);
 void                cb_params_nodes_route_dst_combo_changed(GtkComboBoxEntry *combo_box, gpointer data);
@@ -303,9 +302,7 @@ void main_win_system_to_gui()
 
     gtk_list_store_clear(params_nodes_route_next_hop_store);
     gtk_list_store_clear(params_nodes_route_dst_store);
-    gtk_list_store_clear(params_nodes_ping_node_store);
-
-    gtk_list_store_insert_with_values(params_nodes_ping_node_store, NULL, -1, 0, "Any", -1);
+    gtk_list_store_clear(params_nodes_ping_address_store);
 
     nodes_lock();
 
@@ -315,7 +312,7 @@ void main_win_system_to_gui()
 
         gtk_list_store_insert_with_values(params_nodes_route_next_hop_store, NULL, -1, 0, node->phy_info->name, -1);
         gtk_list_store_insert_with_values(params_nodes_route_dst_store, NULL, -1, 0, node->ip_info->address, -1);
-        gtk_list_store_insert_with_values(params_nodes_ping_node_store, NULL, -1, 0, node->phy_info->name, -1);
+        gtk_list_store_insert_with_values(params_nodes_ping_address_store, NULL, -1, 0, node->ip_info->address, -1);
     }
 
     nodes_unlock();
@@ -324,6 +321,8 @@ void main_win_system_to_gui()
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_next_hop_combo), 0);
     if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_route_dst_store), NULL) > 0)
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_dst_combo), 0);
+    if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_ping_address_store), NULL) > 0)
+        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_address_combo), 0);
 
     measurement_system_to_gui();
 
@@ -388,20 +387,41 @@ void main_win_node_to_gui(node_t *node, uint32 what)
     }
 
     if (what & MAIN_WIN_NODE_TO_GUI_ICMP) {
-    /*
-        }
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check), node->icmp_info->ping_measures_enabled);
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_interval_spin), node->icmp_info->ping_interval / 1000);
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin), node->icmp_info->ping_timeout / 1000);
+        if (node->icmp_info->ping_ip_address != NULL) {
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check), TRUE);
 
-        if (node->icmp_info->ping_node == NULL) {
-            gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_node_combo), 0);
+            GtkTreeIter iter;
+            bool more = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(params_nodes_ping_address_store), &iter);
+            GValue value = {0, };
+            int16 pos = -1;
+            while (more) {
+                pos++;
+
+                gtk_tree_model_get_value(GTK_TREE_MODEL(params_nodes_ping_address_store), &iter, 0, &value);
+
+                const char *str = g_value_get_string(&value);
+                if (strcmp(str, node->icmp_info->ping_ip_address) == 0) {
+                    g_value_unset(&value);
+                    break;
+                }
+                g_value_unset(&value);
+                more = gtk_tree_model_iter_next(GTK_TREE_MODEL(params_nodes_ping_address_store), &iter);
+            }
+
+            if (pos == -1) {
+                gtk_list_store_insert_with_values(params_nodes_ping_address_store, NULL, -1, 0, node->icmp_info->ping_ip_address, -1);
+                pos = gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_ping_address_store), NULL) - 1;
+            }
+
+            gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_address_combo), pos);
         }
         else {
-            int pos = rs_system_get_node_pos(node->icmp_info->ping_node);
-            gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_node_combo), pos + 1);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check), FALSE);
+            gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_address_combo), -1);
         }
-     */
+
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_interval_spin), node->icmp_info->ping_interval);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin), node->icmp_info->ping_timeout);
     }
 
     if (what & MAIN_WIN_NODE_TO_GUI_RPL) {
@@ -643,47 +663,6 @@ void cb_gui_display_updated(GtkWidget *widget, gpointer data)
 
     signal_leave();
 }
-
-/*
-void cb_params_nodes_route_tree_view_cursor_changed(GtkTreeView *tree_view, gpointer data)
-{
-    rs_debug(DEBUG_GUI, NULL);
-
-    int32 index = route_tree_viee_get_selected_index();
-
-    if (index < 0 || selected_node == NULL) {
-        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_dst_combo), 0);
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_route_prefix_len_spin), 0);
-        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_next_hop_combo), 0);
-
-        return;
-    }
-    else {
-        rs_assert(index < selected_node->ip_info->route_count);
-        ip_route_t *route = selected_node->ip_info->route_list[index];
-
-        int32 pos = -1;
-        node_t *node = rs_system_find_node_by_ip_address(route->dst);
-        if (node != NULL)
-            pos = rs_system_get_node_pos(node);
-
-        if (pos == -1) {
-            gtk_list_store_insert_with_values(params_nodes_route_dst_store, NULL, -1, 0, route->dst, -1);
-            pos = gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_route_dst_store), NULL) - 1;
-        }
-
-        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_dst_combo), pos);
-
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_route_prefix_len_spin), route->prefix_len);
-        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_type_combo), route->type);
-
-        pos = -1;
-        if (route->next_hop != NULL)
-            pos = rs_system_get_node_pos(route->next_hop);
-        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_next_hop_combo), pos);
-    }
-}
-*/
 
 void cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data)
 {
@@ -1117,8 +1096,8 @@ GtkWidget *create_params_widget()
     params_nodes_enable_ping_measurements_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_enable_ping_measurements_check");
     params_nodes_ping_interval_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_interval_spin");
     params_nodes_ping_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_timeout_spin");
-    params_nodes_ping_node_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_node_combo");
-    params_nodes_ping_node_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_node_store");
+    params_nodes_ping_address_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_address_combo");
+    params_nodes_ping_address_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_ping_address_store");
 
     params_nodes_storing_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_storing_check");
     params_nodes_grounded_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_grounded_check");
@@ -1143,10 +1122,6 @@ GtkWidget *create_params_widget()
     GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_route_next_hop_combo), renderer, FALSE);
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(params_nodes_route_next_hop_combo), renderer, "text", 0, NULL);
-
-    renderer = gtk_cell_renderer_text_new();
-    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_ping_node_combo), renderer, FALSE);
-    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(params_nodes_ping_node_combo), renderer, "text", 0, NULL);
 
     renderer = gtk_cell_renderer_text_new();
     gtk_tree_view_insert_column_with_attributes(
@@ -1472,7 +1447,7 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_enable_ping_measurements_check, node_selected);
     gtk_widget_set_sensitive(params_nodes_ping_interval_spin, node_selected && ping_enabled);
     gtk_widget_set_sensitive(params_nodes_ping_timeout_spin, node_selected && ping_enabled);
-    gtk_widget_set_sensitive(params_nodes_ping_node_combo, node_selected && ping_enabled);
+    gtk_widget_set_sensitive(params_nodes_ping_address_combo, node_selected && ping_enabled);
 
     gtk_widget_set_sensitive(params_nodes_storing_check, node_selected);
     gtk_widget_set_sensitive(params_nodes_grounded_check, node_selected);
@@ -1597,17 +1572,20 @@ static void gui_to_node(node_t *node)
     ip_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_ip_address_entry)));
 
     /* icmp */
-/*
-    node->icmp_info->ping_measures_enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check));
-    node->icmp_info->ping_interval = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_interval_spin)) * 1000;
-    node->icmp_info->ping_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin)) * 1000;
 
-    int16 pos = gtk_combo_box_get_active(GTK_COMBO_BOX(params_nodes_ping_node_combo));
-    if (pos < 1 || pos > rs_system->node_count)
-        node->icmp_info->ping_node = NULL;
-    else
-        node->icmp_info->ping_node = rs_system->node_list[pos - 1];
-*/
+    bool should_start_ping = FALSE;
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check))) {
+        node->icmp_info->ping_ip_address = gtk_combo_box_get_active_text(GTK_COMBO_BOX(params_nodes_ping_address_combo));
+        should_start_ping = TRUE;
+    }
+    else {
+        if (node->icmp_info->ping_ip_address != NULL) {
+            free(node->icmp_info->ping_ip_address);
+            node->icmp_info->ping_ip_address = NULL;
+        }
+    }
+    node->icmp_info->ping_interval = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_interval_spin));
+    node->icmp_info->ping_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin));
 
     /* rpl */
     rpl_dodag_t *dodag = node->rpl_info->joined_dodag;
@@ -1639,9 +1617,11 @@ static void gui_to_node(node_t *node)
     else {
     }
 
-    //rpl_node_force_dodag_it_eval(node);
-
     events_unlock();
+
+    if (should_start_ping) {
+        rs_system_schedule_event(node, icmp_event_id_after_ping_timer_timeout, NULL, NULL, node->icmp_info->ping_interval);
+    }
 }
 
 static void gui_to_display()

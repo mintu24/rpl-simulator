@@ -50,16 +50,8 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
         rs_debug(DEBUG_EVENT, "executing event '%s.%s' @%d ms", event->layer, event->name, rs_system->now);
     }
 
-    bool write_log = FALSE;
 
-    write_log = write_log || ((strcmp(event->layer, "sys") == 0) && (DEBUG & DEBUG_SYSTEM));
-    write_log = write_log || ((strcmp(event->layer, "phy") == 0) && (DEBUG & DEBUG_PHY));
-    write_log = write_log || ((strcmp(event->layer, "mac") == 0) && (DEBUG & DEBUG_MAC));
-    write_log = write_log || ((strcmp(event->layer, "ip") == 0) && (DEBUG & DEBUG_IP));
-    write_log = write_log || ((strcmp(event->layer, "icmp") == 0) && (DEBUG & DEBUG_ICMP));
-    write_log = write_log || ((strcmp(event->layer, "rpl") == 0) && (DEBUG & DEBUG_RPL));
-
-    if (write_log && event->loggable) {
+    if (event->loggable) {
         event_log(event_id, node, data1, data2);
         level++;
     }
@@ -68,7 +60,7 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
         all_ok = FALSE;
     }
 
-    if (write_log && event->loggable) {
+    if (event->loggable) {
         level--;
     }
 

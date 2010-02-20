@@ -1,3 +1,4 @@
+// todo add DEBUG(...) everywhere
 
 #include <math.h>
 
