@@ -120,7 +120,12 @@ bool phy_send(node_t *node, node_t *dst_node, void *sdu)
     phy_pdu_t *phy_pdu = phy_pdu_create();
     phy_pdu_set_sdu(phy_pdu, sdu);
 
-    return event_execute(phy_event_id_after_pdu_sent, node, dst_node, phy_pdu);
+    if (!event_execute(phy_event_id_after_pdu_sent, node, dst_node, phy_pdu)) {
+        phy_pdu_destroy(phy_pdu);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 bool phy_receive(node_t *node, node_t *src_node, phy_pdu_t *pdu)
@@ -148,12 +153,7 @@ bool phy_event_before_node_kill(node_t *node)
 
 bool phy_event_after_pdu_sent(node_t *node, node_t *dst_node, phy_pdu_t *pdu)
 {
-    if (!rs_system_send(node, dst_node, pdu)) {
-        rs_error("node '%s': failed to send SYS message", node->phy_info->name);
-        return FALSE;
-    }
-
-    return TRUE;
+    return rs_system_send(node, dst_node, pdu);
 }
 
 bool phy_event_after_pdu_received(node_t *node, node_t *src_node, phy_pdu_t *pdu)
@@ -163,7 +163,6 @@ bool phy_event_after_pdu_received(node_t *node, node_t *src_node, phy_pdu_t *pdu
     bool all_ok = TRUE;
 
     if (!mac_receive(node, src_node, mac_pdu)) {
-        rs_error("node '%s': failed to receive MAC pdu from node '%s'", node->phy_info->name, src_node->phy_info->name);
         all_ok = FALSE;
     }
 

@@ -4,6 +4,7 @@
 
 #include "../base.h"
 #include "../node.h"
+#include "ip.h"
 
 #define ICMP_TYPE_RPL                           0x9B
 
@@ -45,6 +46,14 @@
 #define rpl_node_is_poisoning(node)             ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->rank == RPL_RANK_INFINITY)
 
 
+    /* used to coordinate the sequence numbers when multiple roots share the same DODAG id */
+typedef struct seq_num_mapping_t {
+
+    uint8               seq_num;
+    char *              dodag_id;
+
+} seq_num_mapping_t;
+
 
     /* data structure that holds remote RPL node information, for avoiding a node_t * reference */
 typedef struct rpl_neighbor_t {
@@ -71,8 +80,6 @@ typedef struct rpl_root_info_t {
 
     uint8               max_rank_inc;
     uint8               min_hop_rank_inc;
-
-    uint8               seq_num;
 
 } rpl_root_info_t;
 
@@ -207,6 +214,10 @@ void                rpl_dao_pdu_destroy(rpl_dao_pdu_t *pdu);
 rpl_dao_pdu_t *     rpl_dao_pdu_duplicate(rpl_dao_pdu_t *pdu);
 void                rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address);
 
+bool                rpl_seq_num_exists(char *dodag_id);
+uint8               rpl_seq_num_get(char *dodag_id);
+void                rpl_seq_num_set(char *dodag_id, uint8 seq_num);
+
 bool                rpl_node_init(node_t *node);
 void                rpl_node_done(node_t *node);
 
@@ -231,13 +242,15 @@ void                rpl_node_start_as_root(node_t *node);
 void                rpl_node_isolate(node_t *node);
 void                rpl_node_force_dodag_it_eval(node_t *node);
 
-node_t *            rpl_node_get_next_hop(node_t *node, char *dst_address);
+node_t **           rpl_node_get_next_hop_list(node_t *node, uint16 *node_count);
+bool                rpl_node_process_incoming_flow_label(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu);
+node_t *            rpl_node_process_outgoing_flow_label(node_t *node, node_t *incoming_node, node_t *proposed_dst_node, ip_pdu_t *ip_pdu);
 
-bool                rpl_send_dis(node_t *node, node_t *dst_node);
+bool                rpl_send_dis(node_t *node, char *dst_ip_address);
 bool                rpl_receive_dis(node_t *node, node_t *src_node);
-bool                rpl_send_dio(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+bool                rpl_send_dio(node_t *node, char *dst_ip_address, rpl_dio_pdu_t *pdu);
 bool                rpl_receive_dio(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu);
-bool                rpl_send_dao(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+bool                rpl_send_dao(node_t *node, char *dst_ip_address, rpl_dao_pdu_t *pdu);
 bool                rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu);
 
 
@@ -245,11 +258,11 @@ bool                rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_
 bool                rpl_event_after_node_wake(node_t *node);
 bool                rpl_event_before_node_kill(node_t *node);
 
-bool                rpl_event_after_dis_pdu_sent(node_t *node, node_t *dst_node);
+bool                rpl_event_after_dis_pdu_sent(node_t *node, char *dst_ip_address);
 bool                rpl_event_after_dis_pdu_received(node_t *node, node_t *src_node);
-bool                rpl_event_after_dio_pdu_sent(node_t *node, node_t *dst_node, rpl_dio_pdu_t *pdu);
+bool                rpl_event_after_dio_pdu_sent(node_t *node, char *dst_ip_address, rpl_dio_pdu_t *pdu);
 bool                rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu);
-bool                rpl_event_after_dao_pdu_sent(node_t *node, node_t *dst_node, rpl_dao_pdu_t *pdu);
+bool                rpl_event_after_dao_pdu_sent(node_t *node, char *dst_ip_address, rpl_dao_pdu_t *pdu);
 bool                rpl_event_after_dao_pdu_received(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu);
 
 bool                rpl_event_after_neighbor_attach(node_t *node, node_t *neighbor_node);
@@ -260,7 +273,7 @@ bool                rpl_event_after_forward_error(node_t *node);
 
 bool                rpl_event_after_trickle_timer_t_timeout(node_t *node);
 bool                rpl_event_after_trickle_timer_i_timeout(node_t *node);
-bool                rpl_event_after_seq_num_timer_timeout(node_t *node);
+bool                rpl_event_after_seq_num_timer_timeout(node_t *dummy_node);
 
 
 #endif /* RPL_H_ */

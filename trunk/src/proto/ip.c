@@ -54,6 +54,13 @@ ip_pdu_t *ip_pdu_create(char *dst_address, char *src_address)
     pdu->dst_address = strdup(dst_address);
     pdu->src_address = strdup(src_address);
 
+    pdu->flow_label = malloc(sizeof(ip_flow_label_t));
+    pdu->flow_label->forward_error = FALSE;
+    pdu->flow_label->from_sibling = FALSE;
+    pdu->flow_label->going_down = FALSE;
+    pdu->flow_label->rank_error = FALSE;
+    pdu->flow_label->sender_rank = 0;
+
     pdu->next_header = -1;
     pdu->sdu = NULL;
 
@@ -68,6 +75,8 @@ void ip_pdu_destroy(ip_pdu_t *pdu)
         free(pdu->dst_address);
     if (pdu->src_address != NULL)
         free(pdu->src_address);
+    if (pdu->flow_label != NULL)
+        free(pdu->flow_label);
 
     free(pdu);
 }
@@ -80,6 +89,11 @@ ip_pdu_t *ip_pdu_duplicate(ip_pdu_t *pdu)
 
     new_pdu->dst_address = strdup(pdu->dst_address);
     new_pdu->src_address = strdup(pdu->src_address);
+
+    if (pdu->flow_label != NULL) {
+        new_pdu->flow_label = malloc(sizeof(ip_flow_label_t));
+        *new_pdu->flow_label = *pdu->flow_label;
+    }
 
     new_pdu->next_header = pdu->next_header;
 
@@ -157,67 +171,74 @@ void ip_node_set_address(node_t *node, const char *address)
     node->ip_info->address = strdup(address);
 }
 
-void ip_node_add_route(node_t *node, uint8 type, char *dst, uint8 prefix_len, node_t *next_hop)
+void ip_node_add_route(node_t *node, char *dst, uint8 prefix_len, node_t *next_hop, uint8 type, void *further_info)
 {
     rs_assert(node != NULL);
+    rs_assert(dst != NULL);
+    rs_assert(next_hop != NULL);
     rs_assert(strlen(dst) * 4 >= prefix_len);
 
     ip_route_t *route = malloc(sizeof(ip_route_t));
 
-    route->type = type;
     route->dst = strdup(dst);
     route->prefix_len = prefix_len;
     route->next_hop = next_hop;
     route->dst_bit_expanded = route_expand_to_bits(dst, prefix_len);
+    route->type = type;
+    route->further_info = further_info;
 
     node->ip_info->route_list = realloc(node->ip_info->route_list, (node->ip_info->route_count + 1) * sizeof(ip_route_t *));
     node->ip_info->route_list[node->ip_info->route_count++] = route;
 }
 
-bool ip_node_rem_route(node_t *node, char *dst, uint8 prefix_len)
+void ip_node_rem_routes(node_t *node, char *dst, int8 prefix_len, node_t *next_hop, int8 type)
 {
     rs_assert(node != NULL);
-    rs_assert(dst != NULL);
 
-    int32 pos = -1, i;
+    uint16 i;
     for (i = 0; i < node->ip_info->route_count; i++) {
         ip_route_t *route = node->ip_info->route_list[i];
 
-        if ((strcmp(route->dst, dst) == 0) && (route->prefix_len == prefix_len)) {
-            pos = i;
-            break;
+        if (dst != NULL && (strcmp(route->dst, dst) != 0)) {
+            continue;
         }
+
+        if (prefix_len >= 0 && (route->prefix_len != prefix_len)) {
+            continue;
+        }
+
+        if (next_hop != NULL && (route->next_hop != next_hop)) {
+            continue;
+        }
+
+        if (type >= 0 && (route->type != type)) {
+            continue;
+        }
+
+        free(node->ip_info->route_list[i]->dst);
+        free(node->ip_info->route_list[i]);
+
+        uint16 j;
+        for (j = i; j < node->ip_info->route_count - 1; j++) {
+            node->ip_info->route_list[j] = node->ip_info->route_list[j + 1];
+        }
+
+        node->ip_info->route_count--;
     }
 
-    if (pos == -1) {
-        rs_error("node '%s' does not have a route for '%s/%d'", node->phy_info->name, dst, prefix_len);
-
-        return FALSE;
-    }
-
-    free(node->ip_info->route_list[pos]->dst);
-    free(node->ip_info->route_list[pos]);
-
-    for (i = pos; i < node->ip_info->route_count - 1; i++) {
-        node->ip_info->route_list[i] = node->ip_info->route_list[i + 1];
-    }
-
-    node->ip_info->route_count--;
     node->ip_info->route_list = realloc(node->ip_info->route_list, node->ip_info->route_count * sizeof(ip_route_t *));
     if (node->ip_info->route_count == 0) {
         node->ip_info->route_list = NULL;
     }
-
-    return TRUE;
 }
 
-node_t *ip_node_get_next_hop(node_t *node, char *dst_address)
+ip_route_t *ip_node_get_next_hop_route(node_t *node, char *dst_address)
 {
     rs_assert(node != NULL);
     rs_assert(dst_address != NULL);
 
-    if (strcmp(node->ip_info->address, dst_address) == 0) { /* sending to this node itself? */
-        return node;
+    if (strcmp(node->ip_info->address, dst_address) == 0) { /* sending to the node itself? */
+        return NULL;
     }
 
     uint16 i, j;
@@ -231,17 +252,17 @@ node_t *ip_node_get_next_hop(node_t *node, char *dst_address)
     for (i = 0; i < node->ip_info->route_count; i++) {
         ip_route_t *route = node->ip_info->route_list[i];
 
-        if (route->type > best_type) {
+        if (route->type > best_type) { /* prefer the smallest type */
             continue;
         }
         else if (route->type == best_type) {
-            if (route->prefix_len <= best_prefix_len) {
+            if (route->prefix_len <= best_prefix_len) { /* prefer the longest prefix */
                 continue;
             }
         }
 
         if (dst_len < route->prefix_len) {
-            rs_warn("invalid IP address '%s' for route '%s/%d'", dst_address, route->dst, route->prefix_len);
+            rs_warn("node '%s': invalid IP address '%s' for route '%s/%d'", node->phy_info->name, dst_address, route->dst, route->prefix_len);
             continue;
         }
 
@@ -260,13 +281,7 @@ node_t *ip_node_get_next_hop(node_t *node, char *dst_address)
         }
     }
 
-    if (best_route == NULL) {
-        /* if IP didn't suggest any specific route, we proceed as RPL says */
-        return rpl_node_get_next_hop(node, dst_address);
-    }
-    else {
-        return best_route->next_hop;
-    }
+    return best_route;
 }
 
 ip_neighbor_t *ip_node_add_neighbor(node_t *node, node_t *neighbor_node)
@@ -283,9 +298,8 @@ ip_neighbor_t *ip_node_add_neighbor(node_t *node, node_t *neighbor_node)
     node->ip_info->neighbor_count++;
 
     /* install a route to this neighbor */
-    // todo this type shouldn't be MANUAL
-    ip_node_add_route(node, IP_ROUTE_TYPE_MANUAL, neighbor_node->ip_info->address,
-            strlen(neighbor_node->ip_info->address) * 4, neighbor_node);
+    ip_node_add_route(node, neighbor_node->ip_info->address, strlen(neighbor_node->ip_info->address) * 4,
+            neighbor_node, IP_ROUTE_TYPE_CONNECTED, NULL);
 
     return neighbor;
 }
@@ -322,8 +336,7 @@ bool ip_node_rem_neighbor(node_t *node, ip_neighbor_t *neighbor)
 
     /* remove the route to this neighbor */
     if (neighbor->node != NULL) {
-        ip_node_rem_route(node, neighbor->node->ip_info->address,
-                strlen(neighbor->node->ip_info->address) * 4);
+        ip_node_rem_routes(node, neighbor->node->ip_info->address, strlen(neighbor->node->ip_info->address) * 4, neighbor->node, IP_ROUTE_TYPE_CONNECTED);
     }
 
     free(neighbor);
@@ -346,32 +359,42 @@ ip_neighbor_t* ip_node_find_neighbor_by_node(node_t *node, node_t *neighbor_node
     return NULL;
 }
 
-bool ip_send(node_t *node, node_t *dst_node, uint16 next_header, void *sdu)
+bool ip_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu)
 {
     rs_assert(node != NULL);
 
-    ip_pdu_t *ip_pdu = ip_pdu_create(dst_node != NULL ? dst_node->ip_info->address : "", node->ip_info->address);
+    ip_pdu_t *ip_pdu = ip_pdu_create(dst_ip_address != NULL ? dst_ip_address : "", node->ip_info->address);
     ip_pdu_set_sdu(ip_pdu, next_header, sdu);
 
-    return event_execute(ip_event_id_after_pdu_sent, node, dst_node, ip_pdu);
+    if (!event_execute(ip_event_id_after_pdu_sent, node, NULL, ip_pdu)) {
+        ip_pdu_destroy(ip_pdu);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
-bool ip_forward(node_t *node, ip_pdu_t *pdu)
+bool ip_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
     pdu = ip_pdu_duplicate(pdu);
 
-    return event_execute(ip_event_id_after_pdu_sent, node, NULL, pdu);
+    if (!event_execute(ip_event_id_after_pdu_sent, node, incoming_node, pdu)) {
+        ip_pdu_destroy(pdu);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
-bool ip_receive(node_t *node, node_t *src_node, ip_pdu_t *pdu)
+bool ip_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    bool all_ok = event_execute(ip_event_id_after_pdu_received, node, src_node, pdu);
+    bool all_ok = event_execute(ip_event_id_after_pdu_received, node, incoming_node, pdu);
 
     ip_pdu_destroy(pdu);
 
@@ -396,50 +419,81 @@ bool ip_event_before_node_kill(node_t *node)
     return TRUE;
 }
 
-bool ip_event_after_pdu_sent(node_t *node, node_t *dst_node, ip_pdu_t *pdu)
+bool ip_event_after_pdu_sent(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
-    if (dst_node == NULL) { /* broadcast */
-        if (!mac_send(node, NULL, MAC_TYPE_IP, pdu)) {
-            rs_error("node '%s': failed to send MAC frame", node->phy_info->name);
+
+    if (strlen(pdu->dst_address) == 0) { /* broadcast */
+        node_t *dst_node = rpl_node_process_outgoing_flow_label(node, incoming_node, NULL, pdu);
+
+        if (!mac_send(node, dst_node, MAC_TYPE_IP, pdu)) {
             return FALSE;
         }
     }
     else {
         /* route the packet */
-        node_t *next_hop = ip_node_get_next_hop(node, dst_node->ip_info->address);
+        ip_route_t *route = ip_node_get_next_hop_route(node, pdu->dst_address);
 
-        if (next_hop == NULL) {
-            rs_warn("node '%s': destination '%s' not reachable", node->phy_info->name, dst_node->ip_info->address);
+        if (route == NULL) {
+            rs_warn("node '%s': destination '%s' not reachable", node->phy_info->name, pdu->dst_address);
             return FALSE;
         }
 
-        if (!mac_send(node, next_hop, MAC_TYPE_IP, pdu)) {
-            rs_error("node '%s': failed to send MAC frame", node->phy_info->name);
-            return FALSE;
+        node_t *next_hop = route->next_hop;
+        node_t *redir_next_hop = rpl_node_process_outgoing_flow_label(node, incoming_node, next_hop, pdu);
+        if (redir_next_hop != next_hop) { /* RPL redirected us, don't try all the parents & stuff in case immediate of failure */
+            return mac_send(node, redir_next_hop, MAC_TYPE_IP, pdu);
+        }
+
+        if (!mac_send(node, next_hop, MAC_TYPE_IP, pdu)) { /* probably no link, passing the forwarding task to the RPL layer */
+            uint16 node_count, i;
+            node_t **node_list = rpl_node_get_next_hop_list(node, &node_count);
+            bool sent = FALSE;
+
+            for (i = 0; i < node_count; i++) {
+                node_t *next_node = node_list[i];
+
+                if (mac_send(node, next_node, MAC_TYPE_IP, pdu)) {
+                    sent = TRUE;
+                    break;
+                }
+            }
+
+            if (node_list != NULL) {
+                free(node_list);
+            }
+
+            if (!sent) {
+                event_execute(rpl_event_id_after_forward_failure, node, NULL, NULL);
+            }
+
+            return sent;
         }
     }
 
     return TRUE;
 }
 
-bool ip_event_after_pdu_received(node_t *node, node_t *src_node, ip_pdu_t *pdu)
+bool ip_event_after_pdu_received(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
     /* refresh the neighbor cache */
-    ip_neighbor_t *neighbor = ip_node_find_neighbor_by_node(node, src_node);
+    ip_neighbor_t *neighbor = ip_node_find_neighbor_by_node(node, incoming_node);
     if (neighbor != NULL) {
         neighbor->last_packet_time = rs_system->now;
     }
     else {
-        neighbor = ip_node_add_neighbor(node, src_node);
-        event_execute(rpl_event_id_after_neighbor_attach, node, src_node, NULL);
+        neighbor = ip_node_add_neighbor(node, incoming_node);
+        event_execute(rpl_event_id_after_neighbor_attach, node, incoming_node, NULL);
 
         rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, IP_NEIGHBOR_CACHE_TIMEOUT);
     }
 
+    if (!rpl_node_process_incoming_flow_label(node, incoming_node, pdu)) { /* drop the packet if RPL says so */
+        return FALSE;
+    }
 
     /* if the packet is not intended for us, neither broadcasted, we forward it */
     if (strcmp(node->ip_info->address, pdu->dst_address) != 0 && (strlen(pdu->dst_address) > 0)) {
-        return ip_forward(node, pdu);
+        return ip_forward(node, incoming_node, pdu);
     }
     else {
         bool all_ok = TRUE;
@@ -448,8 +502,7 @@ bool ip_event_after_pdu_received(node_t *node, node_t *src_node, ip_pdu_t *pdu)
 
             case IP_NEXT_HEADER_ICMP: {
                 icmp_pdu_t *icmp_pdu = pdu->sdu;
-                if (!icmp_receive(node, src_node, icmp_pdu)) {
-                    rs_error("node '%s': failed to receive ICMP pdu from node '%s'", node->phy_info->name, src_node->phy_info->name);
+                if (!icmp_receive(node, incoming_node, icmp_pdu)) {
                     all_ok = FALSE;
                 }
 

@@ -138,7 +138,12 @@ bool mac_send(node_t *node, node_t *dst_node, uint16 type, void *sdu)
     mac_pdu_t *mac_pdu = mac_pdu_create(dst_node != NULL ? dst_node->mac_info->address : "", node->mac_info->address);
     mac_pdu_set_sdu(mac_pdu, type, sdu);
 
-    return event_execute(mac_event_id_after_pdu_sent, node, dst_node, mac_pdu);
+    if (!event_execute(mac_event_id_after_pdu_sent, node, dst_node, mac_pdu)) {
+        mac_pdu_destroy(mac_pdu);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 bool mac_receive(node_t *node, node_t *src_node, mac_pdu_t *pdu)
@@ -166,12 +171,7 @@ bool mac_event_before_node_kill(node_t *node)
 
 bool mac_event_after_pdu_sent(node_t *node, node_t *dst_node, mac_pdu_t *pdu)
 {
-    if (!phy_send(node, dst_node, pdu)) {
-        rs_error("node '%s': failed to send PHY message", node->phy_info->name);
-        return FALSE;
-    }
-
-    return TRUE;
+    return phy_send(node, dst_node, pdu);
 }
 
 bool mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu)
@@ -184,7 +184,6 @@ bool mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu
             ip_pdu_t *ip_pdu = pdu->sdu;
 
             if (!ip_receive(node, src_node, ip_pdu)) {
-                rs_error("node '%s': failed to receive IP pdu from node '%s'", node->phy_info->name, src_node->phy_info->name);
                 all_ok = FALSE;
             }
 

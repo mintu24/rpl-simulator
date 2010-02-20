@@ -40,14 +40,14 @@ bool                icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 code, vo
 void                icmp_node_init(node_t *node);
 void                icmp_node_done(node_t *node);
 
-bool                icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu);
+bool                icmp_send(node_t *node, char *dst_ip_address, uint8 type, uint8 code, void *sdu);
 bool                icmp_receive(node_t *node, node_t *src_node, icmp_pdu_t *pdu);
 
     /* events */
 bool                icmp_event_after_node_wake(node_t *node);
 bool                icmp_event_before_node_kill(node_t *node);
 
-bool                icmp_event_after_pdu_sent(node_t *node, node_t *dst_node, icmp_pdu_t *pdu);
+bool                icmp_event_after_pdu_sent(node_t *node, char *dst_ip_address, icmp_pdu_t *pdu);
 bool                icmp_event_after_pdu_received(node_t *node, node_t *src_node, icmp_pdu_t *pdu);
 
 
