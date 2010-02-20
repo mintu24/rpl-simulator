@@ -109,14 +109,19 @@ void icmp_node_done(node_t *node)
     }
 }
 
-bool icmp_send(node_t *node, node_t *dst_node, uint8 type, uint8 code, void *sdu)
+bool icmp_send(node_t *node, char *dst_ip_address, uint8 type, uint8 code, void *sdu)
 {
     rs_assert(node != NULL);
 
     icmp_pdu_t *icmp_pdu = icmp_pdu_create();
     icmp_pdu_set_sdu(icmp_pdu, type, code, sdu);
 
-    return event_execute(icmp_event_id_after_pdu_sent, node, dst_node, icmp_pdu);
+    if (!event_execute(icmp_event_id_after_pdu_sent, node, dst_ip_address, icmp_pdu)) {
+        icmp_pdu_destroy(icmp_pdu);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 bool icmp_receive(node_t *node, node_t *src_node, icmp_pdu_t *pdu)
@@ -141,14 +146,9 @@ bool icmp_event_before_node_kill(node_t *node)
     return TRUE;
 }
 
-bool icmp_event_after_pdu_sent(node_t *node, node_t *dst_node, icmp_pdu_t *pdu)
+bool icmp_event_after_pdu_sent(node_t *node, char *dst_ip_address, icmp_pdu_t *pdu)
 {
-    if (!ip_send(node, dst_node, IP_NEXT_HEADER_ICMP, pdu)) {
-        rs_error("node '%s': failed to send IP packet", node->phy_info->name);
-        return FALSE;
-    }
-
-    return TRUE;
+    return ip_send(node, dst_ip_address, IP_NEXT_HEADER_ICMP, pdu);
 }
 
 bool icmp_event_after_pdu_received(node_t *node, node_t *src_node, icmp_pdu_t *pdu)

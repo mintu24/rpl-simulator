@@ -279,7 +279,6 @@ int32 rs_system_get_node_pos(node_t *node)
     nodes_lock();
 
     rs_assert(rs_system != NULL);
-    rs_assert(node != NULL);
 
     uint16 i;
     for (i = 0; i < rs_system->node_count; i++) {
@@ -361,9 +360,8 @@ node_t *rs_system_find_node_by_ip_address(char *address)
 void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time)
 {
     rs_assert(rs_system != NULL);
-    rs_assert(node != NULL);
 
-    if (!rs_system->started || !node->alive) { /* don't schedule anything if not started or node dead*/
+    if (!rs_system->started || (node != NULL && !node->alive)) { /* don't schedule anything if not started or node dead */
         return;
     }
 
@@ -474,6 +472,12 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
     }
     else {
         // todo implement collisions
+
+        percent_t quality = rs_system_get_link_quality(src_node, dst_node);
+        if (quality < rs_system->no_link_quality_thresh) { /* no physical link */
+            return FALSE;
+        }
+
         rs_system_schedule_event(src_node, sys_event_id_after_message_transmitted, dst_node, message, rs_system->transmission_time);
     }
 
@@ -535,6 +539,11 @@ void rs_system_start(bool start_paused)
         /* wait till started */
         while (!rs_system->started) {
             usleep(SYS_CORE_SLEEP);
+        }
+
+        /* schedule the auto incrementing of seq num mechanism */
+        if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
+            rs_system_schedule_event(NULL, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
         }
     }
 
@@ -738,7 +747,7 @@ static void *system_core(void *data)
                 bool node_existent_and_alive = rs_system_has_node(schedule->node) && schedule->node->alive;
                 nodes_unlock();
 
-                if (node_existent_and_alive) {
+                if (node_existent_and_alive || schedule->node == NULL) {
                     event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
                 }
                 else {

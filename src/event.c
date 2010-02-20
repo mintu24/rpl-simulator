@@ -43,7 +43,12 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
 
     event_t *event = &event_list[event_id];
 
-    rs_debug(DEBUG_EVENT, "node '%s': executing event '%s.%s' @%d ms", node->phy_info->name, event->layer, event->name, rs_system->now);
+    if (node != NULL) {
+        rs_debug(DEBUG_EVENT, "node '%s': executing event '%s.%s' @%d ms", node->phy_info->name, event->layer, event->name, rs_system->now);
+    }
+    else {
+        rs_debug(DEBUG_EVENT, "executing event '%s.%s' @%d ms", event->layer, event->name, rs_system->now);
+    }
 
     bool write_log = FALSE;
 
@@ -102,7 +107,18 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
     char str1[256]; str1[0] = '\0';
     char str2[256]; str2[0] = '\0';
 
-    char *node_name = node->phy_info != NULL ? node->phy_info->name : "<<removed>>";
+    char *node_name;
+    if (node != NULL) {
+        if (node->phy_info != NULL) {
+            node_name = node->phy_info->name;
+        }
+        else {
+            node_name = "<<removed>>";
+        }
+    }
+    else {
+        node_name = "system";
+    }
 
     char indent[256]; indent[0] = '\0';
     uint16 i;

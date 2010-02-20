@@ -120,7 +120,12 @@ void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel
     uint8 sequence_number;
 
     if (rpl_node_is_root(node)) {
-        sequence_number = node->rpl_info->root_info->seq_num;
+        if (rpl_seq_num_exists(node->rpl_info->root_info->dodag_id)) {
+            sequence_number = rpl_seq_num_get(node->rpl_info->root_info->dodag_id);
+        }
+        else {
+            sequence_number = 0;
+        }
     }
     else if (rpl_node_is_joined(node)) {
         sequence_number = node->rpl_info->joined_dodag->seq_num;
@@ -490,14 +495,17 @@ static gboolean draw_sim_field(void *data)
                     end_pixel_y = parent->phy_info->cy * scale_y;
 
                     uint32 color;
+                    percent_t link_quality = rs_system_get_link_quality(node, parent);
+                    uint32 q_factor = (link_quality <= 0.5 ? (uint32) (0x200 * link_quality) << 24 : 0xFF000000);
+
                     if (parent->alive) {
-                        color = SIM_FIELD_PARENT_ARROW_COLOR;
+                        color = (SIM_FIELD_PARENT_ARROW_COLOR & 0x00FFFFFF) + q_factor;
                     }
                     else {
                         color = SIM_FIELD_DEAD_ARROW_COLOR;
                     }
 
-                    bool packet = FALSE; //node_has_pdu_from(parent, node);
+                    bool packet = FALSE;//node_has_pdu_from(parent, node);
                     sim_field_draw_parent_arrow(cr, start_pixel_x, start_pixel_y, end_pixel_x, end_pixel_y, color, packet);
                 }
             }
@@ -512,8 +520,11 @@ static gboolean draw_sim_field(void *data)
                 end_pixel_y = parent->phy_info->cy * scale_y;
 
                 uint32 color;
+                percent_t link_quality = rs_system_get_link_quality(node, parent);
+                uint32 q_factor = (link_quality <= 0.5 ? (uint32) (0x200 * link_quality) << 24 : 0xFF000000);
+
                 if (parent->alive) {
-                    color = SIM_FIELD_PREF_PARENT_ARROW_COLOR;
+                    color = (SIM_FIELD_PREF_PARENT_ARROW_COLOR & 0x00FFFFFF) + q_factor;
                 }
                 else {
                     color = SIM_FIELD_DEAD_ARROW_COLOR;
@@ -534,7 +545,16 @@ static gboolean draw_sim_field(void *data)
                     end_pixel_x = sibling->phy_info->cx * scale_x;
                     end_pixel_y = sibling->phy_info->cy * scale_y;
 
-                    uint32 color = sibling->alive ? SIM_FIELD_SIBLING_ARROW_COLOR : SIM_FIELD_DEAD_ARROW_COLOR;
+                    uint32 color;
+                    percent_t link_quality = rs_system_get_link_quality(node, sibling);
+                    uint32 q_factor = (link_quality <= 0.5 ? (uint32) (0x200 * link_quality) << 24 : 0xFF000000);
+
+                    if (sibling->alive) {
+                        color = (SIM_FIELD_SIBLING_ARROW_COLOR & 0x00FFFFFF) + q_factor;
+                    }
+                    else {
+                        color = SIM_FIELD_DEAD_ARROW_COLOR;
+                    }
 
                     bool packet = FALSE;    // node_has_pdu_from(sibling, node);
 
