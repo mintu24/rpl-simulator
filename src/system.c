@@ -24,6 +24,8 @@ static void *               system_core(void *data);
 static event_schedule_t *   schedule_create(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
 static bool                 schedule_destroy(event_schedule_t *schedule);
 
+static void                 event_arg_str_one_node_func(void *data1, void *data2, char *str1, char *str2, uint16 len);
+
 #ifdef DEBUG_EVENTS
 static void                 print_scheduled_events();
 #endif /* DEBUG_EVENTS */
@@ -64,7 +66,7 @@ bool rs_system_create()
 
     sys_event_id_after_node_wake = event_register("after_node_wake", "sys", (event_handler_t) sys_event_after_node_wake, NULL);
     sys_event_id_before_node_kill = event_register("before_node_kill", "sys", (event_handler_t) sys_event_before_node_kill, NULL);
-    sys_event_id_after_message_transmitted = event_register("after_message_transmitted", "sys", (event_handler_t) sys_event_after_message_transmitted, NULL);
+    sys_event_id_after_message_transmitted = event_register("after_message_transmitted", "sys", (event_handler_t) sys_event_after_message_transmitted, event_arg_str_one_node_func);
 
     if (!phy_init()) {
         rs_error("failed to initialize PHY layer");
@@ -800,6 +802,14 @@ static bool schedule_destroy(event_schedule_t *schedule)
     free(schedule);
 
     return TRUE;
+}
+
+static void event_arg_str_one_node_func(void *data1, void *data2, char *str1, char *str2, uint16 len)
+{
+    node_t *node = data1;
+
+    snprintf(str1, len, "%s", (node != NULL ? node->phy_info->name : "broadcast"));
+    str2[0] = '\0';
 }
 
 #ifdef DEBUG_EVENTS
