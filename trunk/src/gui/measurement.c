@@ -54,6 +54,7 @@ static GtkWidget *              measures_stat_rpl_events_label;
 static GtkWidget *              measures_stat_rpl_dis_messages_label;
 static GtkWidget *              measures_stat_rpl_dio_messages_label;
 static GtkWidget *              measures_stat_rpl_dao_messages_label;
+static GtkWidget *              measures_stat_ping_progress;
 static GtkWidget *              measures_stat_measure_time_label;
 static GtkListStore *           measures_stat_node_store;
 static GtkListStore *           measures_stat_store;
@@ -183,6 +184,7 @@ GtkWidget *measurement_widget_create()
     measures_stat_rpl_dis_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_rpl_dis_messages_label");
     measures_stat_rpl_dio_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_rpl_dio_messages_label");
     measures_stat_rpl_dao_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_rpl_dao_messages_label");
+    measures_stat_ping_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_ping_progress");
     measures_stat_measure_time_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_measure_time_label");
     measures_stat_node_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "measures_stat_node_store");
     measures_stat_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "measures_stat_store");
@@ -645,6 +647,8 @@ void cb_measures_stat_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
         gtk_label_set_text(GTK_LABEL(measures_stat_rpl_dis_messages_label), "N/A");
         gtk_label_set_text(GTK_LABEL(measures_stat_rpl_dio_messages_label), "N/A");
         gtk_label_set_text(GTK_LABEL(measures_stat_rpl_dao_messages_label), "N/A");
+        gtk_progress_bar_set_text(GTK_PROGRESS_BAR(measures_stat_ping_progress), "N/A");
+        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(measures_stat_ping_progress), 0);
         gtk_label_set_text(GTK_LABEL(measures_stat_measure_time_label), "N/A");
     }
     else {
@@ -673,6 +677,17 @@ void cb_measures_stat_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
 
         snprintf(temp, sizeof(temp), "%d/%d", output.rpl_s_dao_message_count, output.rpl_r_dao_message_count);
         gtk_label_set_text(GTK_LABEL(measures_stat_rpl_dao_messages_label), temp);
+
+        float percent;
+        if (output.ping_total_count > 0)
+            percent = (float) (output.ping_total_count - output.ping_timeout_count)/ output.ping_total_count;
+        else
+            percent = 0;
+
+        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(measures_stat_ping_progress), percent);
+
+        snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", output.ping_total_count - output.ping_timeout_count, output.ping_total_count, percent * 100);
+        gtk_progress_bar_set_text(GTK_PROGRESS_BAR(measures_stat_ping_progress), temp);
 
         time_str = rs_system_sim_time_to_string(output.measure_time);
         gtk_label_set_text(GTK_LABEL(measures_stat_measure_time_label), time_str);

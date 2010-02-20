@@ -66,7 +66,7 @@ bool                icmp_event_after_pdu_sent(node_t *node, char *dst_ip_address
 bool                icmp_event_after_pdu_received(node_t *node, node_t *incoming_node, ip_pdu_t *pdu); /* yes, it's ip_pdu_t, since icmp and ip work closely together */
 
 bool                icmp_event_after_ping_timer_timeout(node_t *node);
-bool                icmp_event_after_ping_timeout(node_t *node);
+bool                icmp_event_after_ping_timeout(node_t *node, char *dst_ip_address);
 
 
 #endif /* ICMP_H_ */

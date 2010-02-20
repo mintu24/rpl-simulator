@@ -1,6 +1,4 @@
 
-// todo add DEBUG(...)
-
 #include "icmp.h"
 #include "../system.h"
 
@@ -185,12 +183,15 @@ bool icmp_event_after_pdu_received(node_t *node, node_t *incoming_node, ip_pdu_t
     switch (pdu->type) {
 
         case ICMP_TYPE_ECHO_REQUEST: {
+            rs_debug(DEBUG_ICMP, "node '%s': received a ping request from '%s'", node->phy_info->name, ip_pdu->src_address);
+            rs_debug(DEBUG_ICMP, "node '%s': sending a ping reply to '%s'", node->phy_info->name, ip_pdu->src_address);
             icmp_send(node, ip_pdu->src_address, ICMP_TYPE_ECHO_REPLY, 0, NULL);
 
             break;
         }
 
         case ICMP_TYPE_ECHO_REPLY: {
+            rs_debug(DEBUG_ICMP, "node '%s': received a ping reply from '%s'", node->phy_info->name, ip_pdu->src_address);
             rs_system_cancel_event(node, icmp_event_id_after_ping_timeout, NULL, NULL, 0);
 
             break;
@@ -249,21 +250,26 @@ bool icmp_event_after_ping_timer_timeout(node_t *node)
         return TRUE;
     }
 
+    rs_debug(DEBUG_ICMP, "node '%s': sending a ping request to '%s'", node->phy_info->name, node->icmp_info->ping_ip_address);
     icmp_send(node, node->icmp_info->ping_ip_address, ICMP_TYPE_ECHO_REQUEST, 0, NULL);
 
-    rs_system_schedule_event(node, icmp_event_id_after_ping_timeout, NULL, NULL, node->icmp_info->ping_timeout);
+    measure_node_add_ping(node, FALSE);
+
+    rs_system_schedule_event(node, icmp_event_id_after_ping_timeout, node->icmp_info->ping_ip_address, NULL, node->icmp_info->ping_timeout);
     rs_system_schedule_event(node, icmp_event_id_after_ping_timer_timeout, NULL, NULL, node->icmp_info->ping_interval);
 
     return TRUE;
 }
 
-bool icmp_event_after_ping_timeout(node_t *node)
+bool icmp_event_after_ping_timeout(node_t *node, char *dst_ip_address)
 {
     if (node->icmp_info->ping_ip_address == NULL) {
         return TRUE;
     }
 
-    // todo measure this timeout
+    rs_debug(DEBUG_ICMP, "node '%s': ping request to '%s' timeout", node->phy_info->name, dst_ip_address);
+
+    measure_node_add_ping(node, TRUE);
 
     return TRUE;
 }

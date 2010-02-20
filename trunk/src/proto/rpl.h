@@ -16,23 +16,14 @@
 
 #define RPL_DEFAULT_DAG_PREF                    0 /* least preferred */
 
-#define RPL_DEFAULT_DAO_SUPPORTED               FALSE
-#define RPL_DEFAULT_DAO_TRIGGER                 FALSE
-
-#define RPL_DEFAULT_DIO_INTERVAL_DOUBLINGS      6 /* 6 times */ // todo make this configurable in the system
-#define RPL_DEFAULT_DIO_INTERVAL_MIN            4 /* 2^4 = 16ms */ // todo make this configurable in the system
-#define RPL_DEFAULT_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */ // todo make this configurable in the system
-
-#define RPL_DEFAULT_MAX_RANK_INC                1 // todo make this configurable in the system
-#define RPL_DEFAULT_MIN_HOP_RANK_INC            1 /* smallest possible granularity */ // todo make this configurable in the system
-
 #define RPL_DEFAULT_NODE_STORING                TRUE
 
 #define RPL_RANK_ROOT                           1
 #define RPL_RANK_INFINITY                       0xFF
 
-#define RPL_MINIMUM_RANK_INCREMENT              1 // todo make this configurable in the system
-#define RPL_MAXIMUM_RANK_INCREMENT              16 // todo make this configurable in the system
+#define RPL_MINIMUM_RANK_INCREMENT              1
+#define RPL_MAXIMUM_RANK_INCREMENT              16
+
 
 #define rpl_node_has_parent(node, parent)       (rpl_node_find_parent_by_node(node, parent) != NULL)
 #define rpl_node_has_sibling(node, sibling)     (rpl_node_find_sibling_by_node(node, sibling) != NULL)
