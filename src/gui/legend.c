@@ -42,7 +42,7 @@ static void                     draw_legend11(GdkWindow *window, GdkGC *gc);
 GtkWidget *legend_create()
 {
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
-    gtk_widget_set_size_request(scrolled_window, 250, 0);
+    gtk_widget_set_size_request(scrolled_window, 300, 0);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     GtkWidget *legend_table = (GtkWidget *) gtk_builder_get_object(gtk_builder, "legend_table");

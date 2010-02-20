@@ -15,21 +15,32 @@
 #include "proto/icmp.h"
 #include "proto/rpl.h"
 
-#define DEFAULT_NO_LINK_DIST_THRESH     50
-#define DEFAULT_NO_LINK_QUALITY_THRESH  0.2
-#define DEFAULT_SYS_WIDTH               100
-#define DEFAULT_SYS_HEIGHT              100
-#define DEFAULT_SIMULATION_SECOND       1000
+#define DEFAULT_NO_LINK_DIST_THRESH             50
+#define DEFAULT_NO_LINK_QUALITY_THRESH          0.2
+#define DEFAULT_SYS_WIDTH                       100
+#define DEFAULT_SYS_HEIGHT                      100
+#define DEFAULT_SIMULATION_SECOND               1000
 
-#define DEFAULT_TRANSMISSION_TIME       20
+#define DEFAULT_TRANSMISSION_TIME               20
 
-#define DEFAULT_NODE_NAME               "A"
-#define DEFAULT_NODE_MAC_ADDRESS        "0001"
-#define DEFAULT_NODE_IP_ADDRESS         "AA01"
+#define DEFAULT_NODE_NAME                       "A"
+#define DEFAULT_NODE_MAC_ADDRESS                "0001"
+#define DEFAULT_NODE_IP_ADDRESS                 "AA01"
 
-#define DEFAULT_RPL_AUTO_SN_INC_INT     10000
-#define DEFAULT_RPL_STARTUP_SILENT      FALSE
-#define DEFAULT_RPL_POISON_COUNT        4
+#define DEFAULT_RPL_AUTO_SN_INC_INT             10000
+#define DEFAULT_RPL_STARTUP_SILENT              FALSE
+#define DEFAULT_RPL_POISON_COUNT                4
+
+#define DEFAULT_RPL_DAO_SUPPORTED               FALSE
+#define DEFAULT_RPL_DAO_TRIGGER                 FALSE
+
+#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      6 /* 6 times */
+#define DEFAULT_RPL_DIO_INTERVAL_MIN            4 /* 2^4 = 16ms */
+#define DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
+
+#define DEFAULT_RPL_MAX_RANK_INC                1
+#define DEFAULT_RPL_MIN_HOP_RANK_INC            1
+
 
 #define SYS_CORE_SLEEP                  100
 
@@ -116,6 +127,14 @@ typedef struct rs_system_t {
     int32                       rpl_auto_sn_inc_interval;
     bool                        rpl_start_silent;
     uint8                       rpl_poison_count;
+
+    bool                        rpl_dao_supported;
+    bool                        rpl_dao_trigger;
+    uint8                       rpl_dio_interval_doublings;
+    uint8                       rpl_dio_interval_min;
+    uint8                       rpl_dio_redundancy_constant;
+    uint8                       rpl_max_inc_rank;
+    uint8                       rpl_min_hop_rank_inc;
 
     /* nodes */
     node_t **                   node_list;

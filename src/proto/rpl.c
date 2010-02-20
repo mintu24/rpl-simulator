@@ -1,5 +1,3 @@
-// todo add DEBUG(...) everywhere
-
 #include <math.h>
 
 #include "rpl.h"
@@ -118,8 +116,8 @@ rpl_dio_pdu_t *rpl_dio_pdu_create()
     pdu->dao_stored = FALSE;
 
     pdu->grounded = FALSE;
-    pdu->dao_supported = RPL_DEFAULT_DAO_SUPPORTED;
-    pdu->dao_trigger = FALSE;
+    pdu->dao_supported = rs_system->rpl_dao_supported;
+    pdu->dao_trigger = rs_system->rpl_dao_trigger;
 
     pdu->dodag_config_suboption = NULL;
 
@@ -912,6 +910,8 @@ bool rpl_event_before_node_kill(node_t *node)
         node->rpl_info->joined_dodag = NULL;
     }
 
+    ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DIO);
+    ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DAO);
     /* the IP layer should trigger the removal of all our neighbors */
 
     return TRUE;
@@ -1318,15 +1318,15 @@ static rpl_root_info_t *rpl_root_info_create()
     root_info->dodag_id = NULL;
     root_info->dodag_pref = RPL_DEFAULT_DAG_PREF;
     root_info->grounded = FALSE;
-    root_info->dao_supported = RPL_DEFAULT_DAO_SUPPORTED;
-    root_info->dao_trigger = RPL_DEFAULT_DAO_TRIGGER;
+    root_info->dao_supported = rs_system->rpl_dao_supported;
+    root_info->dao_trigger = rs_system->rpl_dao_trigger;
 
-    root_info->dio_interval_doublings = RPL_DEFAULT_DIO_INTERVAL_DOUBLINGS;
-    root_info->dio_interval_min = RPL_DEFAULT_DIO_INTERVAL_MIN;
-    root_info->dio_redundancy_constant = RPL_DEFAULT_DIO_REDUNDANCY_CONSTANT;
+    root_info->dio_interval_doublings = rs_system->rpl_dio_interval_doublings;
+    root_info->dio_interval_min = rs_system->rpl_dio_interval_min;
+    root_info->dio_redundancy_constant = rs_system->rpl_dio_redundancy_constant;
 
-    root_info->max_rank_inc = RPL_DEFAULT_MAX_RANK_INC;
-    root_info->min_hop_rank_inc = RPL_DEFAULT_MIN_HOP_RANK_INC;
+    root_info->max_rank_inc = rs_system->rpl_max_inc_rank;
+    root_info->min_hop_rank_inc = rs_system->rpl_min_hop_rank_inc;
 
     return root_info;
 }
@@ -1544,6 +1544,10 @@ static void start_dio_poisoning(node_t *node)
     rs_assert(node != NULL);
     rs_assert(node->rpl_info->joined_dodag != NULL);
 
+    rs_debug(DEBUG_RPL, "node '%s': starting poisoning, leaving dodag_id = '%s'",
+            node->phy_info->name,
+            node->rpl_info->joined_dodag->dodag_id);
+
     /* forget about all DIO routes */
     ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DIO);
 
@@ -1563,6 +1567,12 @@ static void start_as_root(node_t *node)
 {
     rs_assert(node != NULL);
 
+    rs_debug(DEBUG_RPL, "node '%s': starting as root (dodag_id = '%s', grounded = %s, pref = %d)",
+            node->phy_info->name,
+            node->ip_info->address,
+            (node->rpl_info->root_info->grounded ? "yes" : "no"),
+            node->rpl_info->root_info->dodag_pref);
+
     /* forget about all previous DIO routes */
     ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DIO);
 
@@ -1580,6 +1590,13 @@ static void join_dodag_iteration(node_t *node, rpl_dio_pdu_t *dio_pdu)
 {
     rs_assert(node != NULL);
     rs_assert(dio_pdu != NULL);
+
+    rs_debug(DEBUG_RPL, "node '%s': joining dodag iteration dodag_id = '%s', grounded = %s, pref = %d, seq_num = %d",
+            node->phy_info->name,
+            dio_pdu->dodag_id,
+            (dio_pdu->grounded ? "yes" : "no"),
+            dio_pdu->dodag_pref,
+            dio_pdu->seq_num);
 
     if (node->rpl_info->joined_dodag != NULL) {
         /* forget about previously learned DIO routes */
@@ -1611,6 +1628,15 @@ static void update_dodag_config(node_t *node, rpl_dio_pdu_t *dio_pdu)
     dodag->dio_redundancy_constant = dio_pdu->dodag_config_suboption->dio_redundancy_constant;
     dodag->max_rank_inc = dio_pdu->dodag_config_suboption->max_rank_inc;
     dodag->min_hop_rank_inc = dio_pdu->dodag_config_suboption->min_hop_rank_inc;
+
+    rs_debug(DEBUG_RPL, "node '%s': in dodag_id = '%s', updated dodag config (i_min = %d, i_doublings = %d, c_treshold = %d, max_rank_inc = %d, min_hop_rank_inc = %d)",
+            node->phy_info->name,
+            dodag->dodag_id,
+            dodag->dio_interval_min,
+            dodag->dio_interval_doublings,
+            dodag->dio_redundancy_constant,
+            dodag->max_rank_inc,
+            dodag->min_hop_rank_inc);
 }
 
 static bool choose_parents_and_siblings(node_t *node)
@@ -1670,11 +1696,13 @@ static bool choose_parents_and_siblings(node_t *node)
         bool same;
         rpl_dio_pdu_t *preferred_dodag_pdu = get_preferred_dodag_dio_pdu(node, &same);
 
+        rs_debug(DEBUG_RPL, "node '%s': in dodag_id = '%s', no valid neighbors left", node->phy_info->name, dodag->dodag_id)
+
         if (preferred_dodag_pdu != NULL) { /* found something interesting around */
             rs_assert(!same);
 
             join_dodag_iteration(node, preferred_dodag_pdu);
-            rs_assert(choose_parents_and_siblings(node));
+            choose_parents_and_siblings(node);
 
             return TRUE;
         }
@@ -1687,6 +1715,12 @@ static bool choose_parents_and_siblings(node_t *node)
 
     uint8 best_rank = matching_ranks[best_rank_index];
     if (best_rank - dodag->lowest_rank > dodag->max_rank_inc || best_rank >= RPL_RANK_INFINITY) { /* rank would increase too much */
+        rs_debug(DEBUG_RPL, "node '%s': in dodag_id = '%s', new rank (%d) would exceed the limit (%d + %d)",
+                node->phy_info->name,
+                dodag->dodag_id,
+                best_rank,
+                dodag->lowest_rank, dodag->max_rank_inc);
+
         start_dio_poisoning(node);
 
         return FALSE;
@@ -1714,6 +1748,50 @@ static bool choose_parents_and_siblings(node_t *node)
             rpl_node_add_sibling(node, neighbor);
         }
     }
+
+#ifdef DEBUG_RPL
+
+    char parent_list_str[256];
+    char sibling_list_str[256];
+
+    dodag = node->rpl_info->joined_dodag;
+
+    parent_list_str[0] = '\0';
+    for (i = 0; i < dodag->parent_count; i++) {
+        rpl_neighbor_t *neighbor = dodag->parent_list[i];
+
+        if (neighbor == dodag->pref_parent) {
+            strcat(parent_list_str, "(");
+            strcat(parent_list_str, neighbor->node->phy_info->name);
+            strcat(parent_list_str, ")");
+        }
+        else {
+            strcat(parent_list_str, neighbor->node->phy_info->name);
+        }
+
+        if (i < dodag->parent_count - 1) {
+            strcat(parent_list_str, ", ");
+        }
+    }
+
+    sibling_list_str[0] = '\0';
+    for (i = 0; i < dodag->sibling_count; i++) {
+        rpl_neighbor_t *neighbor = dodag->sibling_list[i];
+
+        strcat(sibling_list_str, neighbor->node->phy_info->name);
+        if (i < dodag->sibling_count - 1) {
+            strcat(sibling_list_str, ", ");
+        }
+    }
+
+    rs_debug(DEBUG_RPL, "node '%s': in dodag_id = '%s', new rank = %d, parents = [%s], siblings = [%s]",
+            node->phy_info->name,
+            dodag->dodag_id,
+            dodag->rank,
+            parent_list_str,
+            sibling_list_str);
+
+#endif /* DEBUG_RPL */
 
     return TRUE;
 }
@@ -1783,6 +1861,8 @@ static rpl_dio_pdu_t *get_preferred_dodag_dio_pdu(node_t *node, bool *same)
 static void reset_trickle_timer(node_t *node)
 {
     rs_assert(node != NULL);
+
+    rs_debug(DEBUG_RPL, "node '%s': resetting trickle timer", node->phy_info->name);
 
     if (rpl_node_is_root(node)) {
         node->rpl_info->trickle_i = pow(2, node->rpl_info->root_info->dio_interval_min);

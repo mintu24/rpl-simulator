@@ -1,10 +1,5 @@
 
-// todo RPL SeqNum coordination
-// todo GUI for the RPL part
-// todo intelligent IP/RPL routing + source routing
-// todo implement RPL forwarding error handling
-// todo implement RPL forwarding failure handling
-// todo implement simple configurable ICMP ping
+// todo source routing
 // todo convergence measurement
 // todo connectivity measurement
 // todo deadlock with lots of nodes and killing one node
@@ -148,19 +143,6 @@ node_t *rs_add_node(coord_t x, coord_t y)
     ip_node_init(node, new_ip_address);
     icmp_node_init(node);
     rpl_node_init(node);
-
-    // todo this is only for testing purposes
-    // ************************************************
-    if (rs_system->node_count == 0) {
-        node->rpl_info->root_info->dodag_pref = 0x07;
-        node->rpl_info->root_info->grounded = TRUE;
-    }
-    else if (rs_system->node_count == 1) {
-        node->rpl_info->root_info->dodag_pref = 0x06;
-        node->rpl_info->root_info->grounded = TRUE;
-    }
-
-    // ************************************************
 
     rs_system_add_node(node);
 

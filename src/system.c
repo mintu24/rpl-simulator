@@ -55,6 +55,14 @@ bool rs_system_create()
     rs_system->rpl_start_silent = DEFAULT_RPL_STARTUP_SILENT;
     rs_system->rpl_poison_count = DEFAULT_RPL_POISON_COUNT;
 
+    rs_system->rpl_dao_supported = DEFAULT_RPL_DAO_SUPPORTED;
+    rs_system->rpl_dao_trigger = DEFAULT_RPL_DAO_TRIGGER;
+    rs_system->rpl_dio_interval_doublings = DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS;
+    rs_system->rpl_dio_interval_min = DEFAULT_RPL_DIO_INTERVAL_MIN;
+    rs_system->rpl_dio_redundancy_constant = DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT;
+    rs_system->rpl_max_inc_rank = DEFAULT_RPL_MAX_RANK_INC;
+    rs_system->rpl_min_hop_rank_inc = DEFAULT_RPL_MIN_HOP_RANK_INC;
+
     rs_system->schedules = NULL;
     rs_system->schedule_count = 0;
 

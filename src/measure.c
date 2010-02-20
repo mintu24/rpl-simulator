@@ -58,6 +58,8 @@ void measure_node_init(node_t *node)
     node->measure_info->rpl_s_dis_message_count = 0;
     node->measure_info->rpl_s_dio_message_count = 0;
     node->measure_info->rpl_s_dao_message_count = 0;
+    node->measure_info->ping_total_count = 0;
+    node->measure_info->ping_timeout_count = 0;
 }
 
 void measure_node_done(node_t *node)
@@ -121,6 +123,17 @@ void measure_node_add_rpl_dao_message(node_t *node, bool sent)
         node->measure_info->rpl_r_dao_message_count++;
 }
 
+void measure_node_add_ping(node_t *node, bool timeout)
+{
+    rs_assert(node != NULL);
+
+    if (timeout)
+        node->measure_info->ping_timeout_count++;
+    else
+        node->measure_info->ping_total_count++;
+
+}
+
 void measure_node_reset(node_t *node)
 {
     rs_assert(node != NULL);
@@ -134,6 +147,8 @@ void measure_node_reset(node_t *node)
     node->measure_info->rpl_s_dis_message_count = 0;
     node->measure_info->rpl_s_dio_message_count = 0;
     node->measure_info->rpl_s_dao_message_count = 0;
+    node->measure_info->ping_total_count = 0;
+    node->measure_info->ping_timeout_count = 0;
 }
 
 void measure_connect_entry_add(node_t *src_node, node_t *dst_node)
@@ -381,6 +396,8 @@ void measure_stat_entry_add(node_t *node, uint8 type)
     measure_stat_list[measure_stat_count].output.rpl_s_dis_message_count = 0;
     measure_stat_list[measure_stat_count].output.rpl_s_dio_message_count = 0;
     measure_stat_list[measure_stat_count].output.rpl_s_dao_message_count = 0;
+    measure_stat_list[measure_stat_count].output.ping_total_count = 0;
+    measure_stat_list[measure_stat_count].output.ping_timeout_count = 0;
     measure_stat_list[measure_stat_count].output.measure_time = 0;
 
     measure_stat_count++;
@@ -454,6 +471,8 @@ void measure_stat_reset_output()
         measure->output.rpl_s_dis_message_count = 0;
         measure->output.rpl_s_dio_message_count = 0;
         measure->output.rpl_s_dao_message_count = 0;
+        measure->output.ping_total_count = 0;
+        measure->output.ping_timeout_count = 0;
         measure->output.measure_time = 0;
     }
 
@@ -564,6 +583,8 @@ static measure_stat_output_t measure_stat_compute_output(measure_stat_t *measure
         output.rpl_s_dis_message_count = measure->node->measure_info->rpl_s_dis_message_count;
         output.rpl_s_dio_message_count = measure->node->measure_info->rpl_s_dio_message_count;
         output.rpl_s_dao_message_count = measure->node->measure_info->rpl_s_dao_message_count;
+        output.ping_total_count = measure->node->measure_info->ping_total_count;
+        output.ping_timeout_count = measure->node->measure_info->ping_timeout_count;
     }
     else {
         output.forward_error_count = 0;
@@ -575,6 +596,8 @@ static measure_stat_output_t measure_stat_compute_output(measure_stat_t *measure
         output.rpl_s_dis_message_count = 0;
         output.rpl_s_dio_message_count = 0;
         output.rpl_s_dao_message_count = 0;
+        output.ping_total_count = 0;
+        output.ping_timeout_count = 0;
 
         nodes_lock();
 
@@ -591,6 +614,8 @@ static measure_stat_output_t measure_stat_compute_output(measure_stat_t *measure
             output.rpl_s_dis_message_count += node->measure_info->rpl_s_dis_message_count;
             output.rpl_s_dio_message_count += node->measure_info->rpl_s_dio_message_count;
             output.rpl_s_dao_message_count += node->measure_info->rpl_s_dao_message_count;
+            output.ping_total_count += node->measure_info->ping_total_count;
+            output.ping_timeout_count += node->measure_info->ping_timeout_count;
         }
 
         nodes_unlock();
@@ -605,6 +630,8 @@ static measure_stat_output_t measure_stat_compute_output(measure_stat_t *measure
             output.rpl_s_dis_message_count /= rs_system->node_count;
             output.rpl_s_dio_message_count /= rs_system->node_count;
             output.rpl_s_dao_message_count /= rs_system->node_count;
+            output.ping_total_count /= rs_system->node_count;
+            output.ping_timeout_count /= rs_system->node_count;
         }
     }
 

@@ -42,6 +42,18 @@ static GtkWidget *              params_system_real_time_sim_check = NULL;
 static GtkWidget *              params_system_sim_second_spin = NULL;
 static GtkWidget *              params_system_auto_wake_check = NULL;
 
+static GtkWidget *              params_rpl_trickle_min_spin = NULL;
+static GtkWidget *              params_rpl_trickle_doublings_spin = NULL;
+static GtkWidget *              params_rpl_trickle_redundancy_spin = NULL;
+static GtkWidget *              params_rpl_max_rank_inc_spin = NULL;
+static GtkWidget *              params_rpl_min_hop_rank_inc_spin = NULL;
+static GtkWidget *              params_rpl_dao_supported_check = NULL;
+static GtkWidget *              params_rpl_dao_trigger_check = NULL;
+static GtkWidget *              params_rpl_probe_check = NULL;
+static GtkWidget *              params_rpl_autoinc_sn_check = NULL;
+static GtkWidget *              params_rpl_autoinc_sn_spin = NULL;
+static GtkWidget *              params_rpl_poison_count_spin = NULL;
+
 static GtkWidget *              params_display_show_node_names_check = NULL;
 static GtkWidget *              params_display_show_node_addresses_check = NULL;
 static GtkWidget *              params_display_show_node_tx_power_check = NULL;
@@ -100,6 +112,9 @@ static GtkWidget *              measures_vbox = NULL;
 
 
     /* other widgets */
+
+static GtkWidget *              main_win_first_hpaned;
+static GtkWidget *              main_win_second_hpaned;
 
 static GtkWidget *              open_menu_item = NULL;
 static GtkWidget *              save_menu_item = NULL;
@@ -181,6 +196,8 @@ static void         gui_to_display();
 
 static gboolean     gui_update_wrapper(void *data);
 static gboolean     status_bar_update_wrapper(void *data);
+
+static void         update_rpl_root_configurations();
 
 
     /**** exported functions ****/
@@ -279,6 +296,7 @@ void main_win_system_to_gui()
 
     rs_assert(rs_system != NULL);
 
+    /* system (phy & misc) */
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin), rs_system->no_link_dist_thresh);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin), rs_system->no_link_quality_thresh * 100);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin), rs_system->transmission_time);
@@ -296,6 +314,25 @@ void main_win_system_to_gui()
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_auto_wake_check), rs_system->auto_wake_nodes);
 
+    /* rpl */
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_min_spin), rs_system->rpl_dio_interval_min);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_doublings_spin), rs_system->rpl_dio_interval_doublings);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_redundancy_spin), rs_system->rpl_dio_redundancy_constant);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin), rs_system->rpl_max_inc_rank);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_min_hop_rank_inc_spin), rs_system->rpl_min_hop_rank_inc);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check), rs_system->rpl_dao_supported);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check), rs_system->rpl_dao_trigger);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check), !rs_system->rpl_start_silent);
+
+    if (rs_system->rpl_auto_sn_inc_interval > 0) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check), TRUE);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin), rs_system->rpl_auto_sn_inc_interval);
+    }
+    else {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check), FALSE);
+    }
+
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_poison_count_spin), rs_system->rpl_poison_count);
 
     /* add all the current possible next-hops,
      * and all the possible destination addresses */
@@ -1062,6 +1099,18 @@ GtkWidget *create_params_widget()
     params_system_sim_second_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_sim_second_spin");
     params_system_auto_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_auto_wake_check");
 
+    params_rpl_trickle_min_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_min_spin");
+    params_rpl_trickle_doublings_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_doublings_spin");
+    params_rpl_trickle_redundancy_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_redundancy_spin");
+    params_rpl_max_rank_inc_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_max_rank_inc_spin");
+    params_rpl_min_hop_rank_inc_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_min_hop_rank_inc_spin");
+    params_rpl_dao_supported_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_supported_check");
+    params_rpl_dao_trigger_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_trigger_check");
+    params_rpl_probe_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_probe_check");
+    params_rpl_autoinc_sn_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_autoinc_sn_check");
+    params_rpl_autoinc_sn_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_autoinc_sn_spin");
+    params_rpl_poison_count_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_poison_count_spin");
+
     params_display_show_node_names_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_names_check");
     params_display_show_node_addresses_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_addresses_check");
     params_display_show_node_tx_power_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_tx_power_check");
@@ -1372,7 +1421,10 @@ GtkWidget *create_status_bar()
 
 GtkWidget *create_content_widget()
 {
-    GtkWidget *hbox = gtk_hbox_new(FALSE, 5);
+    main_win_first_hpaned = gtk_hpaned_new();
+    main_win_second_hpaned = gtk_hpaned_new();
+
+    gtk_paned_pack2(GTK_PANED(main_win_first_hpaned), main_win_second_hpaned, TRUE, TRUE);
 
     GtkWidget *params_widget = create_params_widget();
     if (params_widget == NULL) {
@@ -1380,7 +1432,7 @@ GtkWidget *create_content_widget()
         return NULL;
     }
 
-    gtk_box_pack_start(GTK_BOX(hbox), params_widget, FALSE, TRUE, 0);
+    gtk_paned_pack1(GTK_PANED(main_win_first_hpaned), params_widget, FALSE, TRUE);
 
     GtkWidget *sim_field = sim_field_create();
     if (sim_field == NULL) {
@@ -1388,7 +1440,7 @@ GtkWidget *create_content_widget()
         return NULL;
     }
 
-    gtk_box_pack_start(GTK_BOX(hbox), sim_field, TRUE, TRUE, 0);
+    gtk_paned_pack1(GTK_PANED(main_win_second_hpaned), sim_field, TRUE, TRUE);
 
     legend_widget = legend_create();
     if (legend_widget == NULL) {
@@ -1396,9 +1448,12 @@ GtkWidget *create_content_widget()
         return NULL;
     }
 
-    gtk_box_pack_start(GTK_BOX(hbox), legend_widget, FALSE, TRUE, 0);
+    gtk_paned_pack2(GTK_PANED(main_win_second_hpaned), legend_widget, FALSE, TRUE);
 
-    return hbox;
+    gtk_paned_set_position(GTK_PANED(main_win_first_hpaned), 350);
+    gtk_paned_set_position(GTK_PANED(main_win_second_hpaned), -1);
+
+    return main_win_first_hpaned;
 }
 
 static void initialize_widgets()
@@ -1416,6 +1471,7 @@ static void update_sensitivity()
 {
     bool real_time_sim = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_system_real_time_sim_check));
     bool mains_powered = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check));
+    bool sn_autoinc = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check));
     bool node_selected = selected_node != NULL;
     bool has_nodes = rs_system->node_count > 0;
     bool node_alive = node_selected && selected_node->alive;
@@ -1426,6 +1482,7 @@ static void update_sensitivity()
     bool sim_paused = rs_system->paused;
 
     gtk_widget_set_sensitive(params_system_sim_second_spin, real_time_sim);
+    gtk_widget_set_sensitive(params_rpl_autoinc_sn_spin, sn_autoinc);
 
     gtk_widget_set_sensitive(params_nodes_name_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_x_spin, node_selected);
@@ -1508,6 +1565,7 @@ static void gui_to_system()
 {
     rs_assert(rs_system != NULL);
 
+    /* system (phy & misc) */
     rs_system->no_link_dist_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin));
     rs_system->no_link_quality_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin)) / 100.0;
     rs_system->transmission_time = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin));
@@ -1523,6 +1581,35 @@ static void gui_to_system()
     }
 
     rs_system->auto_wake_nodes = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_system_auto_wake_check));
+
+
+    /* rpl */
+    rs_system->rpl_dio_interval_min = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_min_spin));
+    rs_system->rpl_dio_interval_doublings = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_doublings_spin));
+    rs_system->rpl_dio_redundancy_constant = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_redundancy_spin));
+    rs_system->rpl_max_inc_rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin));
+    rs_system->rpl_min_hop_rank_inc = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_min_hop_rank_inc_spin));
+    rs_system->rpl_dao_supported = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check));
+    rs_system->rpl_dao_trigger = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check));
+    rs_system->rpl_start_silent = !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check));
+
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check))) {
+        rs_system->rpl_auto_sn_inc_interval = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin));
+    }
+    else {
+        rs_system->rpl_auto_sn_inc_interval = -1;
+    }
+
+    rs_system->rpl_poison_count = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_poison_count_spin));
+
+    /* update all existing nodes' root info */
+    update_rpl_root_configurations();
+
+    /* reschedule the auto incrementing of seq num mechanism */
+    rs_system_cancel_event(NULL, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, 0);
+    if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
+        rs_system_schedule_event(NULL, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
+    }
 }
 
 static void gui_to_node(node_t *node)
@@ -1592,7 +1679,7 @@ static void gui_to_node(node_t *node)
     rpl_root_info_t *root_info = node->rpl_info->root_info;
 
     node->rpl_info->storing = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_storing_check));
-    node->rpl_info->trickle_i = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_trickle_spin));
+    /* node->rpl_info->trickle_i = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_trickle_spin)); */
 
     root_info->grounded = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_grounded_check));
     root_info->dao_supported = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_dao_enabled_check));
@@ -1604,15 +1691,15 @@ static void gui_to_node(node_t *node)
             free(dodag->dodag_id);
         }
         dodag->dodag_id = strdup(gtk_entry_get_text(GTK_ENTRY(params_nodes_dag_id_entry)));
-        dodag->seq_num = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin));
-        dodag->rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_rank_spin));
+        /* dodag->seq_num = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin));
+        dodag->rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_rank_spin)); */
     }
     else if (rpl_node_is_root(node)) {
         if (root_info->dodag_id != NULL) {
             free(root_info->dodag_id);
         }
         root_info->dodag_id = strdup(gtk_entry_get_text(GTK_ENTRY(params_nodes_dag_id_entry)));
-        rpl_seq_num_set(node->rpl_info->root_info->dodag_id, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin)));
+        /* rpl_seq_num_set(node->rpl_info->root_info->dodag_id, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin))); */
     }
     else {
     }
@@ -1664,4 +1751,26 @@ static gboolean status_bar_update_wrapper(void *data)
     free(data);
 
     return FALSE;
+}
+
+static void update_rpl_root_configurations()
+{
+    events_lock();
+    nodes_lock();
+
+    uint16 i;
+    for (i = 0; i < rs_system->node_count; i++) {
+        rpl_root_info_t *root_info = rs_system->node_list[i]->rpl_info->root_info;
+
+        root_info->dao_supported = rs_system->rpl_dao_supported;
+        root_info->dao_trigger = rs_system->rpl_dao_trigger;
+        root_info->dio_interval_doublings = rs_system->rpl_dio_interval_doublings;
+        root_info->dio_interval_min = rs_system->rpl_dio_interval_min;
+        root_info->dio_redundancy_constant = rs_system->rpl_dio_redundancy_constant;
+        root_info->max_rank_inc = rs_system->rpl_max_inc_rank;
+        root_info->min_hop_rank_inc = rs_system->rpl_min_hop_rank_inc;
+    }
+
+    nodes_unlock();
+    events_unlock();
 }
