@@ -12,8 +12,6 @@
 #define IP_ROUTE_TYPE_RPL_DAO       2
 #define IP_ROUTE_TYPE_RPL_DIO       3
 
-#define IP_NEIGHBOR_CACHE_TIMEOUT   2000
-
 
 typedef struct ip_neighbor_t {
 

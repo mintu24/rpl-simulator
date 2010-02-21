@@ -118,6 +118,8 @@ typedef struct rpl_node_info_t {
 
     uint8               poison_count_so_far;
 
+    sim_time_t          last_dio_send_time; /* used for detecting collisions by simulating a risk window */
+
 } rpl_node_info_t;
 
 
@@ -231,7 +233,7 @@ bool                rpl_node_neighbor_is_sibling(node_t *node, rpl_neighbor_t *n
 
 void                rpl_node_start_as_root(node_t *node);
 void                rpl_node_isolate(node_t *node);
-void                rpl_node_force_dodag_it_eval(node_t *node);
+void                rpl_node_reset_trickle_timer(node_t *node);
 
 node_t **           rpl_node_get_next_hop_list(node_t *node, uint16 *node_count);
 bool                rpl_node_process_incoming_flow_label(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu);
@@ -264,7 +266,7 @@ bool                rpl_event_after_forward_error(node_t *node);
 
 bool                rpl_event_after_trickle_timer_t_timeout(node_t *node);
 bool                rpl_event_after_trickle_timer_i_timeout(node_t *node);
-bool                rpl_event_after_seq_num_timer_timeout(node_t *dummy_node);
+bool                rpl_event_after_seq_num_timer_timeout();
 
 
 #endif /* RPL_H_ */

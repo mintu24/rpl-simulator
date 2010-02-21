@@ -1,3 +1,5 @@
+// todo fix automatic sn increment
+
 #include <gdk/gdk.h>
 #include <cairo.h>
 
@@ -36,6 +38,7 @@ static GtkWidget *              params_config_vbox = NULL;
 static GtkWidget *              params_system_no_link_dist_spin = NULL;
 static GtkWidget *              params_system_no_link_quality_spin = NULL;
 static GtkWidget *              params_system_transmission_time_spin = NULL;
+static GtkWidget *              params_system_neighbor_timeout_spin = NULL;
 static GtkWidget *              params_system_width_spin = NULL;
 static GtkWidget *              params_system_height_spin = NULL;
 static GtkWidget *              params_system_real_time_sim_check = NULL;
@@ -46,7 +49,7 @@ static GtkWidget *              params_rpl_trickle_min_spin = NULL;
 static GtkWidget *              params_rpl_trickle_doublings_spin = NULL;
 static GtkWidget *              params_rpl_trickle_redundancy_spin = NULL;
 static GtkWidget *              params_rpl_max_rank_inc_spin = NULL;
-static GtkWidget *              params_rpl_min_hop_rank_inc_spin = NULL;
+// static GtkWidget *              params_rpl_min_hop_rank_inc_spin = NULL;
 static GtkWidget *              params_rpl_dao_supported_check = NULL;
 static GtkWidget *              params_rpl_dao_trigger_check = NULL;
 static GtkWidget *              params_rpl_probe_check = NULL;
@@ -97,9 +100,9 @@ static GtkWidget *              params_nodes_dao_enabled_check = NULL;
 static GtkWidget *              params_nodes_dao_trigger_check = NULL;
 static GtkWidget *              params_nodes_dag_pref_spin = NULL;
 static GtkWidget *              params_nodes_dag_id_entry = NULL;
-static GtkWidget *              params_nodes_seq_num_spin = NULL;
-static GtkWidget *              params_nodes_rank_spin = NULL;
-static GtkWidget *              params_nodes_trickle_spin = NULL;
+static GtkWidget *              params_nodes_seq_num_entry = NULL;
+static GtkWidget *              params_nodes_rank_entry = NULL;
+static GtkWidget *              params_nodes_trickle_int_entry = NULL;
 static GtkWidget *              params_nodes_root_button = NULL;
 static GtkWidget *              params_nodes_isolate_button = NULL;
 
@@ -300,6 +303,7 @@ void main_win_system_to_gui()
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin), rs_system->no_link_dist_thresh);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin), rs_system->no_link_quality_thresh * 100);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin), rs_system->transmission_time);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_neighbor_timeout_spin), rs_system->neighbor_timeout);
 
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_width_spin), rs_system->width);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_height_spin), rs_system->height);
@@ -319,7 +323,7 @@ void main_win_system_to_gui()
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_doublings_spin), rs_system->rpl_dio_interval_doublings);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_redundancy_spin), rs_system->rpl_dio_redundancy_constant);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin), rs_system->rpl_max_inc_rank);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_min_hop_rank_inc_spin), rs_system->rpl_min_hop_rank_inc);
+    // gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_min_hop_rank_inc_spin), rs_system->rpl_min_hop_rank_inc);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check), rs_system->rpl_dao_supported);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check), rs_system->rpl_dao_trigger);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check), !rs_system->rpl_start_silent);
@@ -465,41 +469,57 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         rpl_root_info_t *root_info = node->rpl_info->root_info;
         rpl_dodag_t *dodag = node->rpl_info->joined_dodag;
 
+        char temp[256];
+
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_storing_check), node->rpl_info->storing);
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_trickle_spin), node->rpl_info->trickle_i);
+
+        snprintf(temp, sizeof(temp), "%d", node->rpl_info->trickle_i);
+        gtk_entry_set_text(GTK_ENTRY(params_nodes_trickle_int_entry), temp);
 
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_grounded_check), root_info->grounded);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_dao_enabled_check), root_info->dao_supported);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_dao_trigger_check), root_info->dao_trigger);
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_dag_pref_spin), root_info->dodag_pref);
 
-        gtk_entry_set_editable(GTK_ENTRY(params_nodes_rank_spin), rpl_node_is_joined(node));
         gtk_entry_set_editable(GTK_ENTRY(params_nodes_dag_id_entry), rpl_node_is_joined(node) || rpl_node_is_root(node));
 
         if (rpl_node_is_joined(node)) {
             gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), dodag->dodag_id);
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), dodag->seq_num);
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), dodag->rank);
+
+            snprintf(temp, sizeof(temp), "%d", dodag->seq_num);
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), temp);
+
+            snprintf(temp, sizeof(temp), "%d", dodag->rank);
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), temp);
         }
         else if (rpl_node_is_root(node)) {
             gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), root_info->dodag_id);
             if (rpl_seq_num_exists(root_info->dodag_id)) {
-                gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), rpl_seq_num_get(node->rpl_info->root_info->dodag_id));
+                snprintf(temp, sizeof(temp), "%d", rpl_seq_num_get(node->rpl_info->root_info->dodag_id));
+                gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), temp);
             }
             else {
-                gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), 0);
+                gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), "0");
             }
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), RPL_RANK_ROOT);
+
+            snprintf(temp, sizeof(temp), "%d", RPL_RANK_ROOT);
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), temp);
         }
         else if (rpl_node_is_poisoning(node)) {
             gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), "<<poisoning>>");
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), 0);
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), RPL_RANK_INFINITY);
+
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), "0");
+
+            snprintf(temp, sizeof(temp), "%d", RPL_RANK_INFINITY);
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), temp);
         }
         else {
             gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), "<<isolated>>");
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin), 0);
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_rank_spin), 0);
+
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), "0");
+
+            snprintf(temp, sizeof(temp), "%d", RPL_RANK_INFINITY);
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), "0");
         }
     }
 
@@ -1093,6 +1113,7 @@ GtkWidget *create_params_widget()
     params_system_no_link_dist_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_dist_spin");
     params_system_no_link_quality_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_quality_spin");
     params_system_transmission_time_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_transmission_time_spin");
+    params_system_neighbor_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_neighbor_timeout_spin");
     params_system_width_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_width_spin");
     params_system_height_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_height_spin");
     params_system_real_time_sim_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_real_time_sim_check");
@@ -1103,7 +1124,7 @@ GtkWidget *create_params_widget()
     params_rpl_trickle_doublings_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_doublings_spin");
     params_rpl_trickle_redundancy_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_redundancy_spin");
     params_rpl_max_rank_inc_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_max_rank_inc_spin");
-    params_rpl_min_hop_rank_inc_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_min_hop_rank_inc_spin");
+    // params_rpl_min_hop_rank_inc_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_min_hop_rank_inc_spin");
     params_rpl_dao_supported_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_supported_check");
     params_rpl_dao_trigger_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_trigger_check");
     params_rpl_probe_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_probe_check");
@@ -1154,9 +1175,9 @@ GtkWidget *create_params_widget()
     params_nodes_dao_trigger_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_dao_trigger_check");
     params_nodes_dag_pref_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_dag_pref_spin");
     params_nodes_dag_id_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_dag_id_entry");
-    params_nodes_seq_num_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_seq_num_spin");
-    params_nodes_rank_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_rank_spin");
-    params_nodes_trickle_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_trickle_spin");
+    params_nodes_seq_num_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_seq_num_entry");
+    params_nodes_rank_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_rank_entry");
+    params_nodes_trickle_int_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_trickle_int_entry");
     params_nodes_root_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_root_button");
     params_nodes_isolate_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_isolate_button");
 
@@ -1512,9 +1533,9 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_dao_trigger_check, node_selected);
     gtk_widget_set_sensitive(params_nodes_dag_pref_spin, node_selected);
     gtk_widget_set_sensitive(params_nodes_dag_id_entry, node_selected);
-    gtk_widget_set_sensitive(params_nodes_seq_num_spin, node_selected);
-    gtk_widget_set_sensitive(params_nodes_rank_spin, node_selected);
-    gtk_widget_set_sensitive(params_nodes_trickle_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_seq_num_entry, node_selected);
+    gtk_widget_set_sensitive(params_nodes_rank_entry, node_selected);
+    gtk_widget_set_sensitive(params_nodes_trickle_int_entry, node_selected);
     gtk_widget_set_sensitive(params_nodes_root_button, node_selected);
     gtk_widget_set_sensitive(params_nodes_isolate_button, node_selected);
 
@@ -1569,6 +1590,7 @@ static void gui_to_system()
     rs_system->no_link_dist_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin));
     rs_system->no_link_quality_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin)) / 100.0;
     rs_system->transmission_time = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin));
+    rs_system->neighbor_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_neighbor_timeout_spin));
 
     rs_system->width = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_width_spin));
     rs_system->height = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_height_spin));
@@ -1588,7 +1610,7 @@ static void gui_to_system()
     rs_system->rpl_dio_interval_doublings = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_doublings_spin));
     rs_system->rpl_dio_redundancy_constant = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_redundancy_spin));
     rs_system->rpl_max_inc_rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin));
-    rs_system->rpl_min_hop_rank_inc = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_min_hop_rank_inc_spin));
+    // rs_system->rpl_min_hop_rank_inc = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_min_hop_rank_inc_spin));
     rs_system->rpl_dao_supported = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check));
     rs_system->rpl_dao_trigger = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check));
     rs_system->rpl_start_silent = !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check));
@@ -1755,12 +1777,13 @@ static gboolean status_bar_update_wrapper(void *data)
 
 static void update_rpl_root_configurations()
 {
-    events_lock();
-    nodes_lock();
+    uint16 node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
     uint16 i;
-    for (i = 0; i < rs_system->node_count; i++) {
-        rpl_root_info_t *root_info = rs_system->node_list[i]->rpl_info->root_info;
+    for (i = 0; i < node_count; i++) {
+        node_t *node = node_list[i];
+        rpl_root_info_t *root_info = node->rpl_info->root_info;
 
         root_info->dao_supported = rs_system->rpl_dao_supported;
         root_info->dao_trigger = rs_system->rpl_dao_trigger;
@@ -1768,9 +1791,10 @@ static void update_rpl_root_configurations()
         root_info->dio_interval_min = rs_system->rpl_dio_interval_min;
         root_info->dio_redundancy_constant = rs_system->rpl_dio_redundancy_constant;
         root_info->max_rank_inc = rs_system->rpl_max_inc_rank;
-        root_info->min_hop_rank_inc = rs_system->rpl_min_hop_rank_inc;
-    }
+        // root_info->min_hop_rank_inc = rs_system->rpl_min_hop_rank_inc;
 
-    nodes_unlock();
-    events_unlock();
+        if (rpl_node_is_root(node)) {
+            rpl_node_reset_trickle_timer(node);
+        }
+    }
 }

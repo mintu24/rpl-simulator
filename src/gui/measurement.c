@@ -416,14 +416,10 @@ void cb_measures_connect_add_button_clicked(GtkWidget *widget, gpointer data)
     node_t *src_node = NULL;
     node_t *dst_node = NULL;
 
-    nodes_lock();
-
     if (src_node_pos > 0) { /* pos == 0 corresponds to the "All" item */
         src_node = rs_system->node_list[src_node_pos - 1];
     }
     dst_node = rs_system->node_list[dst_node_pos];
-
-    nodes_unlock();
 
     measure_connect_entry_add(src_node, dst_node);
 

@@ -526,7 +526,9 @@ static measure_converg_output_t measure_converg_compute_output()
 {
     measure_converg_output_t output;
 
-    nodes_lock();
+    uint16 node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
+
     events_lock();
 
     output.total_node_count = rs_system->node_count;
@@ -536,8 +538,8 @@ static measure_converg_output_t measure_converg_compute_output()
     uint16 i;
     output.stable_node_count = 0;
     output.floating_node_count = 0;
-    for (i = 0; i < rs_system->node_count; i++) {
-        node_t *node = rs_system->node_list[i];
+    for (i = 0; i < node_count; i++) {
+        node_t *node = node_list[i];
 
         if (!node->alive) {
             continue;
@@ -564,7 +566,6 @@ static measure_converg_output_t measure_converg_compute_output()
     output.measure_time = rs_system->now;
 
     events_unlock();
-    nodes_unlock();
 
     return output;
 }
@@ -599,11 +600,12 @@ static measure_stat_output_t measure_stat_compute_output(measure_stat_t *measure
         output.ping_total_count = 0;
         output.ping_timeout_count = 0;
 
-        nodes_lock();
+        uint16 node_count;
+        node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
         uint16 i;
-        for (i = 0; i < rs_system->node_count; i++) {
-            node_t *node = rs_system->node_list[i];
+        for (i = 0; i < node_count; i++) {
+            node_t *node = node_list[i];
 
             output.forward_error_count += node->measure_info->forward_error_count;
             output.forward_failure_count += node->measure_info->forward_failure_count;
@@ -617,8 +619,6 @@ static measure_stat_output_t measure_stat_compute_output(measure_stat_t *measure
             output.ping_total_count += node->measure_info->ping_total_count;
             output.ping_timeout_count += node->measure_info->ping_timeout_count;
         }
-
-        nodes_unlock();
 
         if (measure->type == MEASURE_STAT_TYPE_AVG) {
             output.forward_error_count /= rs_system->node_count;

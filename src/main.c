@@ -123,6 +123,8 @@ node_t *rs_add_node(coord_t x, coord_t y)
         }
     }
 
+    nodes_unlock();
+
     if (new_name == NULL) {
         new_name = get_next_name(NULL);
     }
@@ -150,7 +152,6 @@ node_t *rs_add_node(coord_t x, coord_t y)
     free(new_mac_address);
     free(new_ip_address);
 
-    nodes_unlock();
 
     return node;
 }
@@ -267,13 +268,13 @@ void rs_add_more_nodes(uint16 node_number, uint8 pattern, coord_t horiz_dist, co
 void rs_rem_all_nodes()
 {
     nodes_lock();
-
     while (rs_system->node_count > 0) {
         node_t *node = rs_system->node_list[rs_system->node_count - 1];
 
+        nodes_unlock();
         rs_system_remove_node(node);
+        nodes_lock();
     }
-
     nodes_unlock();
 
     /* remove all measurements that concern a specific node */
@@ -316,34 +317,32 @@ void rs_rem_all_nodes()
 
 void rs_wake_all_nodes()
 {
-    nodes_lock();
+    uint16 node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
-    uint16 index;
-    for (index = 0; index < rs_system->node_count; index++) {
-        node_t *node = rs_system->node_list[index];
+    uint16 i;
+    for (i = 0; i < node_count; i++) {
+        node_t *node = node_list[i];
         if (!node->alive && !node_wake(node)) {
             rs_error("failed to wake node '%s'", node->phy_info->name);
         }
     }
-
-    nodes_unlock();
 
     main_win_update_nodes_status();
 }
 
 void rs_kill_all_nodes()
 {
-    nodes_lock();
+    uint16 node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
-    uint16 index;
-    for (index = 0; index < rs_system->node_count; index++) {
-        node_t *node = rs_system->node_list[index];
+    uint16 i;
+    for (i = 0; i < node_count; i++) {
+        node_t *node = node_list[i];
         if (node->alive && !node_kill(node)) {
             rs_error("failed to kill node '%s'", node->phy_info->name);
         }
     }
-
-    nodes_unlock();
 
     main_win_update_nodes_status();
 }

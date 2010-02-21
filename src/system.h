@@ -15,19 +15,20 @@
 #include "proto/icmp.h"
 #include "proto/rpl.h"
 
-#define DEFAULT_NO_LINK_DIST_THRESH             50
+#define DEFAULT_NO_LINK_DIST_THRESH             30
 #define DEFAULT_NO_LINK_QUALITY_THRESH          0.2
 #define DEFAULT_SYS_WIDTH                       100
 #define DEFAULT_SYS_HEIGHT                      100
 #define DEFAULT_SIMULATION_SECOND               1000
 
 #define DEFAULT_TRANSMISSION_TIME               20
+#define DEFAULT_NEIGHBOR_TIMEOUT                2000
 
 #define DEFAULT_NODE_NAME                       "A"
 #define DEFAULT_NODE_MAC_ADDRESS                "0001"
 #define DEFAULT_NODE_IP_ADDRESS                 "AA01"
 
-#define DEFAULT_RPL_AUTO_SN_INC_INT             10000
+#define DEFAULT_RPL_AUTO_SN_INC_INT             -1
 #define DEFAULT_RPL_STARTUP_SILENT              FALSE
 #define DEFAULT_RPL_POISON_COUNT                4
 
@@ -40,6 +41,9 @@
 
 #define DEFAULT_RPL_MAX_RANK_INC                1
 #define DEFAULT_RPL_MIN_HOP_RANK_INC            1
+
+#define RANDOM_SEED_Z                           1234
+#define RANDOM_SEED_W                           6789
 
 
 #define SYS_CORE_SLEEP                  100
@@ -116,6 +120,7 @@ typedef struct rs_system_t {
     coord_t                     no_link_dist_thresh;
     percent_t                   no_link_quality_thresh;
     sim_time_t                  transmission_time;
+    sim_time_t                  neighbor_timeout;
 
     coord_t                     width;
     coord_t                     height;
@@ -134,7 +139,7 @@ typedef struct rs_system_t {
     uint8                       rpl_dio_interval_min;
     uint8                       rpl_dio_redundancy_constant;
     uint8                       rpl_max_inc_rank;
-    uint8                       rpl_min_hop_rank_inc;
+    // uint8                       rpl_min_hop_rank_inc;
 
     /* nodes */
     node_t **                   node_list;
@@ -147,6 +152,9 @@ typedef struct rs_system_t {
     bool                        started;
     bool                        paused;
     bool                        step;
+
+    uint32                      random_z;
+    uint32                      random_w;
 
     GStaticRecMutex             events_mutex;
     GStaticRecMutex             schedules_mutex;
@@ -175,6 +183,7 @@ int32                   rs_system_get_node_pos(node_t *node);
 node_t *                rs_system_find_node_by_name(char *name);
 node_t *                rs_system_find_node_by_mac_address(char *address);
 node_t *                rs_system_find_node_by_ip_address(char *address);
+node_t **               rs_system_get_node_list_copy(uint16 *node_count);
 
 void                    rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
 void                    rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *data2, int32 time);
@@ -187,6 +196,7 @@ void                    rs_system_pause();
 void                    rs_system_step();
 
 char *                  rs_system_sim_time_to_string(sim_time_t time);
+uint32                  rs_system_random();
 
     /* events */
 bool                    sys_event_after_node_wake(node_t *node);
