@@ -43,6 +43,7 @@ bool rs_system_create()
     rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
     rs_system->no_link_quality_thresh = DEFAULT_NO_LINK_QUALITY_THRESH;
     rs_system->transmission_time = DEFAULT_TRANSMISSION_TIME;
+    rs_system->neighbor_timeout = DEFAULT_NEIGHBOR_TIMEOUT;
 
     rs_system->width = DEFAULT_SYS_WIDTH;
     rs_system->height = DEFAULT_SYS_HEIGHT;
@@ -61,7 +62,7 @@ bool rs_system_create()
     rs_system->rpl_dio_interval_min = DEFAULT_RPL_DIO_INTERVAL_MIN;
     rs_system->rpl_dio_redundancy_constant = DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT;
     rs_system->rpl_max_inc_rank = DEFAULT_RPL_MAX_RANK_INC;
-    rs_system->rpl_min_hop_rank_inc = DEFAULT_RPL_MIN_HOP_RANK_INC;
+//    rs_system->rpl_min_hop_rank_inc = DEFAULT_RPL_MIN_HOP_RANK_INC;
 
     rs_system->schedules = NULL;
     rs_system->schedule_count = 0;
@@ -178,12 +179,10 @@ bool rs_system_remove_node(node_t *node)
     rs_assert(rs_system != NULL);
     rs_assert(node != NULL);
 
-    nodes_lock();
-    events_lock();
-    measures_lock();
-
     /* remove all schedules that concern this node */
     rs_system_cancel_event(node, -1, NULL, NULL, 0);
+
+    nodes_lock();
 
     int i, pos = -1;
     for (i = 0; i < rs_system->node_count; i++) {
@@ -212,34 +211,19 @@ bool rs_system_remove_node(node_t *node)
         rs_system->node_list = NULL;
     }
 
-    /* nullify all the references to this node */
-    for (i = 0; i < rs_system->node_count; i++) {
-        node_t *other_node = rs_system->node_list[i];
+    nodes_unlock();
+
+    events_lock();
+
+    uint16 node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
+
+    /* remove all the references to this node */
+    for (i = 0; i < node_count; i++) {
+        node_t *other_node = node_list[i];
 
         /* nullify ip route refs */
-        // todo cleanup/organize this code
-
-        uint32 j;
-        for (j = 0; j < other_node->ip_info->route_count; j++) {
-            ip_route_t *route = other_node->ip_info->route_list[j];
-
-            if (route->next_hop != node)
-                continue;
-
-            uint32 k;
-            for (k = j; k < other_node->ip_info->route_count - 1; k++) {
-                other_node->ip_info->route_list[k] = other_node->ip_info->route_list[k + 1];
-            }
-
-            other_node->ip_info->route_count--;
-            other_node->ip_info->route_list = realloc(other_node->ip_info->route_list, other_node->ip_info->route_count * sizeof(ip_route_t *));
-            if (other_node->ip_info->route_count == 0) {
-                other_node->ip_info->route_list = NULL;
-            }
-
-            free(route->dst);
-            free(route);
-        }
+        ip_node_rem_routes(other_node, NULL, -1, node, -1);
 
         /* ip neighbors */
         ip_neighbor_t *ip_neighbor = ip_node_find_neighbor_by_node(other_node, node);
@@ -249,6 +233,8 @@ bool rs_system_remove_node(node_t *node)
             ip_node_rem_neighbor(other_node, ip_neighbor);
         }
     }
+
+    measures_lock();
 
     /* remove measurement entries that refer to this node */
     for (i = 0; i < measure_connect_entry_get_count(); i++) {
@@ -278,8 +264,8 @@ bool rs_system_remove_node(node_t *node)
     measurement_entries_to_gui();
 
     measures_unlock();
+
     events_unlock();
-    nodes_unlock();
 
     return TRUE;
 }
@@ -367,6 +353,25 @@ node_t *rs_system_find_node_by_ip_address(char *address)
     return node;
 }
 
+node_t **rs_system_get_node_list_copy(uint16 *node_count)
+{
+    rs_assert(rs_system != NULL);
+    rs_assert(node_count != NULL);
+
+    nodes_lock();
+
+    *node_count = rs_system->node_count;
+    node_t **node_list = malloc(sizeof(node_t *) * rs_system->node_count);
+    uint16 i;
+    for (i = 0; i < rs_system->node_count; i++) {
+        node_list[i] = rs_system->node_list[i];
+    }
+
+    nodes_unlock();
+
+    return node_list;
+}
+
 void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time)
 {
     rs_assert(rs_system != NULL);
@@ -450,11 +455,13 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
     rs_assert(src_node != NULL);
 
     if (dst_node == NULL) { /* broadcast */
-        nodes_lock();
+
+        uint16 node_count;
+        node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
         uint16 i;
-        for (i = 0; i < rs_system->node_count; i++) {
-            dst_node = rs_system->node_list[i];
+        for (i = 0; i < node_count; i++) {
+            dst_node = node_list[i];
 
             if (dst_node == src_node) { /* don't process our own broadcast */
                 continue;
@@ -477,8 +484,6 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
             }
 
         }
-
-        nodes_unlock();
     }
     else {
         // todo implement collisions
@@ -540,6 +545,9 @@ void rs_system_start(bool start_paused)
         rs_system->now = 0;
         rs_system->event_count = 0;
 
+        rs_system->random_z = RANDOM_SEED_Z;
+        rs_system->random_w = RANDOM_SEED_W;
+
         GError *error;
         rs_system->sys_thread = g_thread_create(system_core, NULL, TRUE, &error);
         if (rs_system->sys_thread == NULL) {
@@ -555,27 +563,27 @@ void rs_system_start(bool start_paused)
         if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
             rs_system_schedule_event(NULL, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
         }
-    }
 
-    schedules_lock();
-    nodes_lock();
 
-    if (rs_system->auto_wake_nodes) {
-        uint16 i;
-        for (i = 0; i < rs_system->node_count; i++) {
-            node_t *node = rs_system->node_list[i];
+        /* wake all nodes, if that's the chosen option */
+        if (rs_system->auto_wake_nodes) {
+            uint16 node_count;
+            node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
-            if (!node->alive && !node_wake(node)) {
-                rs_error("failed to wake node '%s'", node->phy_info->name);
+            uint16 i;
+            for (i = 0; i < node_count; i++) {
+                node_t *node = node_list[i];
+                if (!node->alive && !node_wake(node)) {
+                    rs_error("failed to wake node '%s'", node->phy_info->name);
+                }
             }
+
+            main_win_update_nodes_status();
         }
     }
 
     main_win_update_nodes_status();
     main_win_update_sim_time_status();
-
-    nodes_unlock();
-    schedules_unlock();
 }
 
 void rs_system_stop()
@@ -588,11 +596,14 @@ void rs_system_stop()
     /* this schedules_lock() waits for the system core to terminate */
 
     schedules_lock();
-    nodes_lock();
+    events_lock();
 
-    uint16 index;
-    for (index = 0; index < rs_system->node_count; index++) {
-        node_t *node = rs_system->node_list[index];
+    uint16 node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
+
+    uint16 i;
+    for (i = 0; i < node_count; i++) {
+        node_t *node = node_list[i];
         if (node->alive && !node_kill(node)) {
             rs_error("failed to kill node '%s'", node->phy_info->name);
         }
@@ -607,7 +618,7 @@ void rs_system_stop()
 
     rs_system->schedule_count = 0;
 
-    nodes_unlock();
+    events_unlock();
     schedules_unlock();
 }
 
@@ -655,6 +666,14 @@ char *rs_system_sim_time_to_string(sim_time_t time)
     }
 
     return text;
+}
+
+uint32 rs_system_random()
+{
+    rs_system->random_z = 36969 * (rs_system->random_z & 0xFFFF) + (rs_system->random_z >> 16);
+    rs_system->random_w = 18000 * (rs_system->random_w & 0xFFFF) + (rs_system->random_w >> 16);
+
+    return (rs_system->random_z << 16) + rs_system->random_w;
 }
 
 bool sys_event_after_node_wake(node_t *node)
@@ -752,12 +771,8 @@ static void *system_core(void *data)
                 rs_system->schedules = rs_system->schedules->next;
 
                 /* test to see if the concerned node still exists and is alive */
-                // todo this makes event executions crash right after a rs_system_remove_node()
-                nodes_lock();
-                bool node_existent_and_alive = rs_system_has_node(schedule->node) && schedule->node->alive;
-                nodes_unlock();
 
-                if (node_existent_and_alive || schedule->node == NULL) {
+                if (schedule->node == NULL || schedule->node->alive) {
                     event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
                 }
                 else {

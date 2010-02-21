@@ -484,7 +484,7 @@ bool ip_event_after_pdu_received(node_t *node, node_t *incoming_node, ip_pdu_t *
         neighbor = ip_node_add_neighbor(node, incoming_node);
         event_execute(rpl_event_id_after_neighbor_attach, node, incoming_node, NULL);
 
-        rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, IP_NEIGHBOR_CACHE_TIMEOUT);
+        rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, rs_system->neighbor_timeout);
     }
 
     if (!rpl_node_process_incoming_flow_label(node, incoming_node, pdu)) { /* drop the packet if RPL says so */
@@ -521,7 +521,7 @@ bool ip_event_after_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor
 {
     sim_time_t diff = rs_system->now - neighbor->last_packet_time;
 
-    if (diff >= IP_NEIGHBOR_CACHE_TIMEOUT) {
+    if (diff >= rs_system->neighbor_timeout) {
         event_execute(rpl_event_id_after_neighbor_detach, node, neighbor->node, NULL);
 
         if (!ip_node_rem_neighbor(node, neighbor)) {
@@ -533,7 +533,7 @@ bool ip_event_after_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor
     }
     else {
         if (neighbor->node != NULL) {
-            rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, IP_NEIGHBOR_CACHE_TIMEOUT - diff);
+            rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, rs_system->neighbor_timeout - diff);
         }
     }
 
