@@ -7,7 +7,6 @@
 
 #define                 AUTOINC_ADDRESS_PART        16
 
-
 void                    rs_open();
 void                    rs_save();
 void                    rs_quit();

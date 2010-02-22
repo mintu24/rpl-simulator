@@ -1672,10 +1672,12 @@ static void gui_to_node(node_t *node)
         }
     }
 
-    node->phy_info->cx = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_x_spin));
-    node->phy_info->cy = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_y_spin));
+    phy_update_coordinate(node, 
+        gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_x_spin)),
+        gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_y_spin)));
 
-    node->phy_info->tx_power = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_tx_power_spin)) / 100.0;
+    phy_update_tx_power(node,
+        gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_tx_power_spin)) / 100.0);
 
     node->phy_info->battery_level = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_bat_level_spin)) / 100.0;
 

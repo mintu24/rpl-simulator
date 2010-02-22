@@ -322,8 +322,7 @@ static gboolean cb_sim_field_drawing_area_button_press(GtkDrawingArea *widget, G
         coord_t current_x = event->x / scale_x;
         coord_t current_y = event->y / scale_y;
 
-        moving_node->phy_info->cx = current_x;
-        moving_node->phy_info->cy = current_y;
+        phy_update_coordinate(moving_node, current_x, current_y);
 
         main_win_node_to_gui(moving_node, MAIN_WIN_NODE_TO_GUI_ALL);
         sim_field_redraw();
@@ -372,8 +371,7 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
     coord_t current_y = event->y / scale_y;
 
     if (moving_node != NULL) {
-        moving_node->phy_info->cx = current_x;
-        moving_node->phy_info->cy = current_y;
+        phy_update_coordinate(moving_node, current_x, current_y);
 
         main_win_node_to_gui(moving_node, MAIN_WIN_NODE_TO_GUI_PHY);
     }
@@ -397,18 +395,18 @@ static gboolean cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEven
 
     if (event->direction == GDK_SCROLL_UP) {
         if (node->phy_info->tx_power + 0.1 <= 1.0) {
-            node->phy_info->tx_power += 0.1;
+            phy_update_tx_power(node, node->phy_info->tx_power + 0.1);
         }
         else {
-            node->phy_info->tx_power = 1.0;
+            phy_update_tx_power(node, 1.0);
         }
     }
     else /* (event->direction == GDK_SCROLL_DOWN) */{
         if (node->phy_info->tx_power - 0.1 >= 0.0) {
-            node->phy_info->tx_power -= 0.1;
+            phy_update_tx_power(node, node->phy_info->tx_power - 0.1);
         }
         else {
-            node->phy_info->tx_power = 0.0;
+            phy_update_tx_power(node, 0.0);
         }
     }
 
