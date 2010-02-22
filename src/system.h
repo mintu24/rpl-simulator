@@ -193,6 +193,7 @@ void                    rs_system_schedule_event(node_t *node, uint16 event_id, 
 void                    rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *data2, int32 time);
 bool                    rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message);
 percent_t               rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
+bool                    rs_system_update_neighbors_list(node_t* node);
 
 void                    rs_system_start(bool start_paused);
 void                    rs_system_stop();

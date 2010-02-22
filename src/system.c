@@ -186,6 +186,7 @@ bool rs_system_remove_node(node_t *node)
 
     nodes_lock();
 
+    /* reducing and shifting the nodes_list */
     int i, pos = -1;
     for (i = 0; i < rs_system->node_count; i++) {
         if (rs_system->node_list[i] == node) {
@@ -238,6 +239,13 @@ bool rs_system_remove_node(node_t *node)
 
     if (node_list != NULL) {
         free(node_list);
+    }
+
+    /* removing the phy neighboring references to this node */
+    for(i = 0; i < node->phy_info->neighbors_count; i++){
+      node_t* other_node = node->phy_info->neighbors_list[i];
+      phy_del_neighbour_node(other_node, node->phy_info->name);
+      phy_del_neighbour_node(node, other_node->phy_info->name);
     }
 
     measures_lock();
@@ -532,6 +540,62 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
     return quality;
 }
 
+bool rs_system_update_neighbors_list(node_t* node){
+
+  rs_assert(node != NULL);
+
+  if(!node->alive) return FALSE;
+
+  nodes_lock();
+
+  int has_changed = 0;
+  uint16 i;
+  node_t* other = NULL;
+
+  for (i = 0; i < rs_system->node_count; i++) {
+    other = rs_system->node_list[i];
+
+    if (other == node) { 
+      continue;
+    }
+
+    if (!other->alive) {
+      continue;
+    }
+
+    percent_t quality = rs_system_get_link_quality(node, other);
+    if (quality < rs_system->no_link_quality_thresh) {
+      if(phy_find_neighbour(node, other->phy_info->name) != NULL){
+        phy_del_neighbour_node(node,other->phy_info->name);
+        phy_del_neighbour_node(other, node->phy_info->name);
+        if(has_changed == 0) has_changed = 1;
+      } 
+    }else{
+      if(phy_find_neighbour(node, other->phy_info->name) == NULL){
+        phy_add_neighbour_node(node,other);
+        phy_add_neighbour_node(other, node);
+        if(has_changed == 0) has_changed = 1;
+      } 
+    }
+  
+  }
+
+  nodes_unlock();
+  
+  phy_debug_print_neighbors_list(node);
+
+  if(has_changed == 1){
+    return TRUE;
+  }else{
+    return FALSE;
+  }
+}
+
+
+
+
+
+
 void rs_system_start(bool start_paused)
 {
     rs_assert(rs_system != NULL);
@@ -707,6 +771,8 @@ bool sys_event_after_node_wake(node_t *node)
         return FALSE;
     if (!event_execute(rpl_event_id_after_node_wake, node, NULL, NULL))
         return FALSE;
+
+    rs_system_update_neighbors_list(node);    
 
     return TRUE;
 }
