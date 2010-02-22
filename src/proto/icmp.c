@@ -250,6 +250,8 @@ bool icmp_event_after_ping_timer_timeout(node_t *node)
         return TRUE;
     }
 
+    // todo apparently a successful ping is registered when changing the destination address to ping...
+
     rs_debug(DEBUG_ICMP, "node '%s': sending a ping request to '%s'", node->phy_info->name, node->icmp_info->ping_ip_address);
     icmp_send(node, node->icmp_info->ping_ip_address, ICMP_TYPE_ECHO_REQUEST, 0, NULL);
 

@@ -1,5 +1,3 @@
-// todo fix automatic sn increment
-
 #include <gdk/gdk.h>
 #include <cairo.h>
 
@@ -53,6 +51,7 @@ static GtkWidget *              params_rpl_max_rank_inc_spin = NULL;
 static GtkWidget *              params_rpl_dao_supported_check = NULL;
 static GtkWidget *              params_rpl_dao_trigger_check = NULL;
 static GtkWidget *              params_rpl_probe_check = NULL;
+static GtkWidget *              params_rpl_prefer_floating_check = NULL;
 static GtkWidget *              params_rpl_autoinc_sn_check = NULL;
 static GtkWidget *              params_rpl_autoinc_sn_spin = NULL;
 static GtkWidget *              params_rpl_poison_count_spin = NULL;
@@ -327,6 +326,7 @@ void main_win_system_to_gui()
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check), rs_system->rpl_dao_supported);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check), rs_system->rpl_dao_trigger);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check), !rs_system->rpl_start_silent);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_prefer_floating_check), rs_system->rpl_prefer_floating);
 
     if (rs_system->rpl_auto_sn_inc_interval > 0) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check), TRUE);
@@ -1128,6 +1128,7 @@ GtkWidget *create_params_widget()
     params_rpl_dao_supported_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_supported_check");
     params_rpl_dao_trigger_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_trigger_check");
     params_rpl_probe_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_probe_check");
+    params_rpl_prefer_floating_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_prefer_floating_check");
     params_rpl_autoinc_sn_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_autoinc_sn_check");
     params_rpl_autoinc_sn_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_autoinc_sn_spin");
     params_rpl_poison_count_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_poison_count_spin");
@@ -1614,8 +1615,14 @@ static void gui_to_system()
     rs_system->rpl_dao_supported = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check));
     rs_system->rpl_dao_trigger = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check));
     rs_system->rpl_start_silent = !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check));
+    rs_system->rpl_prefer_floating = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_prefer_floating_check));
+
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check))) {
+        if (gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin)) <= 0) {
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin), DEFAULT_RPL_AUTO_SN_INC_INT);
+        }
+
         rs_system->rpl_auto_sn_inc_interval = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin));
     }
     else {
@@ -1796,5 +1803,9 @@ static void update_rpl_root_configurations()
         if (rpl_node_is_root(node)) {
             rpl_node_reset_trickle_timer(node);
         }
+    }
+
+    if (node_list != NULL) {
+        free(node_list);
     }
 }

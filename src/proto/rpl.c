@@ -672,17 +672,19 @@ node_t **rpl_node_get_next_hop_list(node_t *node, uint16 *node_count)
             node_list[(*node_count)++] = neighbor->node;
         }
 
-        for (i = 0; i < dodag->sibling_count; i++) {
-            rpl_neighbor_t *neighbor = dodag->sibling_list[i];
-
-            node_list[(*node_count)++] = neighbor->node;
-        }
+        // todo consider siblings, but with care
+//        for (i = 0; i < dodag->sibling_count; i++) {
+//            rpl_neighbor_t *neighbor = dodag->sibling_list[i];
+//
+//            node_list[(*node_count)++] = neighbor->node;
+//        }
 
         events_unlock();
 
         return node_list;
     }
     else {
+        *node_count = 0;
         return NULL;
     }
 }
@@ -921,7 +923,6 @@ bool rpl_event_after_dio_pdu_sent(node_t *node, char *dst_ip_address, rpl_dio_pd
     return TRUE;
 }
 
-// todo rename src_node to incoming node or something
 bool rpl_event_after_dio_pdu_received(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
 {
     measure_node_add_rpl_event(node);
@@ -1145,6 +1146,10 @@ bool rpl_event_after_neighbor_detach(node_t *node, node_t *neighbor_node)
         }
     }
 
+    measure_connect_update_output();
+    measure_sp_comp_update_output();
+    measure_converg_update_output();
+
     return TRUE;
 }
 
@@ -1249,9 +1254,7 @@ bool rpl_event_after_trickle_timer_i_timeout(node_t *node)
         return FALSE; /* this should never happen */
     }
 
-    // todo this should be "deterministic" random
     uint32 t = (rs_system_random() % (node->rpl_info->trickle_i / 2)) + node->rpl_info->trickle_i / 2;
-    //uint32 t = 3 * node->rpl_info->trickle_i / 4;
 
     rs_system_schedule_event(node, rpl_event_id_after_trickle_timer_t_timeout, NULL, NULL, t);
     rs_system_schedule_event(node, rpl_event_id_after_trickle_timer_i_timeout, NULL, NULL, node->rpl_info->trickle_i);
@@ -1281,6 +1284,10 @@ bool rpl_event_after_seq_num_timer_timeout()
         measure_stat_update_output(node);
 
         reset_trickle_timer(node);
+    }
+
+    if (node_list != NULL) {
+        free(node_list);
     }
 
     if (rs_system->rpl_auto_sn_inc_interval > 0) {
@@ -1570,10 +1577,6 @@ static void start_as_root(node_t *node)
 {
     rs_assert(node != NULL);
 
-    rs_debug(DEBUG_RPL, "node '%s': starting as root (dodag_id = '%s', grounded = %s, pref = %d)",
-            node->phy_info->name, node->ip_info->address,
-            (node->rpl_info->root_info->grounded ? "yes" : "no"), node->rpl_info->root_info->dodag_pref);
-
     /* forget about all previous DIO routes */
     ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DIO);
 
@@ -1584,7 +1587,13 @@ static void start_as_root(node_t *node)
         node->rpl_info->joined_dodag = NULL;
     }
 
-    node->rpl_info->root_info->dodag_id = strdup(node->ip_info->address);
+    if (node->rpl_info->root_info->dodag_id == NULL) {
+        node->rpl_info->root_info->dodag_id = strdup(node->ip_info->address);
+    }
+
+    rs_debug(DEBUG_RPL, "node '%s': starting as root (dodag_id = '%s', grounded = %s, pref = %d)",
+            node->phy_info->name, node->rpl_info->root_info->dodag_id,
+            (node->rpl_info->root_info->grounded ? "yes" : "no"), node->rpl_info->root_info->dodag_pref);
 
     reset_trickle_timer(node);
 }
@@ -1708,8 +1717,13 @@ static void choose_parents_and_siblings(node_t *node)
             join_dodag_iteration(node, preferred_dodag_pdu);
             choose_parents_and_siblings(node);
         }
-        else { /* didn't find anything interesting, we're the best, start floating */
-            start_as_root(node);
+        else { /* didn't find anything interesting, we're the best, start floating or poisoning */
+            if (rs_system->rpl_prefer_floating) {
+                start_as_root(node);
+            }
+            else {
+                start_dio_poisoning(node);
+            }
         }
 
         return;
@@ -1722,7 +1736,8 @@ static void choose_parents_and_siblings(node_t *node)
 
         /* try to follow the former preferred parent */
 
-        if (node->rpl_info->joined_dodag->pref_parent != NULL &&
+        if (rs_system->rpl_prefer_floating &&
+                node->rpl_info->joined_dodag->pref_parent != NULL &&
                 node->rpl_info->joined_dodag->pref_parent->last_dio_message != NULL &&
                 node->rpl_info->joined_dodag->pref_parent->last_dio_message->rank < RPL_RANK_INFINITY) {
 
@@ -1824,8 +1839,7 @@ static rpl_dio_pdu_t *get_preferred_dodag_dio_pdu(node_t *node, bool *same)
     rpl_dio_pdu_t *root_dio_pdu = create_root_dio_message(node, FALSE, FALSE);
     rpl_dio_pdu_t *best_dio_pdu = root_dio_pdu;
 
-    rpl_neighbor_t *old_pref_parent = rpl_node_is_joined(node) ? node->rpl_info->joined_dodag->pref_parent : NULL;
-    //rpl_neighbor_t *old_pref_parent = NULL;
+    rpl_neighbor_t *old_pref_parent = rpl_node_is_joined(node) && rs_system->rpl_prefer_floating ? node->rpl_info->joined_dodag->pref_parent : NULL;
 
     uint16 i;
     for (i = 0; i < node->rpl_info->neighbor_count; i++) {
@@ -1933,9 +1947,7 @@ static void reset_trickle_timer(node_t *node)
     node->rpl_info->trickle_i_doublings_so_far = 0;
     node->rpl_info->trickle_c = 0;
 
-    // todo this should use a "deterministic" random
     uint32 t = (rs_system_random() % (node->rpl_info->trickle_i / 2)) + node->rpl_info->trickle_i / 2;
-    //uint32 t = 3 * node->rpl_info->trickle_i / 4;
 
     rs_system_cancel_event(node, rpl_event_id_after_trickle_timer_t_timeout, NULL, NULL, 0);
     rs_system_cancel_event(node, rpl_event_id_after_trickle_timer_i_timeout, NULL, NULL, 0);
