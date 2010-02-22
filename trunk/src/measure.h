@@ -51,7 +51,8 @@ typedef struct measure_connect_t {
     node_t *                src_node;
     node_t *                dst_node;
 
-    int32                   last_connected_event_time;
+    int32                   last_connected_time;
+    int32                   start_time;
 
     measure_connect_output_t output;
 

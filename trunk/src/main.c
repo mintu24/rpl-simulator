@@ -1,7 +1,5 @@
 
 // todo source routing
-// todo convergence measurement
-// todo connectivity measurement
 // todo deadlock with lots of nodes and killing one node
 
 #include <unistd.h>
@@ -328,6 +326,10 @@ void rs_wake_all_nodes()
         }
     }
 
+    if (node_list != NULL) {
+        free(node_list);
+    }
+
     main_win_update_nodes_status();
 }
 
@@ -342,6 +344,10 @@ void rs_kill_all_nodes()
         if (node->alive && !node_kill(node)) {
             rs_error("failed to kill node '%s'", node->phy_info->name);
         }
+    }
+
+    if (node_list != NULL) {
+        free(node_list);
     }
 
     main_win_update_nodes_status();

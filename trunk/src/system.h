@@ -35,12 +35,14 @@
 #define DEFAULT_RPL_DAO_SUPPORTED               FALSE
 #define DEFAULT_RPL_DAO_TRIGGER                 FALSE
 
-#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      6 /* 6 times */
-#define DEFAULT_RPL_DIO_INTERVAL_MIN            4 /* 2^4 = 16ms */
+#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      9 /* 9 times */
+#define DEFAULT_RPL_DIO_INTERVAL_MIN            2 /* 2^2 = 4ms */
 #define DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
 
-#define DEFAULT_RPL_MAX_RANK_INC                1
+#define DEFAULT_RPL_MAX_RANK_INC                4
 #define DEFAULT_RPL_MIN_HOP_RANK_INC            1
+
+#define DEFAULT_RPL_PREFER_FLOATING             FALSE
 
 #define RANDOM_SEED_Z                           1234
 #define RANDOM_SEED_W                           6789
@@ -140,6 +142,8 @@ typedef struct rs_system_t {
     uint8                       rpl_dio_redundancy_constant;
     uint8                       rpl_max_inc_rank;
     // uint8                       rpl_min_hop_rank_inc;
+
+    bool                        rpl_prefer_floating;
 
     /* nodes */
     node_t **                   node_list;

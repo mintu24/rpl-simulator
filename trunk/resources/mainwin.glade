@@ -700,8 +700,8 @@
                   </object>
                   <packing>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">8</property>
-                    <property name="bottom_attach">9</property>
+                    <property name="top_attach">7</property>
+                    <property name="bottom_attach">8</property>
                   </packing>
                 </child>
                 <child>
@@ -762,8 +762,8 @@
                   </object>
                   <packing>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">5</property>
-                    <property name="bottom_attach">6</property>
+                    <property name="top_attach">4</property>
+                    <property name="bottom_attach">5</property>
                   </packing>
                 </child>
                 <child>
@@ -777,8 +777,8 @@
                   </object>
                   <packing>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">6</property>
-                    <property name="bottom_attach">7</property>
+                    <property name="top_attach">5</property>
+                    <property name="bottom_attach">6</property>
                   </packing>
                 </child>
                 <child>
@@ -787,19 +787,23 @@
                   </object>
                   <packing>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">7</property>
-                    <property name="bottom_attach">8</property>
+                    <property name="top_attach">6</property>
+                    <property name="bottom_attach">7</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label98">
-                    <property name="height_request">1</property>
+                  <object class="GtkCheckButton" id="params_rpl_prefer_floating_check">
+                    <property name="label" translatable="yes">Prefer floating DODAGs</property>
                     <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="draw_indicator">True</property>
+                    <signal name="toggled" handler="cb_gui_system_updated"/>
                   </object>
                   <packing>
                     <property name="right_attach">3</property>
-                    <property name="top_attach">4</property>
-                    <property name="bottom_attach">5</property>
+                    <property name="top_attach">8</property>
+                    <property name="bottom_attach">9</property>
                   </packing>
                 </child>
               </object>
@@ -3505,7 +3509,7 @@ link: </property>
   </object>
   <object class="GtkAdjustment" id="params_system_neighbor_timeout_adjustment">
     <property name="upper">100000</property>
-    <property name="step_increment">1</property>
-    <property name="page_increment">10</property>
+    <property name="step_increment">100</property>
+    <property name="page_increment">1000</property>
   </object>
 </interface>

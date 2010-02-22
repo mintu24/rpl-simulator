@@ -62,6 +62,8 @@ bool rs_system_create()
     rs_system->rpl_dio_interval_min = DEFAULT_RPL_DIO_INTERVAL_MIN;
     rs_system->rpl_dio_redundancy_constant = DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT;
     rs_system->rpl_max_inc_rank = DEFAULT_RPL_MAX_RANK_INC;
+
+    rs_system->rpl_prefer_floating = DEFAULT_RPL_PREFER_FLOATING;
 //    rs_system->rpl_min_hop_rank_inc = DEFAULT_RPL_MIN_HOP_RANK_INC;
 
     rs_system->schedules = NULL;
@@ -232,6 +234,10 @@ bool rs_system_remove_node(node_t *node)
             event_execute(rpl_event_id_after_neighbor_detach, other_node, node, NULL);
             ip_node_rem_neighbor(other_node, ip_neighbor);
         }
+    }
+
+    if (node_list != NULL) {
+        free(node_list);
     }
 
     measures_lock();
@@ -482,7 +488,10 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
             else {
                 rs_system_send(src_node, dst_node, message);
             }
+        }
 
+        if (node_list != NULL) {
+            free(node_list);
         }
     }
     else {
@@ -560,7 +569,7 @@ void rs_system_start(bool start_paused)
         }
 
         /* schedule the auto incrementing of seq num mechanism */
-        if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
+        if (rs_system->rpl_auto_sn_inc_interval > 0 ) { // todo this blocks the startup for 10 seconds!
             rs_system_schedule_event(NULL, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
         }
 
@@ -576,6 +585,10 @@ void rs_system_start(bool start_paused)
                 if (!node->alive && !node_wake(node)) {
                     rs_error("failed to wake node '%s'", node->phy_info->name);
                 }
+            }
+
+            if (node_list != NULL) {
+                free(node_list);
             }
 
             main_win_update_nodes_status();
@@ -607,6 +620,10 @@ void rs_system_stop()
         if (node->alive && !node_kill(node)) {
             rs_error("failed to kill node '%s'", node->phy_info->name);
         }
+    }
+
+    if (node_list != NULL) {
+        free(node_list);
     }
 
     while (rs_system->schedules != NULL) {

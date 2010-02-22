@@ -19,10 +19,14 @@ static uint16                       measure_stat_count = 0;
 
     /**** local function prototypes ****/
 
-static measure_connect_output_t     measure_connect_compute_output(measure_connect_t *measure);
-static measure_sp_comp_output_t     measure_sp_comp_compute_output(measure_sp_comp_t *measure);
-static measure_converg_output_t     measure_converg_compute_output();
-static measure_stat_output_t        measure_stat_compute_output(measure_stat_t *measure);
+static void                         measure_connect_compute_output(measure_connect_t *measure);
+static void                         measure_sp_comp_compute_output(measure_sp_comp_t *measure);
+static void                         measure_converg_compute_output(measure_converg_t *measure);
+static void                         measure_stat_compute_output(measure_stat_t *measure);
+
+static bool                         node_can_reach_dest_rec(uint16 node_count, node_t **node_list, int8* cache, uint16 src_index, uint16 dst_index);
+static int32                        find_node_index(uint16 node_count, node_t **node_list, node_t *node);
+static node_t *                     find_next_hop(node_t *node, node_t *dst_node);
 
 
     /**** exported functios ****/
@@ -159,7 +163,8 @@ void measure_connect_entry_add(node_t *src_node, node_t *dst_node)
 
     measure_connect_list[measure_connect_count].src_node = src_node;
     measure_connect_list[measure_connect_count].dst_node = dst_node;
-    measure_connect_list[measure_connect_count].last_connected_event_time = -1;
+    measure_connect_list[measure_connect_count].last_connected_time = -1;
+    measure_connect_list[measure_connect_count].start_time = -1;
     measure_connect_list[measure_connect_count].output.connected_time = 0;
     measure_connect_list[measure_connect_count].output.total_time = 0;
     measure_connect_list[measure_connect_count].output.measure_time = 0;
@@ -228,6 +233,8 @@ void measure_connect_reset_output()
     for (i = 0; i < measure_connect_count; i++) {
         measure_connect_t *measure = &measure_connect_list[i];
 
+        measure->last_connected_time = -1;
+        measure->start_time = -1;
         measure->output.connected_time = 0;
         measure->output.total_time = 0;
         measure->output.measure_time = 0;
@@ -243,8 +250,7 @@ void measure_connect_update_output()
     uint16 i;
     for (i = 0; i < measure_connect_count; i++) {
         measure_connect_t *measure = &measure_connect_list[i];
-
-        measure->output = measure_connect_compute_output(measure);
+        measure_connect_compute_output(measure);
     }
 
     measures_unlock();
@@ -342,7 +348,7 @@ void measure_sp_comp_update_output()
     uint16 i;
     for (i = 0; i < measure_sp_comp_count; i++) {
         measure_sp_comp_t *measure = &measure_sp_comp_list[i];
-        measure->output = measure_sp_comp_compute_output(measure);
+        measure_sp_comp_compute_output(measure);
     }
 
     measures_unlock();
@@ -373,7 +379,7 @@ void measure_converg_update_output()
 {
     measures_lock();
 
-    measure_converg.output = measure_converg_compute_output();
+    measure_converg_compute_output(&measure_converg);
 
     measures_unlock();
 }
@@ -491,7 +497,7 @@ void measure_stat_update_output(node_t *node)
             continue;
         }
 
-        measure->output = measure_stat_compute_output(measure);
+        measure_stat_compute_output(measure);
     }
 
     measures_unlock();
@@ -500,44 +506,73 @@ void measure_stat_update_output(node_t *node)
 
     /**** local functions ****/
 
-static measure_connect_output_t measure_connect_compute_output(measure_connect_t *measure)
+static void measure_connect_compute_output(measure_connect_t *measure)
 {
-    measure_connect_output_t output;
+    measure->output.measure_time = rs_system->now;
 
-    output.connected_time = 0;
-    output.total_time = rs_system->now;
-    output.measure_time = rs_system->now;
+    uint16 i, node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
+    int8 cache[node_count];
 
-    return output;
+    for (i = 0; i < node_count; i++) {
+        cache[i] = -2; /* not visited */
+    }
+
+    if (measure->src_node != NULL) {
+        int32 src_index = find_node_index(node_count, node_list, measure->src_node);
+        int32 dst_index = find_node_index(node_count, node_list, measure->dst_node);
+        bool connected_now = node_can_reach_dest_rec(node_count, node_list, cache, src_index, dst_index);
+
+        if (connected_now) {
+            if (measure->last_connected_time == -1) { /* connection just established */
+                measure->last_connected_time = rs_system->now;
+            }
+            else { /* was already connected */
+                measure->output.connected_time += rs_system->now - measure->last_connected_time;
+                measure->last_connected_time = rs_system->now;
+            }
+        }
+        else {
+            if (measure->last_connected_time == -1) { /* was already disconnected */
+            }
+            else { /* connection just lost */
+                measure->output.connected_time += rs_system->now - measure->last_connected_time;
+                measure->last_connected_time = -1;
+            }
+        }
+
+        if (measure->start_time == -1) {
+            measure->start_time = rs_system->now;
+        }
+
+        measure->output.total_time = rs_system->now - measure->start_time;
+    }
+
+    if (node_list != NULL) {
+        free(node_list);
+    }
 }
 
-static measure_sp_comp_output_t measure_sp_comp_compute_output(measure_sp_comp_t *measure)
+static void measure_sp_comp_compute_output(measure_sp_comp_t *measure)
 {
-    measure_sp_comp_output_t output;
-
-    output.rpl_cost = 0;
-    output.sp_cost = 0;
-    output.measure_time = rs_system->now;
-
-    return output;
+    measure->output.rpl_cost = 0;
+    measure->output.sp_cost = 0;
+    measure->output.measure_time = rs_system->now;
 }
 
-static measure_converg_output_t measure_converg_compute_output()
+static void measure_converg_compute_output(measure_converg_t *measure)
 {
-    measure_converg_output_t output;
-
     uint16 node_count;
     node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
     events_lock();
 
-    output.total_node_count = rs_system->node_count;
-
-    output.connected_node_count = 0;
+    measure->output.total_node_count = rs_system->node_count;
+    measure->output.connected_node_count = 0;
 
     uint16 i;
-    output.stable_node_count = 0;
-    output.floating_node_count = 0;
+    measure->output.stable_node_count = 0;
+    measure->output.floating_node_count = 0;
     for (i = 0; i < node_count; i++) {
         node_t *node = node_list[i];
 
@@ -547,58 +582,58 @@ static measure_converg_output_t measure_converg_compute_output()
 
         if (rpl_node_is_root(node)) {
             if (node->rpl_info->trickle_i_doublings_so_far == node->rpl_info->root_info->dio_interval_doublings) {
-                output.stable_node_count++;
+                measure->output.stable_node_count++;
             }
             if (!node->rpl_info->root_info->grounded) {
-                output.floating_node_count++;
+                measure->output.floating_node_count++;
             }
         }
         else if (rpl_node_is_joined(node)) {
             if (node->rpl_info->trickle_i_doublings_so_far == node->rpl_info->joined_dodag->dio_interval_doublings) {
-                output.stable_node_count++;
+                measure->output.stable_node_count++;
             }
         }
         else { /* node is isolated, thus considered stable */
-            output.stable_node_count++;
+            measure->output.stable_node_count++;
         }
     }
 
-    output.measure_time = rs_system->now;
+    if (node_list != NULL) {
+        free(node_list);
+    }
+
+    measure->output.measure_time = rs_system->now;
 
     events_unlock();
-
-    return output;
 }
 
-static measure_stat_output_t measure_stat_compute_output(measure_stat_t *measure)
+static void measure_stat_compute_output(measure_stat_t *measure)
 {
-    measure_stat_output_t output;
-
     if (measure->type == MEASURE_STAT_TYPE_NODE) {
-        output.forward_error_count = measure->node->measure_info->forward_error_count;
-        output.forward_failure_count = measure->node->measure_info->forward_failure_count;
-        output.rpl_event_count = measure->node->measure_info->rpl_event_count;
-        output.rpl_r_dis_message_count = measure->node->measure_info->rpl_r_dis_message_count;
-        output.rpl_r_dio_message_count = measure->node->measure_info->rpl_r_dio_message_count;
-        output.rpl_r_dao_message_count = measure->node->measure_info->rpl_r_dao_message_count;
-        output.rpl_s_dis_message_count = measure->node->measure_info->rpl_s_dis_message_count;
-        output.rpl_s_dio_message_count = measure->node->measure_info->rpl_s_dio_message_count;
-        output.rpl_s_dao_message_count = measure->node->measure_info->rpl_s_dao_message_count;
-        output.ping_total_count = measure->node->measure_info->ping_total_count;
-        output.ping_timeout_count = measure->node->measure_info->ping_timeout_count;
+        measure->output.forward_error_count = measure->node->measure_info->forward_error_count;
+        measure->output.forward_failure_count = measure->node->measure_info->forward_failure_count;
+        measure->output.rpl_event_count = measure->node->measure_info->rpl_event_count;
+        measure->output.rpl_r_dis_message_count = measure->node->measure_info->rpl_r_dis_message_count;
+        measure->output.rpl_r_dio_message_count = measure->node->measure_info->rpl_r_dio_message_count;
+        measure->output.rpl_r_dao_message_count = measure->node->measure_info->rpl_r_dao_message_count;
+        measure->output.rpl_s_dis_message_count = measure->node->measure_info->rpl_s_dis_message_count;
+        measure->output.rpl_s_dio_message_count = measure->node->measure_info->rpl_s_dio_message_count;
+        measure->output.rpl_s_dao_message_count = measure->node->measure_info->rpl_s_dao_message_count;
+        measure->output.ping_total_count = measure->node->measure_info->ping_total_count;
+        measure->output.ping_timeout_count = measure->node->measure_info->ping_timeout_count;
     }
     else {
-        output.forward_error_count = 0;
-        output.forward_failure_count = 0;
-        output.rpl_event_count = 0;
-        output.rpl_r_dis_message_count = 0;
-        output.rpl_r_dio_message_count = 0;
-        output.rpl_r_dao_message_count = 0;
-        output.rpl_s_dis_message_count = 0;
-        output.rpl_s_dio_message_count = 0;
-        output.rpl_s_dao_message_count = 0;
-        output.ping_total_count = 0;
-        output.ping_timeout_count = 0;
+        measure->output.forward_error_count = 0;
+        measure->output.forward_failure_count = 0;
+        measure->output.rpl_event_count = 0;
+        measure->output.rpl_r_dis_message_count = 0;
+        measure->output.rpl_r_dio_message_count = 0;
+        measure->output.rpl_r_dao_message_count = 0;
+        measure->output.rpl_s_dis_message_count = 0;
+        measure->output.rpl_s_dio_message_count = 0;
+        measure->output.rpl_s_dao_message_count = 0;
+        measure->output.ping_total_count = 0;
+        measure->output.ping_timeout_count = 0;
 
         uint16 node_count;
         node_t **node_list = rs_system_get_node_list_copy(&node_count);
@@ -607,35 +642,111 @@ static measure_stat_output_t measure_stat_compute_output(measure_stat_t *measure
         for (i = 0; i < node_count; i++) {
             node_t *node = node_list[i];
 
-            output.forward_error_count += node->measure_info->forward_error_count;
-            output.forward_failure_count += node->measure_info->forward_failure_count;
-            output.rpl_event_count += node->measure_info->rpl_event_count;
-            output.rpl_r_dis_message_count += node->measure_info->rpl_r_dis_message_count;
-            output.rpl_r_dio_message_count += node->measure_info->rpl_r_dio_message_count;
-            output.rpl_r_dao_message_count += node->measure_info->rpl_r_dao_message_count;
-            output.rpl_s_dis_message_count += node->measure_info->rpl_s_dis_message_count;
-            output.rpl_s_dio_message_count += node->measure_info->rpl_s_dio_message_count;
-            output.rpl_s_dao_message_count += node->measure_info->rpl_s_dao_message_count;
-            output.ping_total_count += node->measure_info->ping_total_count;
-            output.ping_timeout_count += node->measure_info->ping_timeout_count;
+            measure->output.forward_error_count += node->measure_info->forward_error_count;
+            measure->output.forward_failure_count += node->measure_info->forward_failure_count;
+            measure->output.rpl_event_count += node->measure_info->rpl_event_count;
+            measure->output.rpl_r_dis_message_count += node->measure_info->rpl_r_dis_message_count;
+            measure->output.rpl_r_dio_message_count += node->measure_info->rpl_r_dio_message_count;
+            measure->output.rpl_r_dao_message_count += node->measure_info->rpl_r_dao_message_count;
+            measure->output.rpl_s_dis_message_count += node->measure_info->rpl_s_dis_message_count;
+            measure->output.rpl_s_dio_message_count += node->measure_info->rpl_s_dio_message_count;
+            measure->output.rpl_s_dao_message_count += node->measure_info->rpl_s_dao_message_count;
+            measure->output.ping_total_count += node->measure_info->ping_total_count;
+            measure->output.ping_timeout_count += node->measure_info->ping_timeout_count;
         }
 
         if (measure->type == MEASURE_STAT_TYPE_AVG) {
-            output.forward_error_count /= rs_system->node_count;
-            output.forward_failure_count /= rs_system->node_count;
-            output.rpl_event_count /= rs_system->node_count;
-            output.rpl_r_dis_message_count /= rs_system->node_count;
-            output.rpl_r_dio_message_count /= rs_system->node_count;
-            output.rpl_r_dao_message_count /= rs_system->node_count;
-            output.rpl_s_dis_message_count /= rs_system->node_count;
-            output.rpl_s_dio_message_count /= rs_system->node_count;
-            output.rpl_s_dao_message_count /= rs_system->node_count;
-            output.ping_total_count /= rs_system->node_count;
-            output.ping_timeout_count /= rs_system->node_count;
+            measure->output.forward_error_count /= rs_system->node_count;
+            measure->output.forward_failure_count /= rs_system->node_count;
+            measure->output.rpl_event_count /= rs_system->node_count;
+            measure->output.rpl_r_dis_message_count /= rs_system->node_count;
+            measure->output.rpl_r_dio_message_count /= rs_system->node_count;
+            measure->output.rpl_r_dao_message_count /= rs_system->node_count;
+            measure->output.rpl_s_dis_message_count /= rs_system->node_count;
+            measure->output.rpl_s_dio_message_count /= rs_system->node_count;
+            measure->output.rpl_s_dao_message_count /= rs_system->node_count;
+            measure->output.ping_total_count /= rs_system->node_count;
+            measure->output.ping_timeout_count /= rs_system->node_count;
+        }
+
+        if (node_list != NULL) {
+            free(node_list);
         }
     }
 
-    output.measure_time = rs_system->now;
+    measure->output.measure_time = rs_system->now;
+}
 
-    return output;
+
+static bool node_can_reach_dest_rec(uint16 node_count, node_t **node_list, int8* cache, uint16 src_index, uint16 dst_index)
+{
+    /* cache[i]:
+     *  -2 - not visited
+     *  -1 - not calculated
+     *  0 - node i cannot reach dst
+     *  1 - node i can reach dst
+     */
+    if (cache[src_index] >= 0) {
+        return cache[src_index];
+    }
+
+    if (cache[src_index] != -2) { /* oops, already visited, risk of loop */
+        return FALSE;
+    }
+
+    cache[src_index] = -1; /* visited, but not calculated */
+
+    if (src_index == dst_index) {
+        return TRUE;
+    }
+
+    node_t *next_hop = find_next_hop(node_list[src_index], node_list[dst_index]);
+    int32 next_hop_index = find_node_index(node_count, node_list, next_hop);
+    if (next_hop_index == -1) {
+        return FALSE;
+    }
+    else {
+        cache[next_hop_index] = node_can_reach_dest_rec(node_count, node_list, cache, next_hop_index, dst_index);
+    }
+
+    return cache[next_hop_index];
+}
+
+static int32 find_node_index(uint16 node_count, node_t **node_list, node_t *node)
+{
+    uint16 i;
+    for (i = 0; i < node_count; i++) {
+        if (node_list[i] == node) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+static node_t *find_next_hop(node_t *node, node_t *dst_node)
+{
+    /* try the route indicated by IP */
+    ip_route_t *route = ip_node_get_next_hop_route(node, dst_node->ip_info->address);
+    if (route != NULL && rs_system_get_link_quality(node, route->next_hop) >= rs_system->no_link_quality_thresh) {
+        return route->next_hop;
+    }
+
+    /* try the nodes indicated by RPL */
+    uint16 next_node_count, i;
+    node_t **next_node_list = rpl_node_get_next_hop_list(node, &next_node_count);
+    node_t *next_hop = NULL;
+
+    for (i = 0; i < next_node_count; i++) {
+        if (rs_system_get_link_quality(node, next_node_list[i]) >= rs_system->no_link_quality_thresh) {
+            next_hop = next_node_list[i];
+            break;
+        }
+    }
+
+    if (next_node_list != NULL) {
+        free(next_node_list);
+    }
+
+    return next_hop;
 }

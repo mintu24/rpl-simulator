@@ -226,8 +226,8 @@ void measurement_system_to_gui()
     gtk_list_store_clear(measures_stat_node_store);
     gtk_list_store_clear(measures_stat_store);
 
-    gtk_list_store_insert_with_values(measures_connect_src_store, NULL, -1, 0, "All", -1);
-    gtk_list_store_insert_with_values(measures_sp_comp_src_store, NULL, -1, 0, "All", -1);
+    // gtk_list_store_insert_with_values(measures_connect_src_store, NULL, -1, 0, "All", -1);
+    // gtk_list_store_insert_with_values(measures_sp_comp_src_store, NULL, -1, 0, "All", -1);
     gtk_list_store_insert_with_values(measures_stat_node_store, NULL, -1, 0, "Average", -1);
     gtk_list_store_insert_with_values(measures_stat_node_store, NULL, -1, 0, "Total", -1);
 
@@ -410,15 +410,15 @@ void cb_measures_connect_add_button_clicked(GtkWidget *widget, gpointer data)
     int32 src_node_pos = gtk_combo_box_get_active(GTK_COMBO_BOX(measures_connect_src_combo));
     int32 dst_node_pos = gtk_combo_box_get_active(GTK_COMBO_BOX(measures_connect_dst_combo));
 
-    rs_assert(src_node_pos >= 0 && src_node_pos <= rs_system->node_count); /* <= including the "All" item */
+    // rs_assert(src_node_pos >= 0 && src_node_pos <= rs_system->node_count); /* <= including the "All" item */
+    rs_assert(src_node_pos >= 0 && src_node_pos < rs_system->node_count);
     rs_assert(dst_node_pos >= 0 && dst_node_pos < rs_system->node_count);
 
     node_t *src_node = NULL;
     node_t *dst_node = NULL;
 
-    if (src_node_pos > 0) { /* pos == 0 corresponds to the "All" item */
-        src_node = rs_system->node_list[src_node_pos - 1];
-    }
+    // if (src_node_pos > 0) { /* pos == 0 corresponds to the "All" item */
+    src_node = rs_system->node_list[src_node_pos];
     dst_node = rs_system->node_list[dst_node_pos];
 
     measure_connect_entry_add(src_node, dst_node);
@@ -486,7 +486,7 @@ void cb_measures_connect_tree_view_cursor_changed(GtkWidget *widget, gpointer da
 
         gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(measures_connect_progress), percent);
 
-        snprintf(temp, sizeof(temp), "%.0f%%", percent);
+        snprintf(temp, sizeof(temp), "%.0f%%", percent * 100);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(measures_connect_progress), temp);
 
         measures_unlock();
@@ -502,7 +502,8 @@ void cb_measures_sp_comp_add_button_clicked(GtkWidget *widget, gpointer data)
     int32 src_node_pos = gtk_combo_box_get_active(GTK_COMBO_BOX(measures_sp_comp_src_combo));
     int32 dst_node_pos = gtk_combo_box_get_active(GTK_COMBO_BOX(measures_sp_comp_dst_combo));
 
-    rs_assert(src_node_pos >= 0 && src_node_pos <= rs_system->node_count); /* <= including the "All" item */
+    //rs_assert(src_node_pos >= 0 && src_node_pos <= rs_system->node_count); /* <= including the "All" item */
+    rs_assert(src_node_pos >= 0 && src_node_pos < rs_system->node_count);
     rs_assert(dst_node_pos >= 0 && dst_node_pos < rs_system->node_count);
 
     node_t *src_node = NULL;
@@ -510,9 +511,8 @@ void cb_measures_sp_comp_add_button_clicked(GtkWidget *widget, gpointer data)
 
     nodes_lock();
 
-    if (src_node_pos > 0) { /* pos == 0 corresponds to the "All" item */
-        src_node = rs_system->node_list[src_node_pos - 1];
-    }
+    // if (src_node_pos > 0) { /* pos == 0 corresponds to the "All" item */
+    src_node = rs_system->node_list[src_node_pos];
     dst_node = rs_system->node_list[dst_node_pos];
 
     nodes_unlock();
@@ -580,7 +580,7 @@ void cb_measures_sp_comp_tree_view_cursor_changed(GtkWidget *widget, gpointer da
 
         gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(measures_sp_comp_progress), percent);
 
-        snprintf(temp, sizeof(temp), "%.0f%%", percent);
+        snprintf(temp, sizeof(temp), "%.0f%%", percent * 100);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(measures_sp_comp_progress), temp);
 
         measures_unlock();
