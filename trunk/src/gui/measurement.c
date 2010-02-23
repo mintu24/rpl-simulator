@@ -48,7 +48,7 @@ static GtkWidget *              measures_stat_node_combo;
 static GtkWidget *              measures_stat_tree_view;
 static GtkWidget *              measures_stat_add_button;
 static GtkWidget *              measures_stat_rem_button;
-static GtkWidget *              measures_stat_forward_errors_label;
+static GtkWidget *              measures_stat_forward_inconsistencies_label;
 static GtkWidget *              measures_stat_forward_failures_label;
 static GtkWidget *              measures_stat_rpl_events_label;
 static GtkWidget *              measures_stat_rpl_dis_messages_label;
@@ -178,7 +178,7 @@ GtkWidget *measurement_widget_create()
     measures_stat_tree_view = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_tree_view");
     measures_stat_add_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_add_button");
     measures_stat_rem_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_rem_button");
-    measures_stat_forward_errors_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_forward_errors_label");
+    measures_stat_forward_inconsistencies_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_forward_inconsistencies_label");
     measures_stat_forward_failures_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_forward_failures_label");
     measures_stat_rpl_events_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_rpl_events_label");
     measures_stat_rpl_dis_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_stat_rpl_dis_messages_label");
@@ -637,7 +637,7 @@ void cb_measures_stat_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
     rs_assert(index < measure_stat_entry_get_count());
 
     if (index == -1) {
-        gtk_label_set_text(GTK_LABEL(measures_stat_forward_errors_label), "N/A");
+        gtk_label_set_text(GTK_LABEL(measures_stat_forward_inconsistencies_label), "N/A");
         gtk_label_set_text(GTK_LABEL(measures_stat_forward_failures_label), "N/A");
         gtk_label_set_text(GTK_LABEL(measures_stat_rpl_events_label), "N/A");
         gtk_label_set_text(GTK_LABEL(measures_stat_rpl_dis_messages_label), "N/A");
@@ -656,8 +656,8 @@ void cb_measures_stat_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
         char temp[256];
         char *time_str;
 
-        snprintf(temp, sizeof(temp), "%d", output.forward_error_count);
-        gtk_label_set_text(GTK_LABEL(measures_stat_forward_errors_label), temp);
+        snprintf(temp, sizeof(temp), "%d", output.forward_error_inconsistency);
+        gtk_label_set_text(GTK_LABEL(measures_stat_forward_inconsistencies_label), temp);
 
         snprintf(temp, sizeof(temp), "%d", output.forward_failure_count);
         gtk_label_set_text(GTK_LABEL(measures_stat_forward_failures_label), temp);
@@ -675,14 +675,14 @@ void cb_measures_stat_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
         gtk_label_set_text(GTK_LABEL(measures_stat_rpl_dao_messages_label), temp);
 
         float percent;
-        if (output.ping_total_count > 0)
-            percent = (float) (output.ping_total_count - output.ping_timeout_count)/ output.ping_total_count;
+        if (output.ping_successful_count > 0)
+            percent = (float) output.ping_successful_count / (output.ping_successful_count + output.ping_timeout_count);
         else
             percent = 0;
 
         gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(measures_stat_ping_progress), percent);
 
-        snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", output.ping_total_count - output.ping_timeout_count, output.ping_total_count, percent * 100);
+        snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", output.ping_successful_count, output.ping_successful_count + output.ping_timeout_count, percent * 100);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(measures_stat_ping_progress), temp);
 
         time_str = rs_system_sim_time_to_string(output.measure_time);

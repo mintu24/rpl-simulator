@@ -7,34 +7,44 @@
 
     /**** global variables ****/
 
-uint16              ip_event_id_after_node_wake;
-uint16              ip_event_id_before_node_kill;
+uint16                      ip_event_node_wake;
+uint16                      ip_event_node_kill;
 
-uint16              ip_event_id_after_pdu_sent;
-uint16              ip_event_id_after_pdu_received;
+uint16                      ip_event_pdu_send;
+uint16                      ip_event_pdu_send_timeout_check;
+uint16                      ip_event_pdu_receive;
 
-uint16              ip_event_id_after_neighbor_cache_timeout;
+uint16                      ip_event_neighbor_cache_timeout_check;
 
 
     /**** local function prototypes ****/
 
-static uint8 *      route_expand_to_bits(char *dst, uint8 prefix_len);
+static bool                 event_handler_node_wake(node_t *node);
+static bool                 event_handler_node_kill(node_t *node);
 
-static void         event_arg_str_one_node_func(void *data1, void *data2, char *str1, char *str2, uint16 len);
-static void         event_arg_str_one_neighbor_func(void *data1, void *data2, char *str1, char *str2, uint16 len);
+static bool                 event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t *pdu);
+static bool                 event_handler_pdu_send_timeout_check(node_t *node, ip_send_info_t *ip_send_info, ip_pdu_t *pdu);
+static bool                 event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu);
+
+static bool                 event_handler_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor);
+
+static uint8 *              route_expand_to_bits(char *dst, uint8 prefix_len);
+
+static void                 event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
 
     /**** exported functions ****/
 
 bool ip_init()
 {
-    ip_event_id_after_node_wake = event_register("after_node_wake", "ip", (event_handler_t) ip_event_after_node_wake, NULL);
-    ip_event_id_before_node_kill = event_register("before_node_kill", "ip", (event_handler_t) ip_event_before_node_kill, NULL);
+    ip_event_node_wake = event_register("node_wake", "ip", (event_handler_t) event_handler_node_wake, NULL);
+    ip_event_node_kill = event_register("node_kill", "ip", (event_handler_t) event_handler_node_kill, NULL);
 
-    ip_event_id_after_pdu_sent = event_register("after_pdu_sent", "ip", (event_handler_t) ip_event_after_pdu_sent, event_arg_str_one_node_func);
-    ip_event_id_after_pdu_received = event_register("after_pdu_received", "ip", (event_handler_t) ip_event_after_pdu_received, event_arg_str_one_node_func);
+    ip_event_pdu_send = event_register("pdu_send", "ip", (event_handler_t) event_handler_pdu_send, event_arg_str);
+    ip_event_pdu_send_timeout_check = event_register("pdu_send_timeout_check", "ip", (event_handler_t) event_handler_pdu_send_timeout_check, event_arg_str);
+    ip_event_pdu_receive = event_register("pdu_receive", "ip", (event_handler_t) event_handler_pdu_receive, event_arg_str);
 
-    ip_event_id_after_neighbor_cache_timeout = event_register("after_neighbor_cache_timeout", "ip", (event_handler_t) ip_event_after_neighbor_cache_timeout, event_arg_str_one_neighbor_func);
+    ip_event_neighbor_cache_timeout_check = event_register("neighbor_cache_timeout_check", "ip", (event_handler_t) event_handler_neighbor_cache_timeout, event_arg_str);
 
     return TRUE;
 }
@@ -42,6 +52,46 @@ bool ip_init()
 bool ip_done()
 {
     return TRUE;
+}
+
+ip_send_info_t *ip_send_info_create(node_t *incoming_node, node_t *first_next_hop, node_t **next_hop_list, uint16 next_hop_count)
+{
+    ip_send_info_t *ip_send_info = malloc(sizeof(ip_send_info_t));
+
+    ip_send_info->incoming_node = incoming_node;
+    ip_send_info->next_hop_index = 0;
+
+    if (first_next_hop != NULL) {
+        ip_send_info->next_hop_list = malloc((next_hop_count + 1) * sizeof(node_t *));
+        ip_send_info->next_hop_list[0] = first_next_hop;
+        ip_send_info->next_hop_count = 1;
+    }
+    else if (next_hop_count > 0) {
+        ip_send_info->next_hop_list = malloc(next_hop_count * sizeof(node_t *));
+        ip_send_info->next_hop_count = 0;
+    }
+    else {
+        ip_send_info->next_hop_list = NULL;
+        ip_send_info->next_hop_count = 0;
+    }
+
+    uint16 i;
+    for (i = 0; i < next_hop_count; i++) {
+        ip_send_info->next_hop_list[ip_send_info->next_hop_count++] = next_hop_list[i];
+    }
+
+    return ip_send_info;
+}
+
+void ip_send_info_destroy(ip_send_info_t *ip_send_info)
+{
+    rs_assert(ip_send_info != NULL);
+
+    if (ip_send_info->next_hop_list != NULL) {
+        free(ip_send_info->next_hop_list);
+    }
+
+    free(ip_send_info);
 }
 
 ip_pdu_t *ip_pdu_create(char *dst_address, char *src_address)
@@ -107,14 +157,12 @@ ip_pdu_t *ip_pdu_duplicate(ip_pdu_t *pdu)
     return new_pdu;
 }
 
-bool ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu)
+void ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu)
 {
     rs_assert(pdu != NULL);
 
     pdu->next_header = next_header;
     pdu->sdu = sdu;
-
-    return TRUE;
 }
 
 void ip_node_init(node_t *node, char *address)
@@ -131,6 +179,8 @@ void ip_node_init(node_t *node, char *address)
 
     node->ip_info->neighbor_list = NULL;
     node->ip_info->neighbor_count = 0;
+
+    node->ip_info->busy = FALSE;
 }
 
 void ip_node_done(node_t *node)
@@ -178,6 +228,9 @@ void ip_node_add_route(node_t *node, char *dst, uint8 prefix_len, node_t *next_h
     rs_assert(next_hop != NULL);
     rs_assert(strlen(dst) * 4 >= prefix_len);
 
+    rs_debug(DEBUG_IP, "node '%s': adding route '%s/%d' via '%s'",
+            node->phy_info->name, dst, prefix_len, next_hop->phy_info->name);
+
     ip_route_t *route = malloc(sizeof(ip_route_t));
 
     route->dst = strdup(dst);
@@ -195,8 +248,8 @@ void ip_node_rem_routes(node_t *node, char *dst, int8 prefix_len, node_t *next_h
 {
     rs_assert(node != NULL);
 
-    uint16 i;
-    for (i = 0; i < node->ip_info->route_count; i++) {
+    int32 i;
+    for (i = node->ip_info->route_count - 1; i >= 0; i--) { /* going backwards to increase performance a little bit */
         ip_route_t *route = node->ip_info->route_list[i];
 
         if (dst != NULL && (strcmp(route->dst, dst) != 0)) {
@@ -215,8 +268,11 @@ void ip_node_rem_routes(node_t *node, char *dst, int8 prefix_len, node_t *next_h
             continue;
         }
 
-        free(node->ip_info->route_list[i]->dst);
-        free(node->ip_info->route_list[i]);
+        rs_debug(DEBUG_IP, "node '%s': removing route '%s/%d' via '%s'",
+                node->phy_info->name, route->dst, route->prefix_len, route->next_hop->phy_info->name);
+
+        free(route->dst);
+        free(route);
 
         uint16 j;
         for (j = i; j < node->ip_info->route_count - 1; j++) {
@@ -289,6 +345,8 @@ ip_neighbor_t *ip_node_add_neighbor(node_t *node, node_t *neighbor_node)
     rs_assert(node != NULL);
     rs_assert(neighbor_node != NULL);
 
+    rs_debug(DEBUG_IP, "node '%s': adding neighbor '%s'", node->phy_info->name, neighbor_node->phy_info->name);
+
     ip_neighbor_t *neighbor = malloc(sizeof(ip_neighbor_t));
     neighbor->node = neighbor_node;
     neighbor->last_packet_time = rs_system->now;
@@ -323,6 +381,8 @@ bool ip_node_rem_neighbor(node_t *node, ip_neighbor_t *neighbor)
 
         return FALSE;
     }
+
+    rs_debug(DEBUG_IP, "node '%s': removing neighbor '%s'", node->phy_info->name, neighbor->node->phy_info->name);
 
     for (i = pos; i < node->ip_info->neighbor_count - 1; i++) {
         node->ip_info->neighbor_list[i] = node->ip_info->neighbor_list[i + 1];
@@ -359,31 +419,57 @@ ip_neighbor_t* ip_node_find_neighbor_by_node(node_t *node, node_t *neighbor_node
     return NULL;
 }
 
-bool ip_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu)
+bool ip_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu, bool retry)
 {
     rs_assert(node != NULL);
+
+    if (node->ip_info->busy) { /* cannot send while the IP layer is busy */
+        rs_debug(DEBUG_IP, "node '%s': the IP layer is busy", node->phy_info->name);
+
+        if (!retry) {
+            return FALSE;
+        }
+    }
 
     ip_pdu_t *ip_pdu = ip_pdu_create(dst_ip_address != NULL ? dst_ip_address : "", node->ip_info->address);
     ip_pdu_set_sdu(ip_pdu, next_header, sdu);
 
-    if (!event_execute(ip_event_id_after_pdu_sent, node, NULL, ip_pdu)) {
-        ip_pdu_destroy(ip_pdu);
-        return FALSE;
+    if (node->ip_info->busy) {
+        rs_system_schedule_event(node, ip_event_pdu_send, NULL, ip_pdu, rs_system->transmission_time); // todo make this configurable
+    }
+    else {
+        if (!event_execute(ip_event_pdu_send, node, NULL, ip_pdu)) {
+            ip_pdu_destroy(ip_pdu);
+            return FALSE;
+        }
     }
 
     return TRUE;
 }
 
-bool ip_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
+bool ip_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu, bool retry)
 {
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
+    if (node->ip_info->busy) { /* cannot forward while the IP layer is busy */
+        rs_debug(DEBUG_IP, "node '%s': the IP layer is busy", node->phy_info->name);
+
+        if (!retry) {
+            return FALSE;
+        }
+    }
+
     pdu = ip_pdu_duplicate(pdu);
 
-    if (!event_execute(ip_event_id_after_pdu_sent, node, incoming_node, pdu)) {
-        ip_pdu_destroy(pdu);
-        return FALSE;
+    if (node->ip_info->busy) {
+        rs_system_schedule_event(node, ip_event_pdu_send, incoming_node, pdu, rs_system->transmission_time); // todo make this time configurable
+    }
+    else {
+        if (!event_execute(ip_event_pdu_send, node, incoming_node, pdu)) {
+            ip_pdu_destroy(pdu);
+            return FALSE;
+        }
     }
 
     return TRUE;
@@ -394,7 +480,7 @@ bool ip_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
-    bool all_ok = event_execute(ip_event_id_after_pdu_received, node, incoming_node, pdu);
+    bool all_ok = event_execute(ip_event_pdu_receive, node, incoming_node, pdu);
 
     ip_pdu_destroy(pdu);
 
@@ -402,78 +488,106 @@ bool ip_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 }
 
 
-bool ip_event_after_node_wake(node_t *node)
+    /**** local functions ****/
+
+static bool event_handler_node_wake(node_t *node)
 {
     return TRUE;
 }
 
-bool ip_event_before_node_kill(node_t *node)
+static bool event_handler_node_kill(node_t *node)
 {
     while (node->ip_info->neighbor_count > 0) {
         ip_neighbor_t *neighbor = node->ip_info->neighbor_list[node->ip_info->neighbor_count - 1];
 
-        event_execute(rpl_event_id_after_neighbor_detach, node, neighbor->node, NULL);
+        event_execute(rpl_event_neighbor_detach, node, neighbor->node, NULL);
         ip_node_rem_neighbor(node, neighbor);
     }
 
     return TRUE;
 }
 
-bool ip_event_after_pdu_sent(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
+static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
+    rs_debug(DEBUG_IP, "node '%s': sending packet from src = '%s' to dst = '%s'",
+            node->phy_info->name, pdu->src_address, pdu->dst_address);
 
     if (strlen(pdu->dst_address) == 0) { /* broadcast */
-        node_t *dst_node = rpl_node_process_outgoing_flow_label(node, incoming_node, NULL, pdu);
-
-        if (!mac_send(node, dst_node, MAC_TYPE_IP, pdu)) {
-            return FALSE;
-        }
+        return mac_send(node, NULL, MAC_TYPE_IP, pdu);
     }
     else {
         /* route the packet */
         ip_route_t *route = ip_node_get_next_hop_route(node, pdu->dst_address);
 
+        node_t *next_hop = NULL;
+
         if (route == NULL) {
-            rs_warn("node '%s': destination '%s' not reachable", node->phy_info->name, pdu->dst_address);
-            return FALSE;
+            rs_debug(DEBUG_IP, "node '%s': destination '%s' not reachable, querying RPL for routes", node->phy_info->name, pdu->dst_address);
+        }
+        else {
+            next_hop = route->next_hop;
         }
 
-        node_t *next_hop = route->next_hop;
         node_t *redir_next_hop = rpl_node_process_outgoing_flow_label(node, incoming_node, next_hop, pdu);
-        if (redir_next_hop != next_hop) { /* RPL redirected us, don't try all the parents & stuff in case immediate of failure */
+        if (redir_next_hop != next_hop) { /* RPL redirected us, don't try all the parents & stuff in case of failure */
             return mac_send(node, redir_next_hop, MAC_TYPE_IP, pdu);
         }
 
-        if (!mac_send(node, next_hop, MAC_TYPE_IP, pdu)) { /* probably no link, passing the forwarding task to the RPL layer */
-            uint16 node_count, i;
-            node_t **node_list = rpl_node_get_next_hop_list(node, &node_count);
-            bool sent = FALSE;
+        uint16 next_hop_count;
+        node_t **next_hop_list = rpl_node_get_next_hop_list(node, &next_hop_count);
 
-            for (i = 0; i < node_count; i++) {
-                node_t *next_node = node_list[i];
+        ip_send_info_t *ip_send_info = ip_send_info_create(incoming_node, next_hop, next_hop_list, next_hop_count);
 
-                if (mac_send(node, next_node, MAC_TYPE_IP, pdu)) {
-                    sent = TRUE;
-                    break;
-                }
-            }
-
-            if (node_list != NULL) {
-                free(node_list);
-            }
-
-            if (!sent) {
-                event_execute(rpl_event_id_after_forward_failure, node, NULL, NULL);
-            }
-
-            return sent;
+        if (next_hop_list != NULL) {
+            free(next_hop_list);
         }
+
+        if (ip_send_info->next_hop_count > 0) {
+            if (mac_send(node, ip_send_info->next_hop_list[0], MAC_TYPE_IP, pdu)) {
+                rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, 3 * rs_system->transmission_time); // todo make this timeout configurable
+                return TRUE;
+            }
+            else {
+                return FALSE;
+            }
+        }
+        else {
+            rs_debug(DEBUG_IP, "node '%s': destination '%s' not reachable at all", node->phy_info->name, pdu->dst_address);
+            return FALSE;
+        }
+    }
+}
+
+static bool event_handler_pdu_send_timeout_check(node_t *node, ip_send_info_t *ip_send_info, ip_pdu_t *pdu)
+{
+    if (node->mac_info->error &&
+            ip_send_info->next_hop_index < ip_send_info->next_hop_count - 1) {
+
+        ip_send_info->next_hop_index++;
+
+        rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, 3 * rs_system->transmission_time); // todo make this timeout configurable
+        mac_send(node, ip_send_info->next_hop_list[ip_send_info->next_hop_index], MAC_TYPE_IP, pdu);
+    }
+    else { /* succeeded to send the packet, or no more nodes to try */
+        if (node->mac_info->error) {
+            rs_debug(DEBUG_RPL, "node '%s': a forwarding failure occurred, with src = '%s' and dst = '%s'",
+                    node->phy_info->name,
+                    ip_send_info->incoming_node != NULL ? ip_send_info->incoming_node->phy_info->name : "<<local>>",
+                    pdu->src_address, pdu->dst_address);
+
+            event_execute(rpl_event_forward_failure, node, ip_send_info->incoming_node, pdu);
+            ip_pdu_destroy(pdu);
+        }
+
+        ip_send_info_destroy(ip_send_info);
+
+        node->ip_info->busy = FALSE;
     }
 
     return TRUE;
 }
 
-bool ip_event_after_pdu_received(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
+static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
     /* refresh the neighbor cache */
     ip_neighbor_t *neighbor = ip_node_find_neighbor_by_node(node, incoming_node);
@@ -482,18 +596,27 @@ bool ip_event_after_pdu_received(node_t *node, node_t *incoming_node, ip_pdu_t *
     }
     else {
         neighbor = ip_node_add_neighbor(node, incoming_node);
-        event_execute(rpl_event_id_after_neighbor_attach, node, incoming_node, NULL);
+        event_execute(rpl_event_neighbor_attach, node, incoming_node, NULL);
 
-        rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, rs_system->neighbor_timeout);
+        rs_system_schedule_event(node, ip_event_neighbor_cache_timeout_check, neighbor, NULL, rs_system->neighbor_timeout);
     }
 
+    rs_debug(DEBUG_IP, "node '%s': received packet from '%s', with src = '%s' and dst = '%s'",
+            node->phy_info->name, incoming_node != NULL ? incoming_node->phy_info->name : "<<unknown>>",
+            pdu->src_address, pdu->dst_address);
+
     if (!rpl_node_process_incoming_flow_label(node, incoming_node, pdu)) { /* drop the packet if RPL says so */
+        rs_debug(DEBUG_IP, "node '%s': dropped packet from '%s', with src = '%s' and dst = '%s'",
+                node->phy_info->name, incoming_node != NULL ? incoming_node->phy_info->name : "<<unknown>>",
+                pdu->src_address, pdu->dst_address);
+
+        // todo this branch causes a systematic icmp_pdu + rpl_*_pdu memory leak
         return FALSE;
     }
 
     /* if the packet is not intended for us, neither broadcasted, we forward it */
     if (strcmp(node->ip_info->address, pdu->dst_address) != 0 && (strlen(pdu->dst_address) > 0)) {
-        return ip_forward(node, incoming_node, pdu);
+        return ip_forward(node, incoming_node, pdu, TRUE);
     }
     else {
         bool all_ok = TRUE;
@@ -517,12 +640,12 @@ bool ip_event_after_pdu_received(node_t *node, node_t *incoming_node, ip_pdu_t *
     }
 }
 
-bool ip_event_after_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor)
+static bool event_handler_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor)
 {
     sim_time_t diff = rs_system->now - neighbor->last_packet_time;
 
     if (diff >= rs_system->neighbor_timeout) {
-        event_execute(rpl_event_id_after_neighbor_detach, node, neighbor->node, NULL);
+        event_execute(rpl_event_neighbor_detach, node, neighbor->node, NULL);
 
         if (!ip_node_rem_neighbor(node, neighbor)) {
             if (neighbor->node != NULL)
@@ -533,15 +656,12 @@ bool ip_event_after_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor
     }
     else {
         if (neighbor->node != NULL) {
-            rs_system_schedule_event(node, ip_event_id_after_neighbor_cache_timeout, neighbor, NULL, rs_system->neighbor_timeout - diff);
+            rs_system_schedule_event(node, ip_event_neighbor_cache_timeout_check, neighbor, NULL, rs_system->neighbor_timeout - diff);
         }
     }
 
     return TRUE;
 }
-
-
-    /**** local functions ****/
 
 static uint8 *route_expand_to_bits(char *dst, uint8 prefix_len)
 {
@@ -563,24 +683,36 @@ static uint8 *route_expand_to_bits(char *dst, uint8 prefix_len)
     return dst_bit_expanded;
 }
 
-static void event_arg_str_one_node_func(void *data1, void *data2, char *str1, char *str2, uint16 len)
+static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len)
 {
-    node_t *node = data1;
 
-    snprintf(str1, len, "%s", (node != NULL ? node->phy_info->name : "broadcast"));
+    str1[0] = '\0';
     str2[0] = '\0';
-}
 
-static void event_arg_str_one_neighbor_func(void *data1, void *data2, char *str1, char *str2, uint16 len)
-{
-    ip_neighbor_t *neighbor = data1;
+    if (event_id == ip_event_pdu_send) {
+        node_t *node = data1;
+        ip_pdu_t *pdu = data2;
 
-    if (neighbor == NULL) {
-        snprintf(str1, len, "%s", "broadcast");
+        snprintf(str1, len, "incoming_node = '%s'", (node != NULL ? node->phy_info->name : "<<local>>"));
+        snprintf(str2, len, "ip_pdu = {src = '%s', dst = '%s'}", pdu->src_address, pdu->dst_address);
     }
-    else {
-        snprintf(str1, len, "%s", (neighbor->node != NULL ? neighbor->node->phy_info->name : "<<removed>>"));
-    }
+    else if (event_id == ip_event_pdu_send_timeout_check) {
+        ip_send_info_t *send_info = data1;
 
-    str2[0] = '\0';
+        snprintf(str1, len, "send_info = {incoming_node = '%s', next_hop_index = %d, next_hop_count = %d}",
+                (send_info->incoming_node != NULL ? send_info->incoming_node->phy_info->name : "<<local>>"),
+                send_info->next_hop_index, send_info->next_hop_count);
+    }
+    else if (event_id == ip_event_pdu_receive) {
+        node_t *node = data1;
+        mac_pdu_t *pdu = data2;
+
+        snprintf(str1, len, "incoming_node = '%s'", (node != NULL ? node->phy_info->name : "<<unknown>>"));
+        snprintf(str2, len, "ip_pdu = {src = '%s', dst = '%s'}", pdu->src_address, pdu->dst_address);
+    }
+    else if (event_id == ip_event_neighbor_cache_timeout_check) {
+        ip_neighbor_t *neighbor = data1;
+
+        snprintf(str1, len, "neighbor = '%s'", (neighbor->node != NULL ? neighbor->node->phy_info->name : "<<unknown>>"));
+    }
 }

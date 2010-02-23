@@ -10,7 +10,7 @@
 typedef bool (* event_handler_t) (node_t *node, void *data1, void *data2);
 
     /* a callback type representing an event handler */
-typedef void (* event_arg_str_t) (void *data1, void *data2, char *str1, char *str2, uint16 len);
+typedef void (* event_arg_str_t) (uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
     /* structure representing an event (not to be confused with an event schedule) */
 typedef struct event_t {

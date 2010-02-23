@@ -12,9 +12,11 @@
     /**** global variables ****/
 
 rs_system_t *               rs_system = NULL;
-uint16                      sys_event_id_after_node_wake;
-uint16                      sys_event_id_before_node_kill;
-uint16                      sys_event_id_after_message_transmitted;
+
+uint16                      sys_event_node_wake;
+uint16                      sys_event_node_kill;
+
+uint16                      sys_event_pdu_receive;
 
 
     /**** local function prototypes ****/
@@ -24,12 +26,16 @@ static void *               system_core(void *data);
 static event_schedule_t *   schedule_create(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
 static bool                 schedule_destroy(event_schedule_t *schedule);
 
-static void                 event_arg_str_one_node_func(void *data1, void *data2, char *str1, char *str2, uint16 len);
+static bool                 event_handler_node_wake(node_t *node);
+static bool                 event_handler_node_kill(node_t *node);
+
+static bool                 event_handler_pdu_receive(node_t *node, node_t *incoming_node, phy_pdu_t *message);
+
+static void                 event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
 #ifdef DEBUG_EVENTS
 static void                 print_scheduled_events();
 #endif /* DEBUG_EVENTS */
-
 
     /**** exported functions ****/
 
@@ -75,9 +81,10 @@ bool rs_system_create()
     rs_system->now = 0;
     rs_system->event_count = 0;
 
-    sys_event_id_after_node_wake = event_register("after_node_wake", "sys", (event_handler_t) sys_event_after_node_wake, NULL);
-    sys_event_id_before_node_kill = event_register("before_node_kill", "sys", (event_handler_t) sys_event_before_node_kill, NULL);
-    sys_event_id_after_message_transmitted = event_register("after_message_transmitted", "sys", (event_handler_t) sys_event_after_message_transmitted, event_arg_str_one_node_func);
+    sys_event_node_wake = event_register("node_wake", "sys", (event_handler_t) event_handler_node_wake, NULL);
+    sys_event_node_kill = event_register("node_kill", "sys", (event_handler_t) event_handler_node_kill, NULL);
+
+    sys_event_pdu_receive = event_register("pdu_receive", "sys", (event_handler_t) event_handler_pdu_receive, event_arg_str);
 
     if (!phy_init()) {
         rs_error("failed to initialize PHY layer");
@@ -231,8 +238,8 @@ bool rs_system_remove_node(node_t *node)
         /* ip neighbors */
         ip_neighbor_t *ip_neighbor = ip_node_find_neighbor_by_node(other_node, node);
         if (ip_neighbor != NULL) {
-            rs_system_cancel_event(other_node, ip_event_id_after_neighbor_cache_timeout, ip_neighbor, NULL, 0);
-            event_execute(rpl_event_id_after_neighbor_detach, other_node, node, NULL);
+            rs_system_cancel_event(other_node, ip_event_neighbor_cache_timeout_check, ip_neighbor, NULL, 0);
+            event_execute(rpl_event_neighbor_detach, other_node, node, NULL);
             ip_node_rem_neighbor(other_node, ip_neighbor);
         }
     }
@@ -244,8 +251,8 @@ bool rs_system_remove_node(node_t *node)
     /* removing the phy neighboring references to this node */
     for(i = 0; i < node->phy_info->neighbors_count; i++){
       node_t* other_node = node->phy_info->neighbors_list[i];
-      phy_del_neighbour_node(other_node, node->phy_info->name);
-      phy_del_neighbour_node(node, other_node->phy_info->name);
+      phy_node_rem_neighbor(other_node, node->phy_info->name);
+      phy_node_rem_neighbor(node, other_node->phy_info->name);
     }
 
     measures_lock();
@@ -481,15 +488,11 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
                 continue;
             }
 
-            if (!dst_node->alive) { /* dont't send messages to dead nodes */
+            if (!dst_node->alive) { /* don't send messages to dead nodes */
                 continue;
             }
 
-            percent_t quality = rs_system_get_link_quality(src_node, dst_node);
-            if (quality < rs_system->no_link_quality_thresh) { /* no physical link */
-                continue;
-            }
-
+            // todo considering the skipped nodes the following if causes phy_pdu memory leaks
             if (i < rs_system->node_count - 1) {
                 rs_system_send(src_node, dst_node, phy_pdu_duplicate(message));
             }
@@ -503,14 +506,7 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
         }
     }
     else {
-        // todo implement collisions
-
-        percent_t quality = rs_system_get_link_quality(src_node, dst_node);
-        if (quality < rs_system->no_link_quality_thresh) { /* no physical link */
-            return FALSE;
-        }
-
-        rs_system_schedule_event(src_node, sys_event_id_after_message_transmitted, dst_node, message, rs_system->transmission_time);
+        rs_system_schedule_event(dst_node, sys_event_pdu_receive, src_node, message, rs_system->transmission_time);
     }
 
     return TRUE;
@@ -539,62 +535,6 @@ percent_t rs_system_get_link_quality(node_t *src_node, node_t *dst_node)
 
     return quality;
 }
-
-bool rs_system_update_neighbors_list(node_t* node){
-
-  rs_assert(node != NULL);
-
-  if(!node->alive) return FALSE;
-
-  nodes_lock();
-
-  int has_changed = 0;
-  uint16 i;
-  node_t* other = NULL;
-
-  for (i = 0; i < rs_system->node_count; i++) {
-    other = rs_system->node_list[i];
-
-    if (other == node) { 
-      continue;
-    }
-
-    if (!other->alive) {
-      continue;
-    }
-
-    percent_t quality = rs_system_get_link_quality(node, other);
-    if (quality < rs_system->no_link_quality_thresh) {
-      if(phy_find_neighbour(node, other->phy_info->name) != NULL){
-        phy_del_neighbour_node(node,other->phy_info->name);
-        phy_del_neighbour_node(other, node->phy_info->name);
-        if(has_changed == 0) has_changed = 1;
-      } 
-    }else{
-      if(phy_find_neighbour(node, other->phy_info->name) == NULL){
-        phy_add_neighbour_node(node,other);
-        phy_add_neighbour_node(other, node);
-        if(has_changed == 0) has_changed = 1;
-      } 
-    }
-  
-  }
-
-  nodes_unlock();
-  
-  phy_debug_print_neighbors_list(node);
-
-  if(has_changed == 1){
-    return TRUE;
-  }else{
-    return FALSE;
-  }
-}
-
-
-
-
-
 
 void rs_system_start(bool start_paused)
 {
@@ -634,7 +574,7 @@ void rs_system_start(bool start_paused)
 
         /* schedule the auto incrementing of seq num mechanism */
         if (rs_system->rpl_auto_sn_inc_interval > 0 ) { // todo this blocks the startup for 10 seconds!
-            rs_system_schedule_event(NULL, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
+            rs_system_schedule_event(NULL, rpl_event_seq_num_autoinc, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
         }
 
 
@@ -728,22 +668,26 @@ char *rs_system_sim_time_to_string(sim_time_t time)
 {
     char *text = malloc(256);
 
-    if (time < 1000) {
-        snprintf(text, 256, "%d ms", time);
-    }
-    else if (time < 60000) {
-        snprintf(text, 256, "%.3f s", time / 1000.0);
-    }
-    else if (time < 3600000) {
-        uint32 m = time / 60000;
-        uint32 s = (time - m * 60000) / 1000;
-        snprintf(text, 256, "%02d:%02d", m, s);
+    uint32 h = time / 3600000;
+    uint32 m = (time - h * 3600000) / 60000;
+    uint32 s = (time - h * 3600000 - m * 60000) / 1000;
+    uint32 ms = (time - h * 3600000 - m * 60000 - s * 1000);
+
+    if (s > 0) {
+        if (m > 0) {
+            if (h > 0) {
+                snprintf(text, 256, "%02d:%02d:%02d.%03d", h, m, s, ms);
+            }
+            else {
+                snprintf(text, 256, "%02d:%02d.%03d", m, s, ms);
+            }
+        }
+        else {
+            snprintf(text, 256, "%02d.%03d", s, ms);
+        }
     }
     else {
-        uint32 h = time / 3600000;
-        uint32 m = (time - h * 3600000) / 60000;
-        uint32 s = (time - h * 3600000 - m * 60000) / 1000;
-        snprintf(text, 256, "%02d:%02d:%02d", h, m, s);
+        snprintf(text, 256, ".%d", ms);
     }
 
     return text;
@@ -756,55 +700,6 @@ uint32 rs_system_random()
 
     return (rs_system->random_z << 16) + rs_system->random_w;
 }
-
-bool sys_event_after_node_wake(node_t *node)
-{
-    measure_node_reset(node);
-
-    if (!event_execute(phy_event_id_after_node_wake, node, NULL, NULL))
-        return FALSE;
-    if (!event_execute(mac_event_id_after_node_wake, node, NULL, NULL))
-        return FALSE;
-    if (!event_execute(ip_event_id_after_node_wake, node, NULL, NULL))
-        return FALSE;
-    if (!event_execute(icmp_event_id_after_node_wake, node, NULL, NULL))
-        return FALSE;
-    if (!event_execute(rpl_event_id_after_node_wake, node, NULL, NULL))
-        return FALSE;
-
-    rs_system_update_neighbors_list(node);    
-
-    return TRUE;
-}
-
-bool sys_event_before_node_kill(node_t *node)
-{
-    if (!event_execute(rpl_event_id_before_node_kill, node, NULL, NULL))
-        return FALSE;
-    if (!event_execute(icmp_event_id_before_node_kill, node, NULL, NULL))
-        return FALSE;
-    if (!event_execute(ip_event_id_before_node_kill, node, NULL, NULL))
-        return FALSE;
-    if (!event_execute(mac_event_id_before_node_kill, node, NULL, NULL))
-        return FALSE;
-    if (!event_execute(phy_event_id_before_node_kill, node, NULL, NULL))
-        return FALSE;
-
-    return TRUE;
-}
-
-bool sys_event_after_message_transmitted(node_t *src_node, node_t *dst_node, phy_pdu_t *message)
-{
-    bool all_ok = TRUE;
-
-    if (!phy_receive(dst_node, src_node, message)) {
-        rs_error("node '%s': failed to receive PHY pdu from node '%s'", dst_node->phy_info->name, src_node->phy_info->name);
-        all_ok = FALSE;
-    }
-
-    return all_ok;
-}
-
 
     /**** local functions ****/
 
@@ -910,12 +805,72 @@ static bool schedule_destroy(event_schedule_t *schedule)
     return TRUE;
 }
 
-static void event_arg_str_one_node_func(void *data1, void *data2, char *str1, char *str2, uint16 len)
+static bool event_handler_node_wake(node_t *node)
 {
-    node_t *node = data1;
+    measure_node_reset(node);
 
-    snprintf(str1, len, "%s", (node != NULL ? node->phy_info->name : "broadcast"));
+    if (!event_execute(phy_event_node_wake, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(mac_event_node_wake, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(ip_event_node_wake, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(icmp_event_node_wake, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(rpl_event_node_wake, node, NULL, NULL))
+        return FALSE;
+
+    phy_node_update_neighbor_list(node);
+
+    return TRUE;
+}
+
+static bool event_handler_node_kill(node_t *node)
+{
+    if (!event_execute(rpl_event_node_kill, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(icmp_event_node_kill, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(ip_event_node_kill, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(mac_event_node_kill, node, NULL, NULL))
+        return FALSE;
+    if (!event_execute(phy_event_node_kill, node, NULL, NULL))
+        return FALSE;
+
+    return TRUE;
+}
+
+static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, phy_pdu_t *message)
+{
+    percent_t quality = rs_system_get_link_quality(incoming_node, node);
+    if (quality < rs_system->no_link_quality_thresh) { /* no physical link */
+        rs_debug(DEBUG_SYSTEM, "link quality below threshold between '%s' and '%s'",
+                node->phy_info->name, incoming_node->phy_info->name);
+
+        phy_pdu_destroy(message);
+        return FALSE;
+    }
+
+    if (!phy_receive(node, incoming_node, message)) {
+        rs_error("node '%s': failed to receive PHY pdu from node '%s'", node->phy_info->name, incoming_node->phy_info->name);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len)
+{
+
+    str1[0] = '\0';
     str2[0] = '\0';
+
+    if (event_id == sys_event_pdu_receive) {
+        node_t *node = data1;
+
+        snprintf(str1, len, "incoming_node = '%s'", node != NULL ? node->phy_info->name : "<<unknown>>");
+    }
 }
 
 #ifdef DEBUG_EVENTS

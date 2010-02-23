@@ -21,7 +21,7 @@ typedef struct measure_node_info_t {
     /* convergence */
 
     /* statistics */
-    uint32                  forward_error_count;
+    uint32                  forward_inconsistency_count;
     uint32                  forward_failure_count;
     uint32                  rpl_event_count;
     uint32                  rpl_r_dis_message_count;
@@ -30,7 +30,7 @@ typedef struct measure_node_info_t {
     uint32                  rpl_s_dis_message_count;
     uint32                  rpl_s_dio_message_count;
     uint32                  rpl_s_dao_message_count;
-    uint32                  ping_total_count;
+    uint32                  ping_successful_count;
     uint32                  ping_timeout_count;
 
 } measure_node_info_t;
@@ -101,7 +101,7 @@ typedef struct measure_converg_t {
     /* statistics measurement output info  */
 typedef struct measure_stat_output_t {
 
-    uint32                  forward_error_count;
+    uint32                  forward_error_inconsistency;
     uint32                  forward_failure_count;
     uint32                  rpl_event_count;
     uint32                  rpl_r_dis_message_count;
@@ -110,7 +110,7 @@ typedef struct measure_stat_output_t {
     uint32                  rpl_s_dis_message_count;
     uint32                  rpl_s_dio_message_count;
     uint32                  rpl_s_dao_message_count;
-    uint32                  ping_total_count;
+    uint32                  ping_successful_count;
     uint32                  ping_timeout_count;
     sim_time_t              measure_time;
 
@@ -133,13 +133,13 @@ bool                        measure_done();
 void                        measure_node_init(node_t *node);
 void                        measure_node_done(node_t *node);
 
-void                        measure_node_add_forward_error(node_t *node);
+void                        measure_node_add_forward_inconsistency(node_t *node);
 void                        measure_node_add_forward_failure(node_t *node);
 void                        measure_node_add_rpl_event(node_t *node);
 void                        measure_node_add_rpl_dis_message(node_t *node, bool sent);
 void                        measure_node_add_rpl_dio_message(node_t *node, bool sent);
 void                        measure_node_add_rpl_dao_message(node_t *node, bool sent);
-void                        measure_node_add_ping(node_t *node, bool timeout);
+void                        measure_node_add_ping(node_t *node, bool successful);
 
 void                        measure_node_reset(node_t *node);
 
