@@ -7,23 +7,35 @@
 
     /**** global variables ****/
 
-uint16               mac_event_id_after_node_wake;
-uint16               mac_event_id_before_node_kill;
-uint16               mac_event_id_after_pdu_sent;
-uint16               mac_event_id_after_pdu_received;
+uint16                  mac_event_node_wake;
+uint16                  mac_event_node_kill;
+
+uint16                  mac_event_pdu_send;
+uint16                  mac_event_pdu_send_timeout_check;
+uint16                  mac_event_pdu_receive;
 
 
     /**** local function prototypes ****/
 
+static bool             event_handler_node_wake(node_t *node);
+static bool             event_handler_node_kill(node_t *node);
+
+static bool             event_handler_pdu_send(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu);
+static bool             event_handler_pdu_send_timeout_check(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu);
+static bool             event_handler_pdu_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu);
+
+static void             event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
     /**** exported functions ****/
 
 bool mac_init()
 {
-    mac_event_id_after_node_wake = event_register("after_node_wake", "mac", (event_handler_t) mac_event_after_node_wake, NULL);
-    mac_event_id_before_node_kill = event_register("before_node_kill", "mac", (event_handler_t) mac_event_before_node_kill, NULL);
-    mac_event_id_after_pdu_sent = event_register("after_pdu_sent", "mac", (event_handler_t) mac_event_after_pdu_sent, NULL);
-    mac_event_id_after_pdu_received = event_register("after_pdu_received", "mac", (event_handler_t) mac_event_after_pdu_received, NULL);
+    mac_event_node_wake = event_register("node_wake", "mac", (event_handler_t) event_handler_node_wake, NULL);
+    mac_event_node_kill = event_register("node_kill", "mac", (event_handler_t) event_handler_node_kill, NULL);
+
+    mac_event_pdu_send = event_register("pdu_send", "mac", (event_handler_t) event_handler_pdu_send, event_arg_str);
+    mac_event_pdu_send_timeout_check = event_register("pdu_send_timeout_check", "mac", (event_handler_t) event_handler_pdu_send_timeout_check, event_arg_str);
+    mac_event_pdu_receive = event_register("pdu_receive", "mac", (event_handler_t) event_handler_pdu_receive, event_arg_str);
 
     return TRUE;
 }
@@ -33,15 +45,15 @@ bool mac_done()
     return TRUE;
 }
 
-mac_pdu_t *mac_pdu_create(char *dst_address, char *src_address)
+mac_pdu_t *mac_pdu_create(char *src_address, char *dst_address)
 {
-    rs_assert(dst_address != NULL);
     rs_assert(src_address != NULL);
+    rs_assert(dst_address != NULL);
 
     mac_pdu_t *pdu = malloc(sizeof(mac_pdu_t));
 
-    pdu->dst_address = strdup(dst_address);
     pdu->src_address = strdup(src_address);
+    pdu->dst_address = strdup(dst_address);
 
     pdu->type = -1;
     pdu->sdu = NULL;
@@ -49,7 +61,7 @@ mac_pdu_t *mac_pdu_create(char *dst_address, char *src_address)
     return pdu;
 }
 
-bool mac_pdu_destroy(mac_pdu_t *pdu)
+void mac_pdu_destroy(mac_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
 
@@ -60,8 +72,6 @@ bool mac_pdu_destroy(mac_pdu_t *pdu)
         free(pdu->src_address);
 
     free(pdu);
-
-    return TRUE;
 }
 
 mac_pdu_t *mac_pdu_duplicate(mac_pdu_t *pdu)
@@ -70,8 +80,8 @@ mac_pdu_t *mac_pdu_duplicate(mac_pdu_t *pdu)
 
     mac_pdu_t *new_pdu = malloc(sizeof(mac_pdu_t));
 
-    new_pdu->dst_address = strdup(pdu->dst_address);
     new_pdu->src_address = strdup(pdu->src_address);
+    new_pdu->dst_address = strdup(pdu->dst_address);
 
     new_pdu->type = pdu->type;
 
@@ -85,17 +95,15 @@ mac_pdu_t *mac_pdu_duplicate(mac_pdu_t *pdu)
     return new_pdu;
 }
 
-bool mac_pdu_set_sdu(mac_pdu_t *pdu, uint16 type, void *sdu)
+void mac_pdu_set_sdu(mac_pdu_t *pdu, uint16 type, void *sdu)
 {
     rs_assert(pdu != NULL);
 
     pdu->type = type;
     pdu->sdu = sdu;
-
-    return TRUE;
 }
 
-bool mac_node_init(node_t *node, char *address)
+void mac_node_init(node_t *node, char *address)
 {
     rs_assert(node!= NULL);
     rs_assert(address != NULL);
@@ -103,8 +111,8 @@ bool mac_node_init(node_t *node, char *address)
     node->mac_info = malloc(sizeof(mac_node_info_t));
 
     node->mac_info->address = strdup(address);
-
-    return TRUE;
+    node->mac_info->busy = FALSE;
+    node->mac_info->error = FALSE;
 }
 
 void mac_node_done(node_t *node)
@@ -131,27 +139,41 @@ void mac_node_set_address(node_t *node, const char *address)
     node->mac_info->address = strdup(address);
 }
 
-bool mac_send(node_t *node, node_t *dst_node, uint16 type, void *sdu)
+bool mac_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu)
 {
     rs_assert(node != NULL);
 
-    mac_pdu_t *mac_pdu = mac_pdu_create(dst_node != NULL ? dst_node->mac_info->address : "", node->mac_info->address);
+    if (node->mac_info->busy) { /* cannot send while MAC layer is busy */
+        rs_debug(DEBUG_IP, "node '%s': the MAC layer is busy", node->phy_info->name);
+        return FALSE;
+    }
+
+    mac_pdu_t *mac_pdu = mac_pdu_create(node->mac_info->address, outgoing_node != NULL ? outgoing_node->mac_info->address : "");
     mac_pdu_set_sdu(mac_pdu, type, sdu);
 
-    if (!event_execute(mac_event_id_after_pdu_sent, node, dst_node, mac_pdu)) {
+    if (!event_execute(mac_event_pdu_send, node, outgoing_node, mac_pdu)) {
         mac_pdu_destroy(mac_pdu);
         return FALSE;
     }
 
+    node->mac_info->busy = TRUE;
+
+    /* only care about errors for unicast messages */
+    node->mac_info->error = (outgoing_node != NULL);
+
+    rs_system_schedule_event(node, mac_event_pdu_send_timeout_check, outgoing_node, mac_pdu, 2 * rs_system->transmission_time); // todo make this timeout configurable
+
     return TRUE;
 }
 
-bool mac_receive(node_t *node, node_t *src_node, mac_pdu_t *pdu)
+bool mac_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu)
 {
     rs_assert(pdu!= NULL);
     rs_assert(node != NULL);
 
-    bool all_ok = event_execute(mac_event_id_after_pdu_received, node, src_node, pdu);
+    incoming_node->mac_info->error = FALSE;
+
+    bool all_ok = event_execute(mac_event_pdu_receive, node, incoming_node, pdu);
 
     mac_pdu_destroy(pdu);
 
@@ -159,22 +181,35 @@ bool mac_receive(node_t *node, node_t *src_node, mac_pdu_t *pdu)
 }
 
 
-bool mac_event_after_node_wake(node_t *node)
+    /**** local functions ****/
+
+bool event_handler_node_wake(node_t *node)
 {
     return TRUE;
 }
 
-bool mac_event_before_node_kill(node_t *node)
+bool event_handler_node_kill(node_t *node)
 {
     return TRUE;
 }
 
-bool mac_event_after_pdu_sent(node_t *node, node_t *dst_node, mac_pdu_t *pdu)
+bool event_handler_pdu_send(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
 {
-    return phy_send(node, dst_node, pdu);
+    return phy_send(node, outgoing_node, pdu);
 }
 
-bool mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu)
+bool event_handler_pdu_send_timeout_check(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
+{
+    if (node->mac_info->error) { /* the message wasn't received */
+        mac_pdu_destroy(pdu);
+    }
+
+    node->mac_info->busy = FALSE;
+
+    return TRUE;
+}
+
+bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu)
 {
     bool all_ok = TRUE;
 
@@ -183,7 +218,7 @@ bool mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu
         case MAC_TYPE_IP : {
             ip_pdu_t *ip_pdu = pdu->sdu;
 
-            if (!ip_receive(node, src_node, ip_pdu)) {
+            if (!ip_receive(node, incoming_node, ip_pdu)) {
                 all_ok = FALSE;
             }
 
@@ -195,8 +230,32 @@ bool mac_event_after_pdu_received(node_t *node, node_t *src_node, mac_pdu_t *pdu
             all_ok = FALSE;
     }
 
-    return TRUE;
+    return all_ok;
 }
 
-    /**** local functions ****/
+static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len)
+{
 
+    str1[0] = '\0';
+    str2[0] = '\0';
+
+    if (event_id == mac_event_pdu_send) {
+        node_t *node = data1;
+        mac_pdu_t *pdu = data2;
+
+        snprintf(str1, len, "outgoing_node = '%s'", (node != NULL ? node->phy_info->name : "<<broadcast>>"));
+        snprintf(str2, len, "mac_pdu = {src = '%s', dst = '%s'}", pdu->src_address, pdu->dst_address);
+    }
+    else if (event_id == mac_event_pdu_send_timeout_check) {
+        node_t *node = data1;
+
+        snprintf(str1, len, "outgoing_node = '%s'", (node != NULL ? node->phy_info->name : "<<broadcast>>"));
+    }
+    else if (event_id == mac_event_pdu_receive) {
+        node_t *node = data1;
+        mac_pdu_t *pdu = data2;
+
+        snprintf(str1, len, "incoming_node = '%s'", (node != NULL ? node->phy_info->name : "<<unknown>>"));
+        snprintf(str2, len, "mac_pdu = {src = '%s', dst = '%s'}", pdu->src_address, pdu->dst_address);
+    }
+}

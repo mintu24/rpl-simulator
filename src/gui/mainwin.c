@@ -494,13 +494,8 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         }
         else if (rpl_node_is_root(node)) {
             gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), root_info->dodag_id);
-            if (rpl_seq_num_exists(root_info->dodag_id)) {
-                snprintf(temp, sizeof(temp), "%d", rpl_seq_num_get(node->rpl_info->root_info->dodag_id));
-                gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), temp);
-            }
-            else {
-                gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), "0");
-            }
+            snprintf(temp, sizeof(temp), "%d", rpl_seq_num_get(node->rpl_info->root_info->dodag_id));
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), temp);
 
             snprintf(temp, sizeof(temp), "%d", RPL_RANK_ROOT);
             gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), temp);
@@ -1540,8 +1535,8 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_root_button, node_selected);
     gtk_widget_set_sensitive(params_nodes_isolate_button, node_selected);
 
-    gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected);
-    gtk_widget_set_sensitive(rem_menu_item, node_selected);
+    gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected && !sim_started);
+    gtk_widget_set_sensitive(rem_menu_item, node_selected &&  !sim_started);
 
     gtk_widget_set_sensitive(remove_all_menu_item, has_nodes && !sim_started);
     gtk_widget_set_sensitive(kill_all_menu_item, has_nodes && sim_started && !sim_paused);
@@ -1620,7 +1615,7 @@ static void gui_to_system()
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check))) {
         if (gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin)) <= 0) {
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin), DEFAULT_RPL_AUTO_SN_INC_INT);
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin), 10000);
         }
 
         rs_system->rpl_auto_sn_inc_interval = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin));
@@ -1635,9 +1630,9 @@ static void gui_to_system()
     update_rpl_root_configurations();
 
     /* reschedule the auto incrementing of seq num mechanism */
-    rs_system_cancel_event(NULL, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, 0);
+    rs_system_cancel_event(NULL, rpl_event_seq_num_autoinc, NULL, NULL, 0);
     if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
-        rs_system_schedule_event(NULL, rpl_event_id_after_seq_num_timer_timeout, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
+        rs_system_schedule_event(NULL, rpl_event_seq_num_autoinc, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
     }
 }
 
@@ -1672,11 +1667,11 @@ static void gui_to_node(node_t *node)
         }
     }
 
-    phy_update_coordinate(node, 
+    phy_node_set_coordinates(node, 
         gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_x_spin)),
         gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_y_spin)));
 
-    phy_update_tx_power(node,
+    phy_node_set_tx_power(node,
         gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_tx_power_spin)) / 100.0);
 
     node->phy_info->battery_level = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_bat_level_spin)) / 100.0;
@@ -1690,7 +1685,6 @@ static void gui_to_node(node_t *node)
     ip_node_set_address(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_ip_address_entry)));
 
     /* icmp */
-
     bool should_start_ping = FALSE;
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check))) {
         node->icmp_info->ping_ip_address = gtk_combo_box_get_active_text(GTK_COMBO_BOX(params_nodes_ping_address_combo));
@@ -1738,7 +1732,8 @@ static void gui_to_node(node_t *node)
     events_unlock();
 
     if (should_start_ping) {
-        rs_system_schedule_event(node, icmp_event_id_after_ping_timer_timeout, NULL, NULL, node->icmp_info->ping_interval);
+        rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0);
+        rs_system_schedule_event(node, icmp_event_ping_send, NULL, NULL, node->icmp_info->ping_interval);
     }
 }
 

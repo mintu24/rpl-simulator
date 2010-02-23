@@ -119,7 +119,7 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
     }
 
     if (event->str_func != NULL) {
-        event->str_func(data1, data2, str1, str2, 256);
+        event->str_func(event_id, data1, data2, str1, str2, 256);
     }
 
     if (strlen(str1) > 0) {

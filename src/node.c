@@ -60,7 +60,7 @@ bool node_wake(node_t* node)
 
     node->alive = TRUE;
 
-    event_execute(sys_event_id_after_node_wake, node, NULL, NULL);
+    rs_system_schedule_event(node, sys_event_node_wake, NULL, NULL, 0);
 
     return TRUE;
 }
@@ -74,7 +74,7 @@ bool node_kill(node_t* node)
         return FALSE;
     }
 
-    event_execute(sys_event_id_before_node_kill, node, NULL, NULL);
+    rs_system_schedule_event(node, sys_event_node_kill, NULL, NULL, 0);
 
     node->alive = FALSE;
 

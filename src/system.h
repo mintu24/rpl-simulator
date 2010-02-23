@@ -28,14 +28,14 @@
 #define DEFAULT_NODE_MAC_ADDRESS                "0001"
 #define DEFAULT_NODE_IP_ADDRESS                 "AA01"
 
-#define DEFAULT_RPL_AUTO_SN_INC_INT             -1
+#define DEFAULT_RPL_AUTO_SN_INC_INT             -1 /* disabled */
 #define DEFAULT_RPL_STARTUP_SILENT              FALSE
 #define DEFAULT_RPL_POISON_COUNT                4
 
 #define DEFAULT_RPL_DAO_SUPPORTED               FALSE
 #define DEFAULT_RPL_DAO_TRIGGER                 FALSE
 
-#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      9 /* 9 times */
+#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      8 /* 8 times */
 #define DEFAULT_RPL_DIO_INTERVAL_MIN            2 /* 2^2 = 4ms */
 #define DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
 
@@ -173,9 +173,9 @@ typedef struct rs_system_t {
 
 extern rs_system_t *    rs_system;
 
-extern uint16           sys_event_id_after_node_wake;
-extern uint16           sys_event_id_before_node_kill;
-extern uint16           sys_event_id_after_message_transmitted;
+extern uint16           sys_event_node_wake;
+extern uint16           sys_event_node_kill;
+extern uint16           sys_event_pdu_receive;
 
 
 bool                    rs_system_create();
@@ -193,7 +193,6 @@ void                    rs_system_schedule_event(node_t *node, uint16 event_id, 
 void                    rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *data2, int32 time);
 bool                    rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message);
 percent_t               rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
-bool                    rs_system_update_neighbors_list(node_t* node);
 
 void                    rs_system_start(bool start_paused);
 void                    rs_system_stop();
@@ -202,12 +201,6 @@ void                    rs_system_step();
 
 char *                  rs_system_sim_time_to_string(sim_time_t time);
 uint32                  rs_system_random();
-
-    /* events */
-bool                    sys_event_after_node_wake(node_t *node);
-bool                    sys_event_before_node_kill(node_t *node);
-
-bool                    sys_event_after_message_transmitted(node_t *src_node, node_t *dst_node, phy_pdu_t *message);
 
 
 #endif /* SYSTEM_H_ */

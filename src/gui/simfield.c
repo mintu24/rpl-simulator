@@ -23,6 +23,7 @@ static GtkWidget *          sim_field_hruler = NULL;
 
 static node_t *             hover_node = NULL;
 static node_t *             moving_node = NULL;
+static coord_t              moving_dx, moving_dy;
 
 
     /**** local function prototypes ****/
@@ -120,12 +121,7 @@ void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel
     uint8 sequence_number;
 
     if (rpl_node_is_root(node)) {
-        if (rpl_seq_num_exists(node->rpl_info->root_info->dodag_id)) {
-            sequence_number = rpl_seq_num_get(node->rpl_info->root_info->dodag_id);
-        }
-        else {
-            sequence_number = 0;
-        }
+        sequence_number = rpl_seq_num_get(node->rpl_info->root_info->dodag_id);
     }
     else if (rpl_node_is_joined(node)) {
         sequence_number = node->rpl_info->joined_dodag->seq_num;
@@ -322,7 +318,8 @@ static gboolean cb_sim_field_drawing_area_button_press(GtkDrawingArea *widget, G
         coord_t current_x = event->x / scale_x;
         coord_t current_y = event->y / scale_y;
 
-        phy_update_coordinate(moving_node, current_x, current_y);
+        moving_dx = current_x - moving_node->phy_info->cx;
+        moving_dy = current_y - moving_node->phy_info->cy;
 
         main_win_node_to_gui(moving_node, MAIN_WIN_NODE_TO_GUI_ALL);
         sim_field_redraw();
@@ -371,7 +368,7 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
     coord_t current_y = event->y / scale_y;
 
     if (moving_node != NULL) {
-        phy_update_coordinate(moving_node, current_x, current_y);
+        phy_node_set_coordinates(moving_node, current_x - moving_dx, current_y - moving_dy);
 
         main_win_node_to_gui(moving_node, MAIN_WIN_NODE_TO_GUI_PHY);
     }
@@ -395,18 +392,18 @@ static gboolean cb_sim_field_drawing_area_scroll(GtkDrawingArea *widget, GdkEven
 
     if (event->direction == GDK_SCROLL_UP) {
         if (node->phy_info->tx_power + 0.1 <= 1.0) {
-            phy_update_tx_power(node, node->phy_info->tx_power + 0.1);
+            phy_node_set_tx_power(node, node->phy_info->tx_power + 0.1);
         }
         else {
-            phy_update_tx_power(node, 1.0);
+            phy_node_set_tx_power(node, 1.0);
         }
     }
     else /* (event->direction == GDK_SCROLL_DOWN) */{
         if (node->phy_info->tx_power - 0.1 >= 0.0) {
-            phy_update_tx_power(node, node->phy_info->tx_power - 0.1);
+            phy_node_set_tx_power(node, node->phy_info->tx_power - 0.1);
         }
         else {
-            phy_update_tx_power(node, 0.0);
+            phy_node_set_tx_power(node, 0.0);
         }
     }
 

@@ -488,26 +488,36 @@ static char *get_next_ip_address(char *address)
 
 static void set_loggable_events()
 {
-//    event_set_logging(rpl_event_id_after_node_wake, TRUE);
-//    event_set_logging(rpl_event_id_before_node_kill, TRUE);
-//    event_set_logging(rpl_event_id_after_neighbor_attach, TRUE);
-//    event_set_logging(rpl_event_id_after_neighbor_detach, TRUE);
-//    event_set_logging(rpl_event_id_after_dao_pdu_received, TRUE);
-//    event_set_logging(rpl_event_id_after_dio_pdu_received, TRUE);
-//    event_set_logging(rpl_event_id_after_dis_pdu_received, TRUE);
-//    event_set_logging(rpl_event_id_after_dao_pdu_sent, TRUE);
-//    event_set_logging(rpl_event_id_after_dio_pdu_sent, TRUE);
-//    event_set_logging(rpl_event_id_after_dis_pdu_sent, TRUE);
-//    event_set_logging(rpl_event_id_after_forward_error, TRUE);
-//    event_set_logging(rpl_event_id_after_forward_failure, TRUE);
-//    event_set_logging(rpl_event_id_after_trickle_timer_i_timeout, TRUE);
-//    event_set_logging(rpl_event_id_after_trickle_timer_t_timeout, TRUE);
-//    event_set_logging(rpl_event_id_after_seq_num_timer_timeout, TRUE);
+//    event_set_logging(rpl_event_node_wake, TRUE);
+//    event_set_logging(rpl_event_node_kill, TRUE);
+//    event_set_logging(rpl_event_neighbor_attach, TRUE);
+//    event_set_logging(rpl_event_neighbor_detach, TRUE);
+//    event_set_logging(rpl_event_dao_pdu_receive, TRUE);
+//    event_set_logging(rpl_event_dio_pdu_receive, TRUE);
+//    event_set_logging(rpl_event_dis_pdu_receive, TRUE);
+//    event_set_logging(rpl_event_dao_pdu_send, TRUE);
+//    event_set_logging(rpl_event_dio_pdu_send, TRUE);
+//    event_set_logging(rpl_event_dis_pdu_send, TRUE);
+//    event_set_logging(rpl_event_forward_inconsistency, TRUE);
+//    event_set_logging(rpl_event_forward_failure, TRUE);
+//    event_set_logging(rpl_event_trickle_i_timeout, TRUE);
+//    event_set_logging(rpl_event_trickle_t_timeout, TRUE);
+//    event_set_logging(rpl_event_seq_num_autoinc, TRUE);
+//
+    event_set_logging(icmp_event_pdu_send, TRUE);
+    event_set_logging(icmp_event_pdu_receive, TRUE);
+    event_set_logging(icmp_event_ping_send, TRUE);
+    event_set_logging(icmp_event_ping_timeout, TRUE);
 
-//    event_set_logging(sys_event_id_after_message_transmitted, TRUE);
+    event_set_logging(ip_event_pdu_send, TRUE);
+    event_set_logging(ip_event_pdu_send_timeout_check, TRUE);
+    event_set_logging(ip_event_pdu_receive, TRUE);
 
-    event_set_logging(icmp_event_id_after_ping_timeout, TRUE);
-    event_set_logging(icmp_event_id_after_ping_timer_timeout, TRUE);
+    event_set_logging(mac_event_pdu_send, TRUE);
+    event_set_logging(mac_event_pdu_send_timeout_check, TRUE);
+    event_set_logging(mac_event_pdu_receive, TRUE);
+
+    event_set_logging(sys_event_pdu_receive, TRUE);
 }
 
 int main(int argc, char *argv[])

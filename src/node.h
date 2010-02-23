@@ -20,11 +20,11 @@ typedef struct node_t {
 } node_t;
 
 
-node_t *                    node_create();
-bool                        node_destroy(node_t* node);
+node_t *                        node_create();
+bool                            node_destroy(node_t* node);
 
-bool                        node_wake(node_t* node);
-bool                        node_kill(node_t* node);
+bool                            node_wake(node_t* node);
+bool                            node_kill(node_t* node);
 
 
 #endif /* NODE_H_ */

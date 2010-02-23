@@ -53,7 +53,7 @@ void measure_node_init(node_t *node)
     /* statistics */
     node->measure_info = malloc(sizeof(measure_node_info_t));
 
-    node->measure_info->forward_error_count = 0;
+    node->measure_info->forward_inconsistency_count = 0;
     node->measure_info->forward_failure_count = 0;
     node->measure_info->rpl_event_count = 0;
     node->measure_info->rpl_r_dis_message_count = 0;
@@ -62,7 +62,7 @@ void measure_node_init(node_t *node)
     node->measure_info->rpl_s_dis_message_count = 0;
     node->measure_info->rpl_s_dio_message_count = 0;
     node->measure_info->rpl_s_dao_message_count = 0;
-    node->measure_info->ping_total_count = 0;
+    node->measure_info->ping_successful_count = 0;
     node->measure_info->ping_timeout_count = 0;
 }
 
@@ -76,11 +76,11 @@ void measure_node_done(node_t *node)
     }
 }
 
-void measure_node_add_forward_error(node_t *node)
+void measure_node_add_forward_inconsistency(node_t *node)
 {
     rs_assert(node != NULL);
 
-    node->measure_info->forward_error_count++;
+    node->measure_info->forward_inconsistency_count++;
 }
 
 void measure_node_add_forward_failure(node_t *node)
@@ -127,14 +127,15 @@ void measure_node_add_rpl_dao_message(node_t *node, bool sent)
         node->measure_info->rpl_r_dao_message_count++;
 }
 
-void measure_node_add_ping(node_t *node, bool timeout)
+
+void measure_node_add_ping(node_t *node, bool successful)
 {
     rs_assert(node != NULL);
 
-    if (timeout)
-        node->measure_info->ping_timeout_count++;
+    if (successful)
+        node->measure_info->ping_successful_count++;
     else
-        node->measure_info->ping_total_count++;
+        node->measure_info->ping_timeout_count++;
 
 }
 
@@ -142,7 +143,7 @@ void measure_node_reset(node_t *node)
 {
     rs_assert(node != NULL);
 
-    node->measure_info->forward_error_count = 0;
+    node->measure_info->forward_inconsistency_count = 0;
     node->measure_info->forward_failure_count = 0;
     node->measure_info->rpl_event_count = 0;
     node->measure_info->rpl_r_dis_message_count = 0;
@@ -151,7 +152,7 @@ void measure_node_reset(node_t *node)
     node->measure_info->rpl_s_dis_message_count = 0;
     node->measure_info->rpl_s_dio_message_count = 0;
     node->measure_info->rpl_s_dao_message_count = 0;
-    node->measure_info->ping_total_count = 0;
+    node->measure_info->ping_successful_count = 0;
     node->measure_info->ping_timeout_count = 0;
 }
 
@@ -393,8 +394,8 @@ void measure_stat_entry_add(node_t *node, uint8 type)
 
     measure_stat_list[measure_stat_count].node = node;
     measure_stat_list[measure_stat_count].type = type;
-    measure_stat_list[measure_stat_count].output.forward_error_count = 0;
     measure_stat_list[measure_stat_count].output.forward_failure_count = 0;
+    measure_stat_list[measure_stat_count].output.forward_error_inconsistency = 0;
     measure_stat_list[measure_stat_count].output.rpl_event_count = 0;
     measure_stat_list[measure_stat_count].output.rpl_r_dis_message_count = 0;
     measure_stat_list[measure_stat_count].output.rpl_r_dio_message_count = 0;
@@ -402,7 +403,7 @@ void measure_stat_entry_add(node_t *node, uint8 type)
     measure_stat_list[measure_stat_count].output.rpl_s_dis_message_count = 0;
     measure_stat_list[measure_stat_count].output.rpl_s_dio_message_count = 0;
     measure_stat_list[measure_stat_count].output.rpl_s_dao_message_count = 0;
-    measure_stat_list[measure_stat_count].output.ping_total_count = 0;
+    measure_stat_list[measure_stat_count].output.ping_successful_count = 0;
     measure_stat_list[measure_stat_count].output.ping_timeout_count = 0;
     measure_stat_list[measure_stat_count].output.measure_time = 0;
 
@@ -468,8 +469,8 @@ void measure_stat_reset_output()
     for (i = 0; i < measure_stat_count; i++) {
         measure_stat_t *measure = &measure_stat_list[i];
 
-        measure->output.forward_error_count = 0;
         measure->output.forward_failure_count = 0;
+        measure->output.forward_error_inconsistency = 0;
         measure->output.rpl_event_count = 0;
         measure->output.rpl_r_dis_message_count = 0;
         measure->output.rpl_r_dio_message_count = 0;
@@ -477,7 +478,7 @@ void measure_stat_reset_output()
         measure->output.rpl_s_dis_message_count = 0;
         measure->output.rpl_s_dio_message_count = 0;
         measure->output.rpl_s_dao_message_count = 0;
-        measure->output.ping_total_count = 0;
+        measure->output.ping_successful_count = 0;
         measure->output.ping_timeout_count = 0;
         measure->output.measure_time = 0;
     }
@@ -610,7 +611,7 @@ static void measure_converg_compute_output(measure_converg_t *measure)
 static void measure_stat_compute_output(measure_stat_t *measure)
 {
     if (measure->type == MEASURE_STAT_TYPE_NODE) {
-        measure->output.forward_error_count = measure->node->measure_info->forward_error_count;
+        measure->output.forward_error_inconsistency = measure->node->measure_info->forward_inconsistency_count;
         measure->output.forward_failure_count = measure->node->measure_info->forward_failure_count;
         measure->output.rpl_event_count = measure->node->measure_info->rpl_event_count;
         measure->output.rpl_r_dis_message_count = measure->node->measure_info->rpl_r_dis_message_count;
@@ -619,11 +620,11 @@ static void measure_stat_compute_output(measure_stat_t *measure)
         measure->output.rpl_s_dis_message_count = measure->node->measure_info->rpl_s_dis_message_count;
         measure->output.rpl_s_dio_message_count = measure->node->measure_info->rpl_s_dio_message_count;
         measure->output.rpl_s_dao_message_count = measure->node->measure_info->rpl_s_dao_message_count;
-        measure->output.ping_total_count = measure->node->measure_info->ping_total_count;
+        measure->output.ping_successful_count = measure->node->measure_info->ping_successful_count;
         measure->output.ping_timeout_count = measure->node->measure_info->ping_timeout_count;
     }
     else {
-        measure->output.forward_error_count = 0;
+        measure->output.forward_error_inconsistency = 0;
         measure->output.forward_failure_count = 0;
         measure->output.rpl_event_count = 0;
         measure->output.rpl_r_dis_message_count = 0;
@@ -632,7 +633,7 @@ static void measure_stat_compute_output(measure_stat_t *measure)
         measure->output.rpl_s_dis_message_count = 0;
         measure->output.rpl_s_dio_message_count = 0;
         measure->output.rpl_s_dao_message_count = 0;
-        measure->output.ping_total_count = 0;
+        measure->output.ping_successful_count = 0;
         measure->output.ping_timeout_count = 0;
 
         uint16 node_count;
@@ -642,7 +643,7 @@ static void measure_stat_compute_output(measure_stat_t *measure)
         for (i = 0; i < node_count; i++) {
             node_t *node = node_list[i];
 
-            measure->output.forward_error_count += node->measure_info->forward_error_count;
+            measure->output.forward_error_inconsistency += node->measure_info->forward_inconsistency_count;
             measure->output.forward_failure_count += node->measure_info->forward_failure_count;
             measure->output.rpl_event_count += node->measure_info->rpl_event_count;
             measure->output.rpl_r_dis_message_count += node->measure_info->rpl_r_dis_message_count;
@@ -651,12 +652,12 @@ static void measure_stat_compute_output(measure_stat_t *measure)
             measure->output.rpl_s_dis_message_count += node->measure_info->rpl_s_dis_message_count;
             measure->output.rpl_s_dio_message_count += node->measure_info->rpl_s_dio_message_count;
             measure->output.rpl_s_dao_message_count += node->measure_info->rpl_s_dao_message_count;
-            measure->output.ping_total_count += node->measure_info->ping_total_count;
+            measure->output.ping_successful_count += node->measure_info->ping_successful_count;
             measure->output.ping_timeout_count += node->measure_info->ping_timeout_count;
         }
 
         if (measure->type == MEASURE_STAT_TYPE_AVG) {
-            measure->output.forward_error_count /= rs_system->node_count;
+            measure->output.forward_error_inconsistency /= rs_system->node_count;
             measure->output.forward_failure_count /= rs_system->node_count;
             measure->output.rpl_event_count /= rs_system->node_count;
             measure->output.rpl_r_dis_message_count /= rs_system->node_count;
@@ -665,7 +666,7 @@ static void measure_stat_compute_output(measure_stat_t *measure)
             measure->output.rpl_s_dis_message_count /= rs_system->node_count;
             measure->output.rpl_s_dio_message_count /= rs_system->node_count;
             measure->output.rpl_s_dao_message_count /= rs_system->node_count;
-            measure->output.ping_total_count /= rs_system->node_count;
+            measure->output.ping_successful_count /= rs_system->node_count;
             measure->output.ping_timeout_count /= rs_system->node_count;
         }
 
