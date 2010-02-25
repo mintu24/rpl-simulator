@@ -2,12 +2,14 @@
 #include <cairo.h>
 
 #include "mainwin.h"
+
 #include "simfield.h"
 #include "legend.h"
 #include "dialogs.h"
 #include "measurement.h"
-#include "../system.h"
+
 #include "../main.h"
+#include "../system.h"
 
 #define signal_enter()          { if (signals_disabled) return; signals_disabled = TRUE; }
 #define signal_leave()          { signals_disabled = FALSE; }
@@ -105,6 +107,10 @@ static GtkWidget *              params_nodes_trickle_int_entry = NULL;
 static GtkWidget *              params_nodes_root_button = NULL;
 static GtkWidget *              params_nodes_isolate_button = NULL;
 
+static GtkWidget *              params_nodes_measure_connect_dst_combo;
+static GtkWidget *              params_nodes_measure_connect_connected_now_label;
+static GtkWidget *              params_nodes_measure_connect_progress;
+static GtkListStore *           params_nodes_measure_connect_dst_store;
 
 
     /* measures widgets */
@@ -344,6 +350,9 @@ void main_win_system_to_gui()
     gtk_list_store_clear(params_nodes_route_next_hop_store);
     gtk_list_store_clear(params_nodes_route_dst_store);
     gtk_list_store_clear(params_nodes_ping_address_store);
+    gtk_list_store_clear(params_nodes_measure_connect_dst_store);
+
+    gtk_list_store_insert_with_values(params_nodes_measure_connect_dst_store, NULL, -1, 0, "Disabled", -1);
 
     nodes_lock();
 
@@ -354,6 +363,7 @@ void main_win_system_to_gui()
         gtk_list_store_insert_with_values(params_nodes_route_next_hop_store, NULL, -1, 0, node->phy_info->name, -1);
         gtk_list_store_insert_with_values(params_nodes_route_dst_store, NULL, -1, 0, node->ip_info->address, -1);
         gtk_list_store_insert_with_values(params_nodes_ping_address_store, NULL, -1, 0, node->ip_info->address, -1);
+        gtk_list_store_insert_with_values(params_nodes_measure_connect_dst_store, NULL, -1, 0, node->phy_info->name, -1);
     }
 
     nodes_unlock();
@@ -364,6 +374,8 @@ void main_win_system_to_gui()
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_route_dst_combo), 0);
     if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_ping_address_store), NULL) > 0)
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_address_combo), 0);
+    if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_measure_connect_dst_store), NULL) > 0)
+        gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), 0);
 
     measurement_system_to_gui();
 
@@ -427,7 +439,7 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         }
     }
 
-    if (what & MAIN_WIN_NODE_TO_GUI_ICMP) {
+    if (what & MAIN_WIN_NODE_TO_GUI_ICMP) { // todo get rid of "enabled" ping checkbox
         if (node->icmp_info->ping_ip_address != NULL) {
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check), TRUE);
 
@@ -515,6 +527,35 @@ void main_win_node_to_gui(node_t *node, uint32 what)
 
             snprintf(temp, sizeof(temp), "%d", RPL_RANK_INFINITY);
             gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), "0");
+        }
+    }
+
+    if (what & MAIN_WIN_NODE_TO_GUI_MEASURE) {
+        char temp[256];
+
+        if (node->measure_info->connect_dst_node != NULL) {
+            uint16 pos = rs_system_get_node_pos(node->measure_info->connect_dst_node);
+            gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), pos + 1);
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_connect_connected_now_label),
+                    node->measure_info->connect_dst_reachable ? "Yes" : "No");
+
+            sim_time_t connected_time = node->measure_info->connect_connected_time;
+            sim_time_t total_time = rs_system->now - node->measure_info->connect_start_time;
+
+            percent_t fraction = 0;
+            if (total_time > 0)
+                fraction = (percent_t) connected_time / total_time;
+
+            snprintf(temp, sizeof(temp), "%.0f%%", fraction * 100);
+
+            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), temp);
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), fraction);
+        }
+        else {
+            gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), 0); /* disabled */
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_connect_connected_now_label), "N/A");
+            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), "N/A");
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), 0);
         }
     }
 
@@ -1177,6 +1218,11 @@ GtkWidget *create_params_widget()
     params_nodes_root_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_root_button");
     params_nodes_isolate_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_isolate_button");
 
+    params_nodes_measure_connect_dst_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_connect_dst_combo");
+    params_nodes_measure_connect_connected_now_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_connect_connected_now_label");
+    params_nodes_measure_connect_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_connect_progress");
+    params_nodes_measure_connect_dst_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_connect_dst_store");
+
     measures_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_button");
 
     measures_vbox = measurement_widget_create();
@@ -1215,6 +1261,10 @@ GtkWidget *create_params_widget()
             renderer,
             "text", 2,
             NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_measure_connect_dst_combo), renderer, FALSE);
+    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(params_nodes_measure_connect_dst_combo), renderer, "text", 0, NULL);
 
     return scrolled_window;
 }
@@ -1535,6 +1585,8 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_root_button, node_selected);
     gtk_widget_set_sensitive(params_nodes_isolate_button, node_selected);
 
+    gtk_widget_set_sensitive(params_nodes_measure_connect_dst_combo, node_selected);
+
     gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected && !sim_started);
     gtk_widget_set_sensitive(rem_menu_item, node_selected &&  !sim_started);
 
@@ -1729,11 +1781,27 @@ static void gui_to_node(node_t *node)
     else {
     }
 
+    /* measure */
+    bool should_start_connect_measure = FALSE;
+    int32 pos = gtk_combo_box_get_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo));
+    if (pos < 1) {
+        node->measure_info->connect_dst_node = NULL;
+    }
+    else {
+        node->measure_info->connect_dst_node = rs_system->node_list[pos - 1];
+        should_start_connect_measure = TRUE;
+    }
+
     events_unlock();
 
-    if (should_start_ping) {
-        rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0);
-        rs_system_schedule_event(node, icmp_event_ping_send, NULL, NULL, node->icmp_info->ping_interval);
+    if (node->alive && rs_system->started) {
+        if (should_start_ping) {
+            rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0);
+            rs_system_schedule_event(node, icmp_event_ping_send, NULL, NULL, node->icmp_info->ping_interval);
+        }
+        if (should_start_connect_measure) {
+            measure_node_connect_update(node);
+        }
     }
 }
 
@@ -1757,8 +1825,7 @@ static gboolean gui_update_wrapper(void *data)
         measurement_output_to_gui();
 
         if (selected_node != NULL) {
-            main_win_node_to_gui(selected_node, MAIN_WIN_NODE_TO_GUI_IP); /* for routes */
-            main_win_node_to_gui(selected_node, MAIN_WIN_NODE_TO_GUI_RPL);
+            main_win_node_to_gui(selected_node, MAIN_WIN_NODE_TO_GUI_IP | MAIN_WIN_NODE_TO_GUI_RPL | MAIN_WIN_NODE_TO_GUI_MEASURE); /* for routes */
         }
     }
 

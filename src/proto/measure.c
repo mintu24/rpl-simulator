@@ -1,12 +1,22 @@
 
 #include "measure.h"
-#include "system.h"
+#include "../system.h"
 
 
     /**** global variables ****/
 
-static measure_connect_t *          measure_connect_list = NULL;
-static uint16                       measure_connect_count = 0;
+uint16                              measure_event_node_wake;
+uint16                              measure_event_node_kill;
+
+uint16                              measure_event_pdu_send;
+uint16                              measure_event_pdu_receive;
+
+uint16                              measure_event_connect_update;
+uint16                              measure_event_connect_hop_passed;
+uint16                              measure_event_connect_hop_failed;
+uint16                              measure_event_connect_hop_timeout;
+uint16                              measure_event_connect_established;
+uint16                              measure_event_connect_lost;
 
 static measure_sp_comp_t *          measure_sp_comp_list = NULL;
 static uint16                       measure_sp_comp_count = 0;
@@ -19,24 +29,46 @@ static uint16                       measure_stat_count = 0;
 
     /**** local function prototypes ****/
 
-static void                         measure_connect_compute_output(measure_connect_t *measure);
 static void                         measure_sp_comp_compute_output(measure_sp_comp_t *measure);
 static void                         measure_converg_compute_output(measure_converg_t *measure);
 static void                         measure_stat_compute_output(measure_stat_t *measure);
 
-static bool                         node_can_reach_dest_rec(uint16 node_count, node_t **node_list, int8* cache, uint16 src_index, uint16 dst_index);
-static int32                        find_node_index(uint16 node_count, node_t **node_list, node_t *node);
-static node_t *                     find_next_hop(node_t *node, node_t *dst_node);
+static bool                         event_handler_node_wake(node_t *node);
+static bool                         event_handler_node_kill(node_t *node);
+
+static bool                         event_handler_pdu_send(node_t *node, char *dst_ip_address, measure_pdu_t *pdu);
+static bool                         event_handler_pdu_receive(node_t *node, node_t *incoming_node, measure_pdu_t *pdu);
+
+static bool                         event_handler_connect_update(node_t *node, node_t *dst_node);
+static bool                         event_handler_connect_hop_passed(node_t *node, node_t *dst_node, node_t *hop);
+static bool                         event_handler_connect_hop_failed(node_t *node, node_t *dst_node, node_t *hop);
+static bool                         event_handler_connect_hop_timeout(node_t *node, node_t *dst_node, node_t *last_hop);
+static bool                         event_handler_connect_established(node_t *node, node_t *dst_node);
+static bool                         event_handler_connect_lost(node_t *node, node_t *dst_node, node_t *last_hop);
+
+static void                         event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
 
-    /**** exported functios ****/
+    /**** exported functions ****/
 
 bool measure_init()
 {
-    measure_connect_reset_output();
     measure_sp_comp_reset_output();
     measure_converg_reset_output();
     measure_stat_reset_output();
+
+    measure_event_node_wake = event_register("node_wake", "measure", (event_handler_t) event_handler_node_wake, NULL);
+    measure_event_node_kill = event_register("node_kill", "measure", (event_handler_t) event_handler_node_kill, NULL);
+
+    measure_event_pdu_send = event_register("pdu_send", "measure", (event_handler_t) event_handler_pdu_send, event_arg_str);
+    measure_event_pdu_receive = event_register("pdu_receive", "measure", (event_handler_t) event_handler_pdu_receive, event_arg_str);
+
+    measure_event_connect_update = event_register("connect_update", "measure", (event_handler_t) event_handler_connect_update, NULL);
+    measure_event_connect_hop_passed = event_register("connect_hop_passed", "measure", (event_handler_t) event_handler_connect_hop_passed, event_arg_str);
+    measure_event_connect_hop_failed = event_register("connect_hop_failed", "measure", (event_handler_t) event_handler_connect_hop_failed, event_arg_str);
+    measure_event_connect_hop_timeout = event_register("connect_hop_timeout", "measure", (event_handler_t) event_handler_connect_hop_timeout, event_arg_str);
+    measure_event_connect_established = event_register("connect_established", "measure", (event_handler_t) event_handler_connect_established, event_arg_str);
+    measure_event_connect_lost = event_register("connect_lost", "measure", (event_handler_t) event_handler_connect_lost, event_arg_str);
 
     return TRUE;
 }
@@ -46,13 +78,49 @@ bool measure_done()
     return TRUE;
 }
 
+measure_pdu_t *measure_pdu_create(node_t *node, node_t *dst_node, uint8 type)
+{
+    measure_pdu_t *pdu = malloc(sizeof(measure_pdu_t));
+
+    pdu->measuring_node = node;
+    pdu->dst_node = dst_node;
+    pdu->type = type;
+
+    return pdu;
+}
+
+void measure_pdu_destroy(measure_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+
+    free(pdu);
+}
+
+measure_pdu_t *measure_pdu_duplicate(measure_pdu_t *pdu)
+{
+    rs_assert(pdu != NULL);
+
+    measure_pdu_t *new_pdu = malloc(sizeof(measure_pdu_t));
+
+    new_pdu->measuring_node = pdu->measuring_node;
+    new_pdu->dst_node = pdu->dst_node;
+    new_pdu->type = pdu->type;
+
+    return new_pdu;
+}
+
 void measure_node_init(node_t *node)
 {
     rs_assert(node != NULL);
 
-    /* statistics */
     node->measure_info = malloc(sizeof(measure_node_info_t));
 
+    /* connectivity */
+    node->measure_info->connect_busy = FALSE;
+    node->measure_info->connect_dst_node = NULL;
+    node->measure_info->connect_dst_reachable = FALSE;
+
+    /* statistics */
     node->measure_info->forward_inconsistency_count = 0;
     node->measure_info->forward_failure_count = 0;
     node->measure_info->rpl_event_count = 0;
@@ -74,6 +142,33 @@ void measure_node_done(node_t *node)
         free(node->measure_info);
         node->measure_info = NULL;
     }
+}
+
+bool measure_send(node_t *node, node_t *dst_node, uint8 type)
+{
+    rs_assert(node != NULL);
+    rs_assert(dst_node != NULL);
+
+    measure_pdu_t *measure_pdu = measure_pdu_create(node, dst_node, type);
+
+    if (!event_execute(measure_event_pdu_send, node, dst_node->ip_info->address, measure_pdu)) {
+        measure_pdu_destroy(measure_pdu);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+bool measure_receive(node_t *node, node_t *incoming_node, measure_pdu_t *pdu)
+{
+    rs_assert(node != NULL);
+    rs_assert(pdu != NULL);
+
+    bool all_ok = event_execute(measure_event_pdu_receive, node, incoming_node, pdu);
+
+    measure_pdu_destroy(pdu);
+
+    return all_ok;
 }
 
 void measure_node_add_forward_inconsistency(node_t *node)
@@ -143,6 +238,11 @@ void measure_node_reset(node_t *node)
 {
     rs_assert(node != NULL);
 
+    node->measure_info->connect_busy = FALSE;
+    node->measure_info->connect_dst_reachable = FALSE;
+    node->measure_info->connect_start_time = -1;
+    node->measure_info->connect_connected_time = 0;
+
     node->measure_info->forward_inconsistency_count = 0;
     node->measure_info->forward_failure_count = 0;
     node->measure_info->rpl_event_count = 0;
@@ -155,7 +255,7 @@ void measure_node_reset(node_t *node)
     node->measure_info->ping_successful_count = 0;
     node->measure_info->ping_timeout_count = 0;
 }
-
+/*
 void measure_connect_entry_add(node_t *src_node, node_t *dst_node)
 {
     measures_lock();
@@ -226,7 +326,7 @@ measure_connect_t *measure_connect_entry_get(uint16 index)
 }
 
 
-void measure_connect_reset_output()
+void measure_connect_reset_all()
 {
     measures_lock();
 
@@ -234,27 +334,30 @@ void measure_connect_reset_output()
     for (i = 0; i < measure_connect_count; i++) {
         measure_connect_t *measure = &measure_connect_list[i];
 
-        measure->last_connected_time = -1;
+        measure->connected_time = 0;
         measure->start_time = -1;
-        measure->output.connected_time = 0;
-        measure->output.total_time = 0;
-        measure->output.measure_time = 0;
     }
 
     measures_unlock();
 }
-
-void measure_connect_update_output()
+*/
+void measure_node_connect_update(node_t *node)
 {
-    measures_lock();
+    rs_assert(node != NULL);
 
-    uint16 i;
-    for (i = 0; i < measure_connect_count; i++) {
-        measure_connect_t *measure = &measure_connect_list[i];
-        measure_connect_compute_output(measure);
+    if (node->measure_info->connect_busy) {
+        return;
     }
 
-    measures_unlock();
+    if (node->measure_info->connect_dst_node == NULL) {
+        return;
+    }
+
+    if (node->measure_info->connect_dst_node == node) {
+        return;
+    }
+
+    rs_system_schedule_event(node, measure_event_connect_update, node->measure_info->connect_dst_node, NULL, 0);
 }
 
 
@@ -507,53 +610,6 @@ void measure_stat_update_output(node_t *node)
 
     /**** local functions ****/
 
-static void measure_connect_compute_output(measure_connect_t *measure)
-{
-    measure->output.measure_time = rs_system->now;
-
-    uint16 i, node_count;
-    node_t **node_list = rs_system_get_node_list_copy(&node_count);
-    int8 cache[node_count];
-
-    for (i = 0; i < node_count; i++) {
-        cache[i] = -2; /* not visited */
-    }
-
-    if (measure->src_node != NULL) {
-        int32 src_index = find_node_index(node_count, node_list, measure->src_node);
-        int32 dst_index = find_node_index(node_count, node_list, measure->dst_node);
-        bool connected_now = node_can_reach_dest_rec(node_count, node_list, cache, src_index, dst_index);
-
-        if (connected_now) {
-            if (measure->last_connected_time == -1) { /* connection just established */
-                measure->last_connected_time = rs_system->now;
-            }
-            else { /* was already connected */
-                measure->output.connected_time += rs_system->now - measure->last_connected_time;
-                measure->last_connected_time = rs_system->now;
-            }
-        }
-        else {
-            if (measure->last_connected_time == -1) { /* was already disconnected */
-            }
-            else { /* connection just lost */
-                measure->output.connected_time += rs_system->now - measure->last_connected_time;
-                measure->last_connected_time = -1;
-            }
-        }
-
-        if (measure->start_time == -1) {
-            measure->start_time = rs_system->now;
-        }
-
-        measure->output.total_time = rs_system->now - measure->start_time;
-    }
-
-    if (node_list != NULL) {
-        free(node_list);
-    }
-}
-
 static void measure_sp_comp_compute_output(measure_sp_comp_t *measure)
 {
     measure->output.rpl_cost = 0;
@@ -678,76 +734,157 @@ static void measure_stat_compute_output(measure_stat_t *measure)
     measure->output.measure_time = rs_system->now;
 }
 
-
-static bool node_can_reach_dest_rec(uint16 node_count, node_t **node_list, int8* cache, uint16 src_index, uint16 dst_index)
+static bool event_handler_node_wake(node_t *node)
 {
-    /* cache[i]:
-     *  -2 - not visited
-     *  -1 - not calculated
-     *  0 - node i cannot reach dst
-     *  1 - node i can reach dst
-     */
-    if (cache[src_index] >= 0) {
-        return cache[src_index];
+    return TRUE;
+}
+
+static bool event_handler_node_kill(node_t *node)
+{
+    // rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0); todo cancel measure events
+
+    return TRUE;
+}
+
+static bool event_handler_pdu_send(node_t *node, char *dst_ip_address, measure_pdu_t *pdu)
+{
+    return ip_send(node, dst_ip_address, IP_NEXT_HEADER_MEASURE, pdu);
+}
+
+static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, measure_pdu_t *pdu)
+{
+    switch (pdu->type) {
+
+        case MEASURE_TYPE_CONNECT:
+            pdu->measuring_node->measure_info->connect_busy = FALSE;
+            rs_system_cancel_event(pdu->measuring_node, measure_event_connect_hop_timeout, pdu->dst_node, NULL, 0);
+
+            if (!pdu->measuring_node->measure_info->connect_dst_reachable) { /* wasn't reachable before */
+
+                return event_execute(measure_event_connect_established, pdu->measuring_node, pdu->dst_node, node);
+            }
+
+            break;
     }
 
-    if (cache[src_index] != -2) { /* oops, already visited, risk of loop */
-        return FALSE;
-    }
+    return TRUE;
+}
 
-    cache[src_index] = -1; /* visited, but not calculated */
+static bool event_handler_connect_update(node_t *node, node_t *dst_node)
+{
+    if (measure_send(node, node->measure_info->connect_dst_node, MEASURE_TYPE_CONNECT)) {
+        node->measure_info->connect_busy = TRUE;
 
-    if (src_index == dst_index) {
+        rs_system_cancel_event(node, measure_event_connect_hop_timeout, dst_node, NULL, 0); /* cancel all possible previous hop timeouts */
+        rs_system_schedule_event(node, measure_event_connect_hop_timeout, node->measure_info->connect_dst_node, node, 1000); // todo make this configurable
+
         return TRUE;
     }
+    else {
+        node->measure_info->connect_busy = FALSE;
+        node->measure_info->connect_dst_reachable = FALSE;
 
-    node_t *next_hop = find_next_hop(node_list[src_index], node_list[dst_index]);
-    int32 next_hop_index = find_node_index(node_count, node_list, next_hop);
-    if (next_hop_index == -1) {
         return FALSE;
     }
-    else {
-        cache[next_hop_index] = node_can_reach_dest_rec(node_count, node_list, cache, next_hop_index, dst_index);
-    }
-
-    return cache[next_hop_index];
 }
 
-static int32 find_node_index(uint16 node_count, node_t **node_list, node_t *node)
+static bool event_handler_connect_hop_passed(node_t *node, node_t *dst_node, node_t *hop)
 {
-    uint16 i;
-    for (i = 0; i < node_count; i++) {
-        if (node_list[i] == node) {
-            return i;
-        }
+    rs_system_cancel_event(node, measure_event_connect_hop_timeout, dst_node, NULL, 0);
+
+    if (hop != dst_node) {
+        rs_system_schedule_event(node, measure_event_connect_hop_timeout, dst_node, hop, 1000); // todo make this timeout configurable
     }
 
-    return -1;
+    return TRUE;
 }
 
-static node_t *find_next_hop(node_t *node, node_t *dst_node)
+static bool event_handler_connect_hop_failed(node_t *node, node_t *dst_node, node_t *hop)
 {
-    /* try the route indicated by IP */
-    ip_route_t *route = ip_node_get_next_hop_route(node, dst_node->ip_info->address);
-    if (route != NULL && rs_system_get_link_quality(node, route->next_hop) >= rs_system->no_link_quality_thresh) {
-        return route->next_hop;
+    rs_system_cancel_event(node, measure_event_connect_hop_timeout, dst_node, NULL, 0);
+
+    node->measure_info->connect_busy = FALSE;
+
+    if (node->measure_info->connect_dst_reachable) { /* was reachable before */
+        return event_execute(measure_event_connect_lost, node, dst_node, hop);
     }
 
-    /* try the nodes indicated by RPL */
-    uint16 next_node_count, i;
-    node_t **next_node_list = rpl_node_get_next_hop_list(node, &next_node_count);
-    node_t *next_hop = NULL;
+    return TRUE;
+}
 
-    for (i = 0; i < next_node_count; i++) {
-        if (rs_system_get_link_quality(node, next_node_list[i]) >= rs_system->no_link_quality_thresh) {
-            next_hop = next_node_list[i];
-            break;
-        }
+static bool event_handler_connect_hop_timeout(node_t *node, node_t *dst_node, node_t *last_hop)
+{
+    node->measure_info->connect_busy = FALSE;
+
+    if (node->measure_info->connect_dst_reachable) { /* was reachable before */
+        return event_execute(measure_event_connect_lost, node, dst_node, last_hop);
     }
 
-    if (next_node_list != NULL) {
-        free(next_node_list);
-    }
+    return TRUE;
+}
 
-    return next_hop;
+static bool event_handler_connect_established(node_t *node, node_t *dst_node)
+{
+    node->measure_info->connect_dst_reachable = TRUE;
+
+    return TRUE;
+}
+
+static bool event_handler_connect_lost(node_t *node, node_t *dst_node, node_t *last_hop)
+{
+    node->measure_info->connect_dst_reachable = FALSE;
+
+    return FALSE;
+}
+
+static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len)
+{
+    str1[0] = '\0';
+    str2[0] = '\0';
+
+    if (event_id == measure_event_pdu_send) {
+            char *dst_ip_address = data1;
+
+            snprintf(str1, len, "dst = '%s'", dst_ip_address != NULL ? dst_ip_address : "<<broadcast>>");
+    }
+    else if (event_id == measure_event_pdu_receive) {
+        node_t *node = data1;
+        measure_pdu_t *measure_pdu = data2;
+
+        snprintf(str1, len, "incoming_node = '%s'", (node != NULL ? node->phy_info->name : "<<unknown>>"));
+        snprintf(str2, len, "measure_pdu = {measuring_node = '%s'}", measure_pdu->measuring_node->phy_info->name);
+    }
+    else if (event_id == measure_event_connect_hop_passed) {
+        node_t *dst_node = data1;
+        node_t *hop = data2;
+
+        snprintf(str1, len, "dst = '%s'", dst_node != NULL ? dst_node->phy_info->name : "<<unknown>>");
+        snprintf(str2, len, "hop = '%s'", hop != NULL ? hop->phy_info->name : "<<unknown>>");
+    }
+    else if (event_id == measure_event_connect_hop_failed) {
+        node_t *dst_node = data1;
+        node_t *hop = data2;
+
+        snprintf(str1, len, "dst = '%s'", dst_node != NULL ? dst_node->phy_info->name : "<<unknown>>");
+        snprintf(str2, len, "hop = '%s'", hop != NULL ? hop->phy_info->name : "<<unknown>>");
+    }
+    else if (event_id == measure_event_connect_hop_timeout) {
+        node_t *dst_node = data1;
+        node_t *last_hop = data2;
+
+        snprintf(str1, len, "dst = '%s'", dst_node != NULL ? dst_node->phy_info->name : "<<unknown>>");
+        snprintf(str2, len, "last_hop = '%s'", last_hop != NULL ? last_hop->phy_info->name : "<<unknown>>");
+    }
+    else if (event_id == measure_event_connect_established) {
+        node_t *dst_node = data1;
+
+        snprintf(str1, len, "dst = '%s'", dst_node != NULL ? dst_node->phy_info->name : "<<unknown>>");
+    }
+    else if (event_id == measure_event_connect_lost) {
+        node_t *dst_node = data1;
+        node_t *last_hop = data2;
+
+        snprintf(str1, len, "dst = '%s'", dst_node != NULL ? dst_node->phy_info->name : "<<unknown>>");
+        snprintf(str2, len, "last_hop = '%s'", last_hop != NULL ? last_hop->phy_info->name : "<<unknown>>");
+    }
 }

@@ -812,7 +812,7 @@ bool rpl_node_process_incoming_flow_label(node_t *node, node_t *incoming_node, i
         ip_node_rem_routes(node, route->dst, route->prefix_len, route->next_hop, route->type);
 
         /* retry to send the packet, now using a possibly different route */
-        ip_forward(node, incoming_node, ip_pdu, FALSE);
+        ip_forward(node, incoming_node, ip_pdu);
 
         event_execute(rpl_event_forward_inconsistency, node, incoming_node, ip_pdu);
 
@@ -866,7 +866,7 @@ node_t *rpl_node_process_outgoing_flow_label(node_t *node, node_t *incoming_node
     }
 
     if (incoming_node == NULL) { /* locally generated packet, we don't touch the flow label, nor the proposed next hop */
-        return NULL;
+        return proposed_outgoing_node;
     }
 
     if (rpl_node_is_isolated(node) || rpl_node_is_poisoning(node)) { /* no special activity while isolated or poisoning */
@@ -1026,10 +1026,9 @@ static bool event_handler_dis_pdu_receive(node_t *node, node_t *incoming_node)
 
     rpl_dio_pdu_t *dio_pdu = create_current_dio_message(node, TRUE);
 
-    if (dio_pdu != NULL) {
-        if (!rpl_send_dio(node, NULL, dio_pdu)) {
+    if (dio_pdu != NULL) { // todo unicast this message
+        if (!rpl_send_dio(node, incoming_node->ip_info->address, dio_pdu)) {
             rpl_dio_pdu_destroy(dio_pdu);
-            return FALSE;
         }
     }
 
@@ -1166,7 +1165,7 @@ static bool event_handler_dio_pdu_receive(node_t *node, node_t *incoming_node, r
         }
     }
 
-    measure_connect_update_output();
+    measure_node_connect_update(node);
     measure_sp_comp_update_output();
     measure_converg_update_output();
 
@@ -1278,7 +1277,7 @@ static bool event_handler_neighbor_detach(node_t *node, node_t *neighbor_node)
         }
     }
 
-    measure_connect_update_output();
+    measure_node_connect_update(node);
     measure_sp_comp_update_output();
     measure_converg_update_output();
 

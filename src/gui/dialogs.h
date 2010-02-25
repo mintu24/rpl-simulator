@@ -4,7 +4,6 @@
 #include <gtk/gtk.h>
 
 #include "../base.h"
-#include "mainwin.h"
 
 #define ADD_MORE_DIALOG_PATTERN_RECTANGULAR         0
 #define ADD_MORE_DIALOG_PATTERN_TRIANGULAR          1

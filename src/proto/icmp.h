@@ -44,6 +44,7 @@ extern uint16               icmp_event_ping_send;
 extern uint16               icmp_event_ping_timeout;
 
 
+
 bool                        icmp_init();
 bool                        icmp_done();
 

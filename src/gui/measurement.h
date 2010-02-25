@@ -4,7 +4,6 @@
 #include <gtk/gtk.h>
 
 #include "../base.h"
-#include "mainwin.h"
 
 
 GtkWidget *                     measurement_widget_create();

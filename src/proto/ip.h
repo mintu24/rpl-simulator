@@ -18,7 +18,7 @@ typedef struct ip_send_info_t {
     node_t *                incoming_node;
     node_t **               next_hop_list;
     uint16                  next_hop_count;
-    uint16                  next_hop_index;
+    int16                   next_hop_index;
 
 } ip_send_info_t;
 
@@ -99,7 +99,7 @@ bool                        ip_done();
 ip_send_info_t *            ip_send_info_create(node_t *incoming_node, node_t *first_next_hop, node_t **next_hop_list, uint16 next_hop_count);
 void                        ip_send_info_destroy(ip_send_info_t *ip_send_info);
 
-ip_pdu_t *                  ip_pdu_create(char *dst_address, char *src_address);
+ip_pdu_t *                  ip_pdu_create(char *src_address, char *dst_address);
 void                        ip_pdu_destroy(ip_pdu_t *pdu);
 ip_pdu_t *                  ip_pdu_duplicate(ip_pdu_t *pdu);
 void                        ip_pdu_set_sdu(ip_pdu_t *pdu, uint16 next_header, void *sdu);
@@ -117,8 +117,8 @@ ip_neighbor_t *             ip_node_add_neighbor(node_t *node, node_t *neighbor_
 bool                        ip_node_rem_neighbor(node_t *node, ip_neighbor_t *neighbor);
 ip_neighbor_t *             ip_node_find_neighbor_by_node(node_t *node, node_t *neighbor_node);
 
-bool                        ip_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu, bool retry);
-bool                        ip_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu, bool retry);
+bool                        ip_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu);
+bool                        ip_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu);
 bool                        ip_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu);
 
 

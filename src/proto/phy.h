@@ -12,14 +12,16 @@ typedef struct phy_node_info_t {
     char *              name;
     coord_t             cx;
     coord_t             cy;
-    node_t**            neighbors_list;
-    uint16              neighbors_count;
 
     percent_t           battery_level;
     percent_t           tx_power;
     bool                mains_powered;
 
+    node_t **           neighbor_list;
+    uint16              neighbor_count;
+
 } phy_node_info_t;
+
 
     /* fields contained in a PHY message */
 typedef struct phy_pdu_t {
@@ -34,6 +36,9 @@ extern uint16           phy_event_node_kill;
 
 extern uint16           phy_event_pdu_send;
 extern uint16           phy_event_pdu_receive;
+
+extern uint16           phy_event_neighbor_attach;
+extern uint16           phy_event_neighbor_detach;
 
 
 bool                    phy_init();
@@ -54,12 +59,8 @@ void                    phy_node_set_tx_power(node_t* node, percent_t tw_power);
 bool                    phy_send(node_t *node, node_t *outgoing_node, void *sdu);
 bool                    phy_receive(node_t *node, node_t *incoming_node, phy_pdu_t *pdu);
 
-
-  /* neighbor management */
-node_t*                 phy_node_find_neighbor(node_t* node, char* name);
 bool                    phy_node_add_neighbor(node_t* node, node_t* neighbor_node);
-bool                    phy_node_rem_neighbor(node_t* node, char* name);
-//node_t**                phy_get_neighbors_list_copy(node_t* node, uint16* count);
-bool                    phy_node_update_neighbor_list(node_t* node);
+bool                    phy_node_rem_neighbor(node_t* node, node_t *neighbor_node);
+bool                    phy_node_has_neighbor(node_t* node, node_t *neighbor_node);
 
 #endif /* PHY_H_ */

@@ -3,26 +3,12 @@
 
 #include "mainwin.h"
 #include "../system.h"
-#include "../measure.h"
 
 
 
     /**** global variables ****/
 
     /* connectivity */
-static GtkWidget *              measures_connect_src_combo;
-static GtkWidget *              measures_connect_dst_combo;
-static GtkWidget *              measures_connect_tree_view;
-static GtkWidget *              measures_connect_add_button;
-static GtkWidget *              measures_connect_rem_button;
-static GtkWidget *              measures_connect_connected_time_label;
-static GtkWidget *              measures_connect_total_time_label;
-static GtkWidget *              measures_connect_measure_time_label;
-static GtkWidget *              measures_connect_progress;
-static GtkListStore *           measures_connect_src_store;
-static GtkListStore *           measures_connect_dst_store;
-static GtkListStore *           measures_connect_store;
-
     /* sp comparison */
 static GtkWidget *              measures_sp_comp_src_combo;
 static GtkWidget *              measures_sp_comp_dst_combo;
@@ -62,10 +48,6 @@ static GtkListStore *           measures_stat_store;
 
     /**** local function prototypes ****/
 
-void                            cb_measures_connect_add_button_clicked(GtkWidget *widget, gpointer data);
-void                            cb_measures_connect_rem_button_clicked(GtkWidget *widget, gpointer data);
-void                            cb_measures_connect_tree_view_cursor_changed(GtkWidget *widget, gpointer data);
-
 void                            cb_measures_sp_comp_add_button_clicked(GtkWidget *widget, gpointer data);
 void                            cb_measures_sp_comp_rem_button_clicked(GtkWidget *widget, gpointer data);
 void                            cb_measures_sp_comp_tree_view_cursor_changed(GtkWidget *widget, gpointer data);
@@ -76,7 +58,6 @@ void                            cb_measures_stat_tree_view_cursor_changed(GtkWid
 
 static void                     update_sensitivity();
 
-static int32                    connect_tree_viee_get_selected_index();
 static int32                    sp_comp_tree_viee_get_selected_index();
 static int32                    stat_tree_viee_get_selected_index();
 
@@ -86,46 +67,6 @@ static int32                    stat_tree_viee_get_selected_index();
 GtkWidget *measurement_widget_create()
 {
     GtkWidget *measures_widget = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_vbox");
-
-    /* connectivity */
-    measures_connect_src_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_src_combo");
-    measures_connect_dst_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_dst_combo");
-    measures_connect_tree_view = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_tree_view");
-    measures_connect_add_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_add_button");
-    measures_connect_rem_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_rem_button");
-    measures_connect_connected_time_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_connected_time_label");
-    measures_connect_total_time_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_total_time_label");
-    measures_connect_measure_time_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_measure_time_label");
-    measures_connect_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_connect_progress");
-    measures_connect_src_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "measures_connect_src_store");
-    measures_connect_dst_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "measures_connect_dst_store");
-    measures_connect_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "measures_connect_store");
-
-    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
-    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(measures_connect_src_combo), renderer, FALSE);
-    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(measures_connect_src_combo), renderer, "text", 0, NULL);
-
-    renderer = gtk_cell_renderer_text_new();
-    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(measures_connect_dst_combo), renderer, FALSE);
-    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(measures_connect_dst_combo), renderer, "text", 0, NULL);
-
-    renderer = gtk_cell_renderer_text_new();
-    gtk_tree_view_insert_column_with_attributes(
-            GTK_TREE_VIEW(measures_connect_tree_view),
-            -1,
-            "Source",
-            renderer,
-            "text", 0,
-            NULL);
-
-    renderer = gtk_cell_renderer_text_new();
-    gtk_tree_view_insert_column_with_attributes(
-            GTK_TREE_VIEW(measures_connect_tree_view),
-            -1,
-            "Destination",
-            renderer,
-            "text", 1,
-            NULL);
 
     /* sp comparison */
     measures_sp_comp_src_combo = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_sp_comp_src_combo");
@@ -141,7 +82,7 @@ GtkWidget *measurement_widget_create()
     measures_sp_comp_dst_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "measures_sp_comp_dst_store");
     measures_sp_comp_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "measures_sp_comp_store");
 
-    renderer = gtk_cell_renderer_text_new();
+    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(measures_sp_comp_src_combo), renderer, FALSE);
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(measures_sp_comp_src_combo), renderer, "text", 0, NULL);
 
@@ -215,10 +156,6 @@ void measurement_system_to_gui()
 
     /* add all the possible node sources ad destinations */
 
-    gtk_list_store_clear(measures_connect_src_store);
-    gtk_list_store_clear(measures_connect_dst_store);
-    gtk_list_store_clear(measures_connect_store);
-
     gtk_list_store_clear(measures_sp_comp_src_store);
     gtk_list_store_clear(measures_sp_comp_dst_store);
     gtk_list_store_clear(measures_sp_comp_store);
@@ -226,8 +163,6 @@ void measurement_system_to_gui()
     gtk_list_store_clear(measures_stat_node_store);
     gtk_list_store_clear(measures_stat_store);
 
-    // gtk_list_store_insert_with_values(measures_connect_src_store, NULL, -1, 0, "All", -1);
-    // gtk_list_store_insert_with_values(measures_sp_comp_src_store, NULL, -1, 0, "All", -1);
     gtk_list_store_insert_with_values(measures_stat_node_store, NULL, -1, 0, "Average", -1);
     gtk_list_store_insert_with_values(measures_stat_node_store, NULL, -1, 0, "Total", -1);
 
@@ -237,9 +172,6 @@ void measurement_system_to_gui()
     for (i = 0; i < rs_system->node_count; i++) {
         node_t *node = rs_system->node_list[i];
 
-        gtk_list_store_insert_with_values(measures_connect_src_store, NULL, -1, 0, node->phy_info->name, -1);
-        gtk_list_store_insert_with_values(measures_connect_dst_store, NULL, -1, 0, node->phy_info->name, -1);
-
         gtk_list_store_insert_with_values(measures_sp_comp_src_store, NULL, -1, 0, node->phy_info->name, -1);
         gtk_list_store_insert_with_values(measures_sp_comp_dst_store, NULL, -1, 0, node->phy_info->name, -1);
 
@@ -247,11 +179,6 @@ void measurement_system_to_gui()
     }
 
     nodes_unlock();
-
-    if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(measures_connect_src_store), NULL) > 0)
-        gtk_combo_box_set_active(GTK_COMBO_BOX(measures_connect_src_combo), 0);
-    if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(measures_connect_dst_store), NULL) > 0)
-        gtk_combo_box_set_active(GTK_COMBO_BOX(measures_connect_dst_combo), 0);
 
     if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(measures_sp_comp_src_store), NULL) > 0)
         gtk_combo_box_set_active(GTK_COMBO_BOX(measures_sp_comp_src_combo), 0);
@@ -268,30 +195,11 @@ void measurement_entries_to_gui()
 {
     measures_lock();
 
-    /* connectivity */
-    gtk_list_store_clear(measures_connect_store);
-
-    uint16 i;
-    GtkTreeIter iter;
-    for (i = 0; i < measure_connect_entry_get_count(); i++) {
-        measure_connect_t *measure = measure_connect_entry_get(i);
-
-        gtk_list_store_append(measures_connect_store, &iter);
-        gtk_list_store_set(measures_connect_store, &iter,
-                0, (measure->src_node != NULL ? measure->src_node->phy_info->name : "All"),
-                1, measure->dst_node->phy_info->name,
-                -1);
-    }
-
-    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(measures_connect_tree_view));
-    GtkTreePath *path = gtk_tree_path_new_first();
-    gtk_tree_selection_select_path(selection, path);
-    gtk_tree_path_free(path);
-    cb_measures_connect_tree_view_cursor_changed(measures_connect_tree_view, NULL);
-
     /* sp comparison */
     gtk_list_store_clear(measures_sp_comp_store);
 
+    GtkTreeIter iter;
+    uint16 i;
     for (i = 0; i < measure_sp_comp_entry_get_count(); i++) {
         measure_sp_comp_t *measure = measure_sp_comp_entry_get(i);
 
@@ -302,9 +210,8 @@ void measurement_entries_to_gui()
                 -1);
     }
 
-
-    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(measures_sp_comp_tree_view));
-    path = gtk_tree_path_new_first();
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(measures_sp_comp_tree_view));
+    GtkTreePath *path = gtk_tree_path_new_first();
     gtk_tree_selection_select_path(selection, path);
     gtk_tree_path_free(path);
     cb_measures_sp_comp_tree_view_cursor_changed(measures_sp_comp_tree_view, NULL);
@@ -359,9 +266,6 @@ void measurement_output_to_gui()
     char *time_str;
     float fraction = 0;
 
-    /* connectivity */
-    cb_measures_connect_tree_view_cursor_changed(measures_connect_tree_view, NULL);
-
     /* sp comp */
     cb_measures_sp_comp_tree_view_cursor_changed(measures_sp_comp_tree_view, NULL);
 
@@ -402,98 +306,6 @@ void measurement_output_to_gui()
 
 
     /**** local functions ****/
-
-void cb_measures_connect_add_button_clicked(GtkWidget *widget, gpointer data)
-{
-    rs_debug(DEBUG_GUI, NULL);
-
-    int32 src_node_pos = gtk_combo_box_get_active(GTK_COMBO_BOX(measures_connect_src_combo));
-    int32 dst_node_pos = gtk_combo_box_get_active(GTK_COMBO_BOX(measures_connect_dst_combo));
-
-    // rs_assert(src_node_pos >= 0 && src_node_pos <= rs_system->node_count); /* <= including the "All" item */
-    rs_assert(src_node_pos >= 0 && src_node_pos < rs_system->node_count);
-    rs_assert(dst_node_pos >= 0 && dst_node_pos < rs_system->node_count);
-
-    node_t *src_node = NULL;
-    node_t *dst_node = NULL;
-
-    // if (src_node_pos > 0) { /* pos == 0 corresponds to the "All" item */
-    src_node = rs_system->node_list[src_node_pos];
-    dst_node = rs_system->node_list[dst_node_pos];
-
-    measure_connect_entry_add(src_node, dst_node);
-
-    measurement_entries_to_gui();
-
-    update_sensitivity();
-}
-
-void cb_measures_connect_rem_button_clicked(GtkWidget *widget, gpointer data)
-{
-    rs_debug(DEBUG_GUI, NULL);
-
-    int32 index = connect_tree_viee_get_selected_index();
-    rs_assert(index >= 0 && index < measure_connect_entry_get_count());
-
-    measure_connect_entry_remove(index);
-
-    measurement_entries_to_gui();
-
-    update_sensitivity();
-}
-
-void cb_measures_connect_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
-{
-    rs_debug(DEBUG_GUI, NULL);
-
-    int32 index = connect_tree_viee_get_selected_index();
-    rs_assert(index < measure_connect_entry_get_count());
-
-    if (index == -1) {
-        gtk_label_set_text(GTK_LABEL(measures_connect_connected_time_label), "N/A");
-        gtk_label_set_text(GTK_LABEL(measures_connect_total_time_label), "N/A");
-        gtk_label_set_text(GTK_LABEL(measures_connect_measure_time_label), "N/A");
-
-        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(measures_connect_progress), 0.0);
-        gtk_progress_bar_set_text(GTK_PROGRESS_BAR(measures_connect_progress), "N/A");
-    }
-    else {
-        measures_lock();
-
-        measure_connect_t *measure = measure_connect_entry_get(index);
-        measure_connect_output_t output = measure->output;
-
-        char temp[256];
-        char *time_str;
-
-        time_str = rs_system_sim_time_to_string(output.connected_time);
-        gtk_label_set_text(GTK_LABEL(measures_connect_connected_time_label), time_str);
-        free(time_str);
-
-        time_str = rs_system_sim_time_to_string(output.total_time);
-        gtk_label_set_text(GTK_LABEL(measures_connect_total_time_label), time_str);
-        free(time_str);
-
-        time_str = rs_system_sim_time_to_string(output.measure_time);
-        gtk_label_set_text(GTK_LABEL(measures_connect_measure_time_label), time_str);
-        free(time_str);
-
-        float percent;
-        if (output.total_time > 0)
-            percent = (float) output.connected_time / output.total_time;
-        else
-            percent = 0;
-
-        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(measures_connect_progress), percent);
-
-        snprintf(temp, sizeof(temp), "%.0f%%", percent * 100);
-        gtk_progress_bar_set_text(GTK_PROGRESS_BAR(measures_connect_progress), temp);
-
-        measures_unlock();
-    }
-
-    update_sensitivity();
-}
 
 void cb_measures_sp_comp_add_button_clicked(GtkWidget *widget, gpointer data)
 {
@@ -697,38 +509,16 @@ void cb_measures_stat_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
 
 static void update_sensitivity()
 {
-    bool measure_connect_selected = gtk_tree_selection_count_selected_rows(
-            gtk_tree_view_get_selection(GTK_TREE_VIEW(measures_connect_tree_view))) > 0;
     bool measure_sp_comp_selected = gtk_tree_selection_count_selected_rows(
             gtk_tree_view_get_selection(GTK_TREE_VIEW(measures_sp_comp_tree_view))) > 0;
     bool measure_stat_selected = gtk_tree_selection_count_selected_rows(
             gtk_tree_view_get_selection(GTK_TREE_VIEW(measures_stat_tree_view))) > 0;
-    bool has_nodes = gtk_tree_model_iter_n_children(GTK_TREE_MODEL(measures_connect_dst_store), NULL) > 0;
+    bool has_nodes = gtk_tree_model_iter_n_children(GTK_TREE_MODEL(measures_sp_comp_dst_store), NULL) > 0;
 
-    gtk_widget_set_sensitive(measures_connect_add_button, has_nodes);
-    gtk_widget_set_sensitive(measures_connect_rem_button, measure_connect_selected);
     gtk_widget_set_sensitive(measures_sp_comp_add_button, has_nodes);
     gtk_widget_set_sensitive(measures_sp_comp_rem_button, measure_sp_comp_selected);
     gtk_widget_set_sensitive(measures_stat_add_button, has_nodes);
     gtk_widget_set_sensitive(measures_stat_rem_button, measure_stat_selected);
-}
-
-static int32 connect_tree_viee_get_selected_index()
-{
-    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(measures_connect_tree_view));
-    GList *path_list = gtk_tree_selection_get_selected_rows(selection, NULL);
-
-    if (path_list == NULL) {
-        return -1;
-    }
-    else {
-        int32 index = gtk_tree_path_get_indices((GtkTreePath *) g_list_nth_data(path_list, 0))[0];
-
-        g_list_foreach(path_list, (GFunc) gtk_tree_path_free, NULL);
-        g_list_free(path_list);
-
-        return index;
-    }
 }
 
 static int32 sp_comp_tree_viee_get_selected_index()
