@@ -56,8 +56,8 @@ void                    phy_node_set_name(node_t *node, const char *name);
 void                    phy_node_set_coordinates(node_t* node, coord_t cx, coord_t cy);
 void                    phy_node_set_tx_power(node_t* node, percent_t tw_power);
 
-bool                    phy_send(node_t *node, node_t *outgoing_node, void *sdu);
-bool                    phy_receive(node_t *node, node_t *incoming_node, phy_pdu_t *pdu);
+bool                    phy_node_send(node_t *node, node_t *outgoing_node, void *sdu);
+bool                    phy_node_receive(node_t *node, node_t *incoming_node, phy_pdu_t *pdu);
 
 bool                    phy_node_add_neighbor(node_t* node, node_t* neighbor_node);
 bool                    phy_node_rem_neighbor(node_t* node, node_t *neighbor_node);

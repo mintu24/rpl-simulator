@@ -812,7 +812,7 @@ bool rpl_node_process_incoming_flow_label(node_t *node, node_t *incoming_node, i
         ip_node_rem_routes(node, route->dst, route->prefix_len, route->next_hop, route->type);
 
         /* retry to send the packet, now using a possibly different route */
-        ip_forward(node, incoming_node, ip_pdu);
+        ip_node_forward(node, incoming_node, ip_pdu);
 
         event_execute(rpl_event_forward_inconsistency, node, incoming_node, ip_pdu);
 
@@ -907,14 +907,14 @@ node_t *rpl_node_process_outgoing_flow_label(node_t *node, node_t *incoming_node
     return proposed_outgoing_node;
 }
 
-bool rpl_send_dis(node_t *node, char *dst_ip_address)
+bool rpl_node_send_dis(node_t *node, char *dst_ip_address)
 {
     rs_assert(node != NULL);
 
     return event_execute(rpl_event_dis_pdu_send, node, dst_ip_address, NULL);
 }
 
-bool rpl_receive_dis(node_t *node, node_t *src_node)
+bool rpl_node_receive_dis(node_t *node, node_t *src_node)
 {
     rs_assert(node != NULL);
 
@@ -923,14 +923,14 @@ bool rpl_receive_dis(node_t *node, node_t *src_node)
     return all_ok;
 }
 
-bool rpl_send_dio(node_t *node, char *dst_ip_address, rpl_dio_pdu_t *pdu)
+bool rpl_node_send_dio(node_t *node, char *dst_ip_address, rpl_dio_pdu_t *pdu)
 {
     rs_assert(node != NULL);
 
     return event_execute(rpl_event_dio_pdu_send, node, dst_ip_address, pdu);
 }
 
-bool rpl_receive_dio(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
+bool rpl_node_receive_dio(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
 {
     rs_assert(node != NULL);
 
@@ -941,14 +941,14 @@ bool rpl_receive_dio(node_t *node, node_t *src_node, rpl_dio_pdu_t *pdu)
     return all_ok;
 }
 
-bool rpl_send_dao(node_t *node, char *dst_ip_address, rpl_dao_pdu_t *pdu)
+bool rpl_node_send_dao(node_t *node, char *dst_ip_address, rpl_dao_pdu_t *pdu)
 {
     rs_assert(node != NULL);
 
     return event_execute(rpl_event_dao_pdu_send, node, dst_ip_address, pdu);
 }
 
-bool rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
+bool rpl_node_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 {
     rs_assert(node != NULL);
 
@@ -964,9 +964,6 @@ bool rpl_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 
 static bool event_handler_node_wake(node_t *node)
 {
-    measure_node_add_rpl_event(node);
-    measure_stat_update_output(node);
-
     if (node->rpl_info->root_info->grounded) { /* if preconfigured as grounded root */
         start_as_root(node);
     }
@@ -975,7 +972,7 @@ static bool event_handler_node_wake(node_t *node)
             start_as_root(node);
         }
         else {
-            rpl_send_dis(node, NULL);
+            rpl_node_send_dis(node, NULL);
         }
     }
 
@@ -984,9 +981,6 @@ static bool event_handler_node_wake(node_t *node)
 
 static bool event_handler_node_kill(node_t *node)
 {
-    measure_node_add_rpl_event(node);
-    measure_stat_update_output(node);
-
     /* put the node into "initial" state */
     if (node->rpl_info->root_info->dodag_id != NULL) {
         free(node->rpl_info->root_info->dodag_id);
@@ -1007,11 +1001,9 @@ static bool event_handler_node_kill(node_t *node)
 
 static bool event_handler_dis_pdu_send(node_t *node, char *dst_ip_address)
 {
-    measure_node_add_rpl_event(node);
     measure_node_add_rpl_dis_message(node, TRUE);
-    measure_stat_update_output(node);
 
-    if (!icmp_send(node, dst_ip_address, ICMP_TYPE_RPL, ICMP_RPL_CODE_DIS, NULL)) {
+    if (!icmp_node_send(node, dst_ip_address, ICMP_TYPE_RPL, ICMP_RPL_CODE_DIS, NULL)) {
         return FALSE;
     }
 
@@ -1020,14 +1012,12 @@ static bool event_handler_dis_pdu_send(node_t *node, char *dst_ip_address)
 
 static bool event_handler_dis_pdu_receive(node_t *node, node_t *incoming_node)
 {
-    measure_node_add_rpl_event(node);
     measure_node_add_rpl_dis_message(node, FALSE);
-    measure_stat_update_output(node);
 
     rpl_dio_pdu_t *dio_pdu = create_current_dio_message(node, TRUE);
 
-    if (dio_pdu != NULL) { // todo unicast this message
-        if (!rpl_send_dio(node, incoming_node->ip_info->address, dio_pdu)) {
+    if (dio_pdu != NULL) {
+        if (!rpl_node_send_dio(node, incoming_node->ip_info->address, dio_pdu)) {
             rpl_dio_pdu_destroy(dio_pdu);
         }
     }
@@ -1037,11 +1027,9 @@ static bool event_handler_dis_pdu_receive(node_t *node, node_t *incoming_node)
 
 static bool event_handler_dio_pdu_send(node_t *node, char *dst_ip_address, rpl_dio_pdu_t *pdu)
 {
-    measure_node_add_rpl_event(node);
     measure_node_add_rpl_dio_message(node, TRUE);
-    measure_stat_update_output(node);
 
-    if (!icmp_send(node, dst_ip_address, ICMP_TYPE_RPL, ICMP_RPL_CODE_DIO, pdu)) {
+    if (!icmp_node_send(node, dst_ip_address, ICMP_TYPE_RPL, ICMP_RPL_CODE_DIO, pdu)) {
         return FALSE;
     }
 
@@ -1052,9 +1040,7 @@ static bool event_handler_dio_pdu_send(node_t *node, char *dst_ip_address, rpl_d
 
 static bool event_handler_dio_pdu_receive(node_t *node, node_t *incoming_node, rpl_dio_pdu_t *pdu)
 {
-    measure_node_add_rpl_event(node);
     measure_node_add_rpl_dio_message(node, FALSE);
-    measure_stat_update_output(node);
 
     /* simulate the risk window */
     if (rs_system->now - node->rpl_info->last_dio_send_time <= 2 * rs_system->transmission_time) {
@@ -1166,19 +1152,16 @@ static bool event_handler_dio_pdu_receive(node_t *node, node_t *incoming_node, r
     }
 
     measure_node_connect_update(node);
-    measure_sp_comp_update_output();
-    measure_converg_update_output();
+    measure_converg_update();
 
     return TRUE;
 }
 
 static bool event_handler_dao_pdu_send(node_t *node, char *dst_ip_address, rpl_dao_pdu_t *pdu)
 {
-    measure_node_add_rpl_event(node);
     measure_node_add_rpl_dao_message(node, TRUE);
-    measure_stat_update_output(node);
 
-    if (!icmp_send(node, dst_ip_address, ICMP_TYPE_RPL, ICMP_RPL_CODE_DAO, pdu)) {
+    if (!icmp_node_send(node, dst_ip_address, ICMP_TYPE_RPL, ICMP_RPL_CODE_DAO, pdu)) {
         return FALSE;
     }
 
@@ -1187,18 +1170,13 @@ static bool event_handler_dao_pdu_send(node_t *node, char *dst_ip_address, rpl_d
 
 static bool event_handler_dao_pdu_receive(node_t *node, node_t *incoming_node, rpl_dao_pdu_t *pdu)
 {
-    measure_node_add_rpl_event(node);
     measure_node_add_rpl_dao_message(node, FALSE);
-    measure_stat_update_output(node);
 
     return TRUE;
 }
 
 static bool event_handler_neighbor_attach(node_t *node, node_t *neighbor_node)
 {
-    measure_node_add_rpl_event(node);
-    measure_stat_update_output(node);
-
     if (rpl_node_find_neighbor_by_node(node, neighbor_node)) {
         rs_warn("node '%s': already has neighbor '%s'", node->phy_info->name, neighbor_node->phy_info->name);
         return FALSE;
@@ -1214,9 +1192,6 @@ static bool event_handler_neighbor_attach(node_t *node, node_t *neighbor_node)
 
 static bool event_handler_neighbor_detach(node_t *node, node_t *neighbor_node)
 {
-    measure_node_add_rpl_event(node);
-    measure_stat_update_output(node);
-
     bool lost_pref_parent = FALSE;
     rpl_neighbor_t *neighbor;
 
@@ -1278,17 +1253,14 @@ static bool event_handler_neighbor_detach(node_t *node, node_t *neighbor_node)
     }
 
     measure_node_connect_update(node);
-    measure_sp_comp_update_output();
-    measure_converg_update_output();
+    measure_converg_update();
 
     return TRUE;
 }
 
 static bool event_handler_forward_failure(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu)
 {
-    measure_node_add_rpl_event(node);
     measure_node_add_forward_failure(node);
-    measure_stat_update_output(node);
 
     // todo force reevaluation
 
@@ -1297,9 +1269,7 @@ static bool event_handler_forward_failure(node_t *node, node_t *incoming_node, i
 
 static bool event_handler_forward_inconsistency(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu)
 {
-    measure_node_add_rpl_event(node);
     measure_node_add_forward_inconsistency(node);
-    measure_stat_update_output(node);
 
     // todo force reevaluation
 
@@ -1308,9 +1278,6 @@ static bool event_handler_forward_inconsistency(node_t *node, node_t *incoming_n
 
 static bool event_handler_trickle_t_timeout(node_t *node)
 {
-    measure_node_add_rpl_event(node);
-    measure_stat_update_output(node);
-
     // todo implement DIO message redundancy detection
 
     if (rpl_node_is_root(node)) {
@@ -1336,7 +1303,7 @@ static bool event_handler_trickle_t_timeout(node_t *node)
 
     rpl_dio_pdu_t *dio_pdu = create_current_dio_message(node, TRUE);
     if (dio_pdu != NULL) {
-        if (!rpl_send_dio(node, NULL, dio_pdu)) {
+        if (!rpl_node_send_dio(node, NULL, dio_pdu)) {
             rpl_dio_pdu_destroy(dio_pdu);
             return FALSE;
         }
@@ -1347,9 +1314,6 @@ static bool event_handler_trickle_t_timeout(node_t *node)
 
 static bool event_handler_trickle_i_timeout(node_t *node)
 {
-    measure_node_add_rpl_event(node);
-    measure_stat_update_output(node);
-
     if (rpl_node_is_root(node)) {
         if (node->rpl_info->trickle_i_doublings_so_far < node->rpl_info->root_info->dio_interval_doublings) {
             node->rpl_info->trickle_i_doublings_so_far++;
@@ -1410,9 +1374,6 @@ static bool event_handler_seq_num_autoinc()
         if (!rpl_node_is_root(node)) {
             continue;
         }
-
-        measure_node_add_rpl_event(node);
-        measure_stat_update_output(node);
 
         reset_trickle_timer(node);
     }

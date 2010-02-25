@@ -6,7 +6,6 @@
 #include "simfield.h"
 #include "legend.h"
 #include "dialogs.h"
-#include "measurement.h"
 
 #include "../main.h"
 #include "../system.h"
@@ -32,7 +31,6 @@ static GtkWidget *              xy_status_bar = NULL;
 
 
     /* params widgets */
-
 static GtkWidget *              params_config_button = NULL;
 static GtkWidget *              params_config_vbox = NULL;
 static GtkWidget *              params_system_no_link_dist_spin = NULL;
@@ -112,11 +110,23 @@ static GtkWidget *              params_nodes_measure_connect_connected_now_label
 static GtkWidget *              params_nodes_measure_connect_progress;
 static GtkListStore *           params_nodes_measure_connect_dst_store;
 
+static GtkWidget *              params_nodes_measure_stat_forward_inconsistencies_label;
+static GtkWidget *              params_nodes_measure_stat_forward_failures_label;
+static GtkWidget *              params_nodes_measure_stat_rpl_dis_messages_label;
+static GtkWidget *              params_nodes_measure_stat_rpl_dio_messages_label;
+static GtkWidget *              params_nodes_measure_stat_rpl_dao_messages_label;
+static GtkWidget *              params_nodes_measure_stat_ping_progress;
 
-    /* measures widgets */
+static GtkWidget *              params_nodes_measure_converg_connected_progress;
+static GtkWidget *              params_nodes_measure_converg_stable_progress;
+static GtkWidget *              params_nodes_measure_converg_floating_progress;
 
-static GtkWidget *              measures_button = NULL;
-static GtkWidget *              measures_vbox = NULL;
+
+
+//    /* measures widgets */
+
+//static GtkWidget *              measures_button = NULL;
+//static GtkWidget *              measures_vbox = NULL;
 
 
     /* other widgets */
@@ -157,55 +167,54 @@ static bool                     signals_disabled = FALSE;
 
     /**** local function prototypes ****/
 
-void                cb_params_system_button_clicked(GtkWidget *button, gpointer data);
-void                cb_params_nodes_button_clicked(GtkWidget *button, gpointer data);
-void                cb_measures_button_clicked(GtkWidget *button, gpointer data);
-void                cb_gui_system_updated(GtkSpinButton *spin, gpointer data);
-void                cb_gui_node_updated(GtkWidget *widget, gpointer data);
-void                cb_gui_display_updated(GtkWidget *widget, gpointer data);
-void                cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data);
-void                cb_params_nodes_route_rem_button_clicked(GtkButton *button, gpointer data);
-void                cb_params_nodes_route_dst_combo_changed(GtkComboBoxEntry *combo_box, gpointer data);
-void                cb_params_nodes_root_button_clicked(GtkButton *button, gpointer data);
-void                cb_params_nodes_isolate_button_clicked(GtkButton *button, gpointer data);
+void                            cb_params_system_button_clicked(GtkWidget *button, gpointer data);
+void                            cb_params_nodes_button_clicked(GtkWidget *button, gpointer data);
+void                            cb_gui_system_updated(GtkSpinButton *spin, gpointer data);
+void                            cb_gui_node_updated(GtkWidget *widget, gpointer data);
+void                            cb_gui_display_updated(GtkWidget *widget, gpointer data);
+void                            cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data);
+void                            cb_params_nodes_route_rem_button_clicked(GtkButton *button, gpointer data);
+void                            cb_params_nodes_route_dst_combo_changed(GtkComboBoxEntry *combo_box, gpointer data);
+void                            cb_params_nodes_root_button_clicked(GtkButton *button, gpointer data);
+void                            cb_params_nodes_isolate_button_clicked(GtkButton *button, gpointer data);
 
-static void         cb_open_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_save_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
-static void         cb_start_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_pause_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_step_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_add_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_wake_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_kill_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_add_all_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_remove_all_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_wake_all_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_kill_all_menu_item_activate(GtkWidget *widget, gpointer *data);
-static void         cb_about_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_open_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_save_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
+static void                     cb_start_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_pause_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_step_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_stop_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_add_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_rem_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_wake_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_kill_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_add_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_remove_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_wake_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_kill_all_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_about_menu_item_activate(GtkWidget *widget, gpointer *data);
 
-static void         cb_main_window_delete();
+static void                     cb_main_window_delete();
 
-static GtkWidget *  create_params_widget();
-static GtkWidget *  create_menu_bar();
-static GtkWidget *  create_tool_bar();
-static GtkWidget *  create_status_bar();
-static GtkWidget *  create_content_widget();
+static GtkWidget *              create_params_widget();
+static GtkWidget *              create_menu_bar();
+static GtkWidget *              create_tool_bar();
+static GtkWidget *              create_status_bar();
+static GtkWidget *              create_content_widget();
 
-static void         initialize_widgets();
-static void         update_sensitivity();
-static int32        route_tree_viee_get_selected_index();
+static void                     initialize_widgets();
+static void                     update_sensitivity();
+static int32                    route_tree_viee_get_selected_index();
 
-static void         gui_to_system();
-static void         gui_to_node(node_t *node);
-static void         gui_to_display();
+static void                     gui_to_system();
+static void                     gui_to_node(node_t *node);
+static void                     gui_to_display();
 
-static gboolean     gui_update_wrapper(void *data);
-static gboolean     status_bar_update_wrapper(void *data);
+static gboolean                 gui_update_wrapper(void *data);
+static gboolean                 status_bar_update_wrapper(void *data);
 
-static void         update_rpl_root_configurations();
+static void                     update_rpl_root_configurations();
 
 
     /**** exported functions ****/
@@ -377,8 +386,6 @@ void main_win_system_to_gui()
     if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_measure_connect_dst_store), NULL) > 0)
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), 0);
 
-    measurement_system_to_gui();
-
     signals_enable();
 }
 
@@ -387,7 +394,7 @@ void main_win_node_to_gui(node_t *node, uint32 what)
     signals_disable();
     events_lock();
 
-    if (what & MAIN_WIN_NODE_TO_GUI_PHY) {
+    if ((what & MAIN_WIN_NODE_TO_GUI_PHY) && (node != NULL)) {
         gtk_entry_set_text(GTK_ENTRY(params_nodes_name_entry), node->phy_info->name);
 
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_x_spin), node->phy_info->cx);
@@ -400,11 +407,11 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check), node->phy_info->mains_powered);
     }
 
-    if (what & MAIN_WIN_NODE_TO_GUI_MAC) {
+    if ((what & MAIN_WIN_NODE_TO_GUI_MAC) && (node != NULL)) {
         gtk_entry_set_text(GTK_ENTRY(params_nodes_mac_address_entry), node->mac_info->address);
     }
 
-    if (what & MAIN_WIN_NODE_TO_GUI_IP) {
+    if ((what & MAIN_WIN_NODE_TO_GUI_IP) && (node != NULL)) {
         int16 prev_sel_index = route_tree_viee_get_selected_index();
 
         gtk_entry_set_text(GTK_ENTRY(params_nodes_ip_address_entry), node->ip_info->address);
@@ -439,7 +446,7 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         }
     }
 
-    if (what & MAIN_WIN_NODE_TO_GUI_ICMP) { // todo get rid of "enabled" ping checkbox
+    if ((what & MAIN_WIN_NODE_TO_GUI_ICMP) && (node != NULL)) {
         if (node->icmp_info->ping_ip_address != NULL) {
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check), TRUE);
 
@@ -477,7 +484,7 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin), node->icmp_info->ping_timeout);
     }
 
-    if (what & MAIN_WIN_NODE_TO_GUI_RPL) {
+    if ((what & MAIN_WIN_NODE_TO_GUI_RPL) && (node != NULL)) {
         rpl_root_info_t *root_info = node->rpl_info->root_info;
         rpl_dodag_t *dodag = node->rpl_info->joined_dodag;
 
@@ -532,30 +539,90 @@ void main_win_node_to_gui(node_t *node, uint32 what)
 
     if (what & MAIN_WIN_NODE_TO_GUI_MEASURE) {
         char temp[256];
+        percent_t fraction;
 
-        if (node->measure_info->connect_dst_node != NULL) {
-            uint16 pos = rs_system_get_node_pos(node->measure_info->connect_dst_node);
-            gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), pos + 1);
-            gtk_label_set_text(GTK_LABEL(params_nodes_measure_connect_connected_now_label),
-                    node->measure_info->connect_dst_reachable ? "Yes" : "No");
+        if (node != NULL) {
+            /* connectivity */
+            if (node->measure_info->connect_dst_node != NULL) {
+                uint16 pos = rs_system_get_node_pos(node->measure_info->connect_dst_node);
+                gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), pos + 1);
+                gtk_label_set_text(GTK_LABEL(params_nodes_measure_connect_connected_now_label),
+                        node->measure_info->connect_dst_reachable ? "Yes" : "No");
 
-            sim_time_t connected_time = node->measure_info->connect_connected_time;
-            sim_time_t total_time = rs_system->now - node->measure_info->connect_start_time;
+                sim_time_t connected_time = node->measure_info->connect_connected_time;
+                sim_time_t total_time = rs_system->now - node->measure_info->connect_global_start_time;
 
-            percent_t fraction = 0;
-            if (total_time > 0)
-                fraction = (percent_t) connected_time / total_time;
+                percent_t fraction = 0;
+                if (total_time > 0)
+                    fraction = (percent_t) connected_time / total_time;
 
-            snprintf(temp, sizeof(temp), "%.0f%%", fraction * 100);
+                snprintf(temp, sizeof(temp), "%.0f%%", fraction * 100);
 
-            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), temp);
-            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), fraction);
+                gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), temp);
+                gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), fraction);
+            }
+            else {
+                gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), 0); /* disabled */
+                gtk_label_set_text(GTK_LABEL(params_nodes_measure_connect_connected_now_label), "N/A");
+                gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), "N/A");
+                gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), 0);
+            }
+
+            /* statistics */
+            snprintf(temp, sizeof(temp), "%d", node->measure_info->forward_inconsistency_count);
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_forward_inconsistencies_label), temp);
+
+            snprintf(temp, sizeof(temp), "%d", node->measure_info->forward_failure_count);
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_forward_failures_label), temp);
+
+            snprintf(temp, sizeof(temp), "%d/%d", node->measure_info->rpl_s_dis_message_count, node->measure_info->rpl_r_dis_message_count);
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_rpl_dis_messages_label), temp);
+
+            snprintf(temp, sizeof(temp), "%d/%d", node->measure_info->rpl_s_dio_message_count, node->measure_info->rpl_r_dio_message_count);
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_rpl_dio_messages_label), temp);
+
+            snprintf(temp, sizeof(temp), "%d/%d", node->measure_info->rpl_s_dao_message_count, node->measure_info->rpl_r_dao_message_count);
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_rpl_dao_messages_label), temp);
+
+            float percent;
+            if (node->measure_info->ping_successful_count > 0)
+                percent = (float) node->measure_info->ping_successful_count / (node->measure_info->ping_successful_count + node->measure_info->ping_timeout_count);
+            else
+                percent = 0;
+
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_stat_ping_progress), percent);
+
+            snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", node->measure_info->ping_successful_count, node->measure_info->ping_successful_count + node->measure_info->ping_timeout_count, percent * 100);
+            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_stat_ping_progress), temp);
         }
         else {
-            gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), 0); /* disabled */
-            gtk_label_set_text(GTK_LABEL(params_nodes_measure_connect_connected_now_label), "N/A");
-            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), "N/A");
-            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), 0);
+            /* convergence */
+            measure_converg_t *measure_converg = measure_converg_get();
+
+            if (measure_converg->total_node_count > 0) {
+                fraction = (float) measure_converg->connected_node_count / measure_converg->total_node_count;
+            }
+            snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", measure_converg->connected_node_count, measure_converg->total_node_count, fraction * 100);
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_converg_connected_progress), fraction);
+            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_converg_connected_progress), temp);
+
+            if (measure_converg->total_node_count > 0) {
+                fraction = (float) measure_converg->stable_node_count / measure_converg->total_node_count;
+            }
+            else {
+                fraction = 0;
+            }
+
+            snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", measure_converg->stable_node_count, measure_converg->total_node_count, fraction * 100);
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_converg_stable_progress), fraction);
+            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_converg_stable_progress), temp);
+
+            if (measure_converg->total_node_count > 0) {
+                fraction = (float) measure_converg->floating_node_count / measure_converg->total_node_count;
+            }
+            snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", measure_converg->floating_node_count, measure_converg->total_node_count, fraction * 100);
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_converg_floating_progress), fraction);
+            gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_converg_floating_progress), temp);
         }
     }
 
@@ -675,11 +742,11 @@ void cb_params_system_button_clicked(GtkWidget *widget, gpointer data)
 
     gtk_widget_set_visible(params_config_vbox, TRUE);
     gtk_widget_set_visible(params_nodes_vbox, FALSE);
-    gtk_widget_set_visible(measures_vbox, FALSE);
+//    gtk_widget_set_visible(measures_vbox, FALSE);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_config_button), TRUE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
+//    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
 
     signal_leave();
 }
@@ -692,28 +759,11 @@ void cb_params_nodes_button_clicked(GtkWidget *widget, gpointer data)
 
     gtk_widget_set_visible(params_config_vbox, FALSE);
     gtk_widget_set_visible(params_nodes_vbox, TRUE);
-    gtk_widget_set_visible(measures_vbox, FALSE);
+//    gtk_widget_set_visible(measures_vbox, FALSE);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_config_button), FALSE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), TRUE);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
-
-    signal_leave();
-}
-
-void cb_measures_button_clicked(GtkWidget *widget, gpointer data)
-{
-    signal_enter();
-
-    rs_debug(DEBUG_GUI, NULL);
-
-    gtk_widget_set_visible(params_config_vbox, FALSE);
-    gtk_widget_set_visible(params_nodes_vbox, FALSE);
-    gtk_widget_set_visible(measures_vbox, TRUE);
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_config_button), FALSE);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), TRUE);
+//    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
 
     signal_leave();
 }
@@ -1223,13 +1273,25 @@ GtkWidget *create_params_widget()
     params_nodes_measure_connect_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_connect_progress");
     params_nodes_measure_connect_dst_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_connect_dst_store");
 
-    measures_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_button");
+    params_nodes_measure_stat_forward_inconsistencies_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_forward_inconsistencies_label");
+    params_nodes_measure_stat_forward_failures_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_forward_failures_label");
+    params_nodes_measure_stat_rpl_dis_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dis_messages_label");
+    params_nodes_measure_stat_rpl_dio_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dio_messages_label");
+    params_nodes_measure_stat_rpl_dao_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dao_messages_label");
+    params_nodes_measure_stat_ping_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_ping_progress");
 
-    measures_vbox = measurement_widget_create();
-    if (measures_vbox == NULL) {
-        rs_error("failed to create measurements widget");
-        return NULL;
-    }
+    params_nodes_measure_converg_connected_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_converg_connected_progress");
+    params_nodes_measure_converg_stable_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_converg_stable_progress");
+    params_nodes_measure_converg_floating_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_converg_floating_progress");
+
+
+//    measures_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "measures_button");
+
+//    measures_vbox = measurement_widget_create();
+//    if (measures_vbox == NULL) {
+//        rs_error("failed to create measurements widget");
+//        return NULL;
+//    }
 
     GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_route_next_hop_combo), renderer, FALSE);
@@ -1527,7 +1589,7 @@ static void initialize_widgets()
 {
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_config_button), TRUE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_button), FALSE);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
+//    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(measures_button), FALSE);
 
     sim_field_redraw();
 
@@ -1544,7 +1606,6 @@ static void update_sensitivity()
     bool node_alive = node_selected && selected_node->alive;
     bool route_selected = gtk_tree_selection_count_selected_rows(
             gtk_tree_view_get_selection(GTK_TREE_VIEW(params_nodes_route_tree_view))) > 0;
-    bool ping_enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_enable_ping_measurements_check));
     bool sim_started = rs_system->started;
     bool sim_paused = rs_system->paused;
 
@@ -1569,9 +1630,9 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_route_tree_view, node_selected);
 
     gtk_widget_set_sensitive(params_nodes_enable_ping_measurements_check, node_selected);
-    gtk_widget_set_sensitive(params_nodes_ping_interval_spin, node_selected && ping_enabled);
-    gtk_widget_set_sensitive(params_nodes_ping_timeout_spin, node_selected && ping_enabled);
-    gtk_widget_set_sensitive(params_nodes_ping_address_combo, node_selected && ping_enabled);
+    gtk_widget_set_sensitive(params_nodes_ping_interval_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_ping_timeout_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_ping_address_combo, node_selected);
 
     gtk_widget_set_sensitive(params_nodes_storing_check, node_selected);
     gtk_widget_set_sensitive(params_nodes_grounded_check, node_selected);
@@ -1800,6 +1861,7 @@ static void gui_to_node(node_t *node)
             rs_system_schedule_event(node, icmp_event_ping_send, NULL, NULL, node->icmp_info->ping_interval);
         }
         if (should_start_connect_measure) {
+            measure_node_reset(node);
             measure_node_connect_update(node);
         }
     }
@@ -1822,10 +1884,11 @@ static gboolean gui_update_wrapper(void *data)
 {
     if (rs_system->started) {
         sim_field_redraw();
-        measurement_output_to_gui();
+
+        main_win_node_to_gui(NULL, MAIN_WIN_NODE_TO_GUI_MEASURE);
 
         if (selected_node != NULL) {
-            main_win_node_to_gui(selected_node, MAIN_WIN_NODE_TO_GUI_IP | MAIN_WIN_NODE_TO_GUI_RPL | MAIN_WIN_NODE_TO_GUI_MEASURE); /* for routes */
+            main_win_node_to_gui(selected_node, MAIN_WIN_NODE_TO_GUI_IP | MAIN_WIN_NODE_TO_GUI_RPL | MAIN_WIN_NODE_TO_GUI_MEASURE);
         }
     }
 

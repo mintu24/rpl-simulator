@@ -22,6 +22,9 @@
 #define DEFAULT_SIMULATION_SECOND               1000
 
 #define DEFAULT_TRANSMISSION_TIME               20
+#define DEFAULT_MAC_PDU_TIMEOUT                 (2 * DEFAULT_TRANSMISSION_TIME)
+#define DEFAULT_IP_PDU_TIMEOUT                  (3 * DEFAULT_TRANSMISSION_TIME)
+#define DEFAULT_MEASURE_PDU_TIMEOUT             1000
 #define DEFAULT_NEIGHBOR_TIMEOUT                2000
 
 #define DEFAULT_NODE_NAME                       "A"
@@ -86,20 +89,6 @@
         rs_debug(DEBUG_NODES_MUTEX, "NODES(%d) mutex: unlocked", rs_system->nodes_mutex.depth); \
 }
 
-#define measures_lock() { \
-        rs_debug(DEBUG_MEASURES_MUTEX, "MEASURES(%d) mutex: locking", rs_system->measures_mutex.depth); \
-        g_static_rec_mutex_lock(&rs_system->measures_mutex); \
-        rs_debug(DEBUG_MEASURES_MUTEX, "MEASURES(%d) mutex: locked", rs_system->measures_mutex.depth); \
-}
-
-#define measures_unlock() { \
-        if (rs_system->measures_mutex.depth == 1) rs_system->measures_mutex.depth--; \
-        g_static_rec_mutex_unlock(&rs_system->measures_mutex); \
-        rs_debug(DEBUG_MEASURES_MUTEX, "MEASURES(%d) mutex: unlocked", rs_system->measures_mutex.depth); \
-}
-
-
-
 #define rs_system_has_node(node)        (rs_system_get_node_pos(node) >= 0)
 
 #define rs_system_link_quality_enough(src_node, dst_node) \
@@ -125,6 +114,9 @@ typedef struct rs_system_t {
     coord_t                     no_link_dist_thresh;
     percent_t                   no_link_quality_thresh;
     sim_time_t                  transmission_time;
+    sim_time_t                  mac_pdu_timeout;
+    sim_time_t                  ip_pdu_timeout;
+    sim_time_t                  measure_pdu_timeout;
     sim_time_t                  neighbor_timeout;
 
     coord_t                     width;
@@ -166,7 +158,6 @@ typedef struct rs_system_t {
     GStaticRecMutex             events_mutex;
     GStaticRecMutex             schedules_mutex;
     GStaticRecMutex             nodes_mutex;
-    GStaticRecMutex             measures_mutex;
 
     event_schedule_t *          schedules;
     uint32                      schedule_count; /* redundant size counter */
