@@ -117,9 +117,9 @@ ip_neighbor_t *             ip_node_add_neighbor(node_t *node, node_t *neighbor_
 bool                        ip_node_rem_neighbor(node_t *node, ip_neighbor_t *neighbor);
 ip_neighbor_t *             ip_node_find_neighbor_by_node(node_t *node, node_t *neighbor_node);
 
-bool                        ip_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu);
-bool                        ip_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu);
-bool                        ip_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu);
+bool                        ip_node_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu);
+bool                        ip_node_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu);
+bool                        ip_node_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu);
 
 
 #endif /* IP_H_ */

@@ -1,6 +1,5 @@
 
 // todo source routing
-// todo deadlock with lots of nodes and killing one node
 
 #include <unistd.h>
 #include <math.h>
@@ -14,7 +13,6 @@
 #include "gui/mainwin.h"
 #include "gui/simfield.h"
 #include "gui/dialogs.h"
-#include "gui/measurement.h"
 
 
     /**** global variables ****/
@@ -283,29 +281,6 @@ void rs_rem_all_nodes()
     }
     nodes_unlock();
 
-    /* remove all measurements that concern a specific node */
-    measures_lock();
-
-    uint16 i;
-    for (i = 0; i < measure_sp_comp_entry_get_count(); i++) {
-        measure_sp_comp_t *measure = measure_sp_comp_entry_get(i);
-
-        if (measure->src_node != NULL || measure->dst_node != NULL) {
-            measure_sp_comp_entry_remove(i);
-        }
-    }
-
-    for (i = 0; i < measure_stat_entry_get_count(); i++) {
-        measure_stat_t *measure = measure_stat_entry_get(i);
-
-        if (measure->node != NULL) {
-            measure_stat_entry_remove(i);
-        }
-    }
-
-    measures_unlock();
-
-    measurement_entries_to_gui();
     main_win_system_to_gui();
     main_win_update_nodes_status();
 
@@ -488,21 +463,21 @@ static char *get_next_ip_address(char *address)
 
 static void set_loggable_events()
 {
-    event_set_logging(rpl_event_node_wake, TRUE);
-    event_set_logging(rpl_event_node_kill, TRUE);
-    event_set_logging(rpl_event_neighbor_attach, TRUE);
-    event_set_logging(rpl_event_neighbor_detach, TRUE);
-    event_set_logging(rpl_event_dao_pdu_receive, TRUE);
-    event_set_logging(rpl_event_dio_pdu_receive, TRUE);
-    event_set_logging(rpl_event_dis_pdu_receive, TRUE);
-    event_set_logging(rpl_event_dao_pdu_send, TRUE);
-    event_set_logging(rpl_event_dio_pdu_send, TRUE);
-    event_set_logging(rpl_event_dis_pdu_send, TRUE);
-    event_set_logging(rpl_event_forward_inconsistency, TRUE);
-    event_set_logging(rpl_event_forward_failure, TRUE);
-    event_set_logging(rpl_event_trickle_i_timeout, TRUE);
-    event_set_logging(rpl_event_trickle_t_timeout, TRUE);
-    event_set_logging(rpl_event_seq_num_autoinc, TRUE);
+//    event_set_logging(rpl_event_node_wake, TRUE);
+//    event_set_logging(rpl_event_node_kill, TRUE);
+//    event_set_logging(rpl_event_neighbor_attach, TRUE);
+//    event_set_logging(rpl_event_neighbor_detach, TRUE);
+//    event_set_logging(rpl_event_dao_pdu_receive, TRUE);
+//    event_set_logging(rpl_event_dio_pdu_receive, TRUE);
+//    event_set_logging(rpl_event_dis_pdu_receive, TRUE);
+//    event_set_logging(rpl_event_dao_pdu_send, TRUE);
+//    event_set_logging(rpl_event_dio_pdu_send, TRUE);
+//    event_set_logging(rpl_event_dis_pdu_send, TRUE);
+//    event_set_logging(rpl_event_forward_inconsistency, TRUE);
+//    event_set_logging(rpl_event_forward_failure, TRUE);
+//    event_set_logging(rpl_event_trickle_i_timeout, TRUE);
+//    event_set_logging(rpl_event_trickle_t_timeout, TRUE);
+//    event_set_logging(rpl_event_seq_num_autoinc, TRUE);
 
 //    event_set_logging(icmp_event_pdu_send, TRUE);
 //    event_set_logging(icmp_event_pdu_receive, TRUE);
@@ -516,20 +491,20 @@ static void set_loggable_events()
     event_set_logging(measure_event_connect_established, TRUE);
     event_set_logging(measure_event_connect_lost, TRUE);
 
-    event_set_logging(ip_event_pdu_send, TRUE);
-    event_set_logging(ip_event_pdu_send_timeout_check, TRUE);
-    event_set_logging(ip_event_pdu_receive, TRUE);
-
-    event_set_logging(mac_event_pdu_send, TRUE);
-    event_set_logging(mac_event_pdu_send_timeout_check, TRUE);
-    event_set_logging(mac_event_pdu_receive, TRUE);
-
-    event_set_logging(phy_event_pdu_send, TRUE);
-    event_set_logging(phy_event_pdu_receive, TRUE);
-    event_set_logging(phy_event_neighbor_attach, TRUE);
-    event_set_logging(phy_event_neighbor_detach, TRUE);
-
-    event_set_logging(sys_event_pdu_receive, TRUE);
+//    event_set_logging(ip_event_pdu_send, TRUE);
+//    event_set_logging(ip_event_pdu_send_timeout_check, TRUE);
+//    event_set_logging(ip_event_pdu_receive, TRUE);
+//
+//    event_set_logging(mac_event_pdu_send, TRUE);
+//    event_set_logging(mac_event_pdu_send_timeout_check, TRUE);
+//    event_set_logging(mac_event_pdu_receive, TRUE);
+//
+//    event_set_logging(phy_event_pdu_send, TRUE);
+//    event_set_logging(phy_event_pdu_receive, TRUE);
+//    event_set_logging(phy_event_neighbor_attach, TRUE);
+//    event_set_logging(phy_event_neighbor_detach, TRUE);
+//
+//    event_set_logging(sys_event_pdu_receive, TRUE);
 }
 
 int main(int argc, char *argv[])

@@ -48,8 +48,8 @@ void                    mac_node_done(node_t *node);
 
 void                    mac_node_set_address(node_t *node, const char *address);
 
-bool                    mac_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu);
-bool                    mac_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu);
+bool                    mac_node_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu);
+bool                    mac_node_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu);
 
 
 #endif /* MAC_H_ */

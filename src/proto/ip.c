@@ -434,7 +434,7 @@ ip_neighbor_t* ip_node_find_neighbor_by_node(node_t *node, node_t *neighbor_node
     return NULL;
 }
 
-bool ip_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu)
+bool ip_node_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu)
 {
     rs_assert(node != NULL);
 
@@ -449,7 +449,7 @@ bool ip_send(node_t *node, char *dst_ip_address, uint16 next_header, void *sdu)
     return TRUE;
 }
 
-bool ip_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu) {
+bool ip_node_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu) {
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
 
@@ -463,7 +463,7 @@ bool ip_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu) {
     return TRUE;
 }
 
-bool ip_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
+bool ip_node_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
@@ -505,7 +505,7 @@ static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t
     }
 
     if (strlen(pdu->dst_address) == 0) { /* broadcast */
-        return mac_send(node, NULL, MAC_TYPE_IP, pdu);
+        return mac_node_send(node, NULL, MAC_TYPE_IP, pdu);
     }
     else {
         /* route the packet */
@@ -522,7 +522,7 @@ static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t
 
         node_t *redir_next_hop = rpl_node_process_outgoing_flow_label(node, incoming_node, next_hop, pdu);
         if (redir_next_hop != next_hop) { /* RPL redirected us, don't try all the parents & stuff in case of failure */
-            return mac_send(node, redir_next_hop, MAC_TYPE_IP, pdu);
+            return mac_node_send(node, redir_next_hop, MAC_TYPE_IP, pdu);
         }
 
         uint16 next_hop_count;
@@ -535,8 +535,8 @@ static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t
         }
 
         if (ip_send_info->next_hop_count > 0) {
-            if (mac_send(node, ip_send_info->next_hop_list[0], MAC_TYPE_IP, pdu)) {
-                rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, 3 * rs_system->transmission_time); // todo make this timeout configurable
+            if (mac_node_send(node, ip_send_info->next_hop_list[0], MAC_TYPE_IP, pdu)) {
+                rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, rs_system->ip_pdu_timeout);
                 node->ip_info->busy = TRUE;
 
                 return TRUE;
@@ -572,8 +572,8 @@ static bool event_handler_pdu_send_timeout_check(node_t *node, ip_send_info_t *i
 
         ip_send_info->next_hop_index++;
 
-        rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, 3 * rs_system->transmission_time); // todo make this timeout configurable
-        mac_send(node, ip_send_info->next_hop_list[ip_send_info->next_hop_index], MAC_TYPE_IP, pdu);
+        rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, rs_system->ip_pdu_timeout);
+        mac_node_send(node, ip_send_info->next_hop_list[ip_send_info->next_hop_index], MAC_TYPE_IP, pdu);
     }
     else { /* succeeded to send the packet, or no more nodes to try */
         if (node->mac_info->error) {
@@ -642,7 +642,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
             event_execute(measure_event_connect_hop_passed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
         }
 
-        return ip_forward(node, incoming_node, pdu);
+        return ip_node_forward(node, incoming_node, pdu);
     }
     else {
         bool all_ok = TRUE;
@@ -650,7 +650,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
         switch (pdu->next_header) {
 
             case IP_NEXT_HEADER_ICMP: {
-                if (!icmp_receive(node, incoming_node, pdu)) { /* yes, we directly pass the IP layer pdu to ICMP */
+                if (!icmp_node_receive(node, incoming_node, pdu)) { /* yes, we directly pass the IP layer pdu to ICMP */
                     all_ok = FALSE;
                 }
 
@@ -660,7 +660,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
             case IP_NEXT_HEADER_MEASURE: {
                 measure_pdu_t *measure_pdu = pdu->sdu;
                 rs_assert(measure_pdu != NULL);
-                if (!measure_receive(node, incoming_node, measure_pdu)) {
+                if (!measure_node_receive(node, incoming_node, measure_pdu)) {
                     all_ok = FALSE;
                 }
 

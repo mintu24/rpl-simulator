@@ -137,7 +137,7 @@ void mac_node_set_address(node_t *node, const char *address)
     node->mac_info->address = strdup(address);
 }
 
-bool mac_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu)
+bool mac_node_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu)
 {
     rs_assert(node != NULL);
 
@@ -152,7 +152,7 @@ bool mac_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu)
     return TRUE;
 }
 
-bool mac_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu)
+bool mac_node_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu)
 {
     rs_assert(pdu!= NULL);
     rs_assert(node != NULL);
@@ -184,12 +184,12 @@ bool event_handler_pdu_send(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
         return FALSE;
     }
 
-    rs_system_schedule_event(node, mac_event_pdu_send_timeout_check, outgoing_node, pdu, 2 * rs_system->transmission_time); // todo make this timeout configurable
+    rs_system_schedule_event(node, mac_event_pdu_send_timeout_check, outgoing_node, pdu, rs_system->mac_pdu_timeout);
 
     node->mac_info->error = TRUE;
     node->mac_info->busy = TRUE;
 
-    return phy_send(node, outgoing_node, pdu);
+    return phy_node_send(node, outgoing_node, pdu);
 }
 
 bool event_handler_pdu_send_timeout_check(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
@@ -215,7 +215,7 @@ bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, mac_pdu_t *p
         case MAC_TYPE_IP : {
             ip_pdu_t *ip_pdu = pdu->sdu;
 
-            if (!ip_receive(node, incoming_node, ip_pdu)) {
+            if (!ip_node_receive(node, incoming_node, ip_pdu)) {
                 all_ok = FALSE;
             }
 

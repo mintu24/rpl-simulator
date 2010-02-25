@@ -6,7 +6,6 @@
 
 #include "gui/simfield.h"
 #include "gui/mainwin.h"
-#include "gui/measurement.h"
 
 
     /**** global variables ****/
@@ -49,6 +48,9 @@ bool rs_system_create()
     rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
     rs_system->no_link_quality_thresh = DEFAULT_NO_LINK_QUALITY_THRESH;
     rs_system->transmission_time = DEFAULT_TRANSMISSION_TIME;
+    rs_system->mac_pdu_timeout = DEFAULT_MAC_PDU_TIMEOUT;
+    rs_system->ip_pdu_timeout = DEFAULT_IP_PDU_TIMEOUT;
+    rs_system->measure_pdu_timeout = DEFAULT_MEASURE_PDU_TIMEOUT;
     rs_system->neighbor_timeout = DEFAULT_NEIGHBOR_TIMEOUT;
 
     rs_system->width = DEFAULT_SYS_WIDTH;
@@ -110,7 +112,6 @@ bool rs_system_create()
     g_static_rec_mutex_init(&rs_system->events_mutex);
     g_static_rec_mutex_init(&rs_system->schedules_mutex);
     g_static_rec_mutex_init(&rs_system->nodes_mutex);
-    g_static_rec_mutex_init(&rs_system->measures_mutex);
 
     return TRUE;
 }
@@ -157,7 +158,6 @@ bool rs_system_destroy()
         return FALSE;
     }
 
-    g_static_rec_mutex_free(&rs_system->measures_mutex);
     g_static_rec_mutex_free(&rs_system->nodes_mutex);
     g_static_rec_mutex_free(&rs_system->schedules_mutex);
     g_static_rec_mutex_free(&rs_system->events_mutex);
@@ -204,7 +204,6 @@ bool rs_system_remove_node(node_t *node)
 
     if (pos == -1) {
         rs_error("node '%s' not found", rs_system->node_list[i]);
-        measures_unlock();
         events_unlock();
         nodes_unlock();
 
@@ -250,29 +249,6 @@ bool rs_system_remove_node(node_t *node)
     if (node_list != NULL) {
         free(node_list);
     }
-
-    measures_lock();
-
-    /* remove measurement entries that refer to this node */
-    for (i = 0; i < measure_sp_comp_entry_get_count(); i++) {
-        measure_sp_comp_t *measure = measure_sp_comp_entry_get(i);
-
-        if (measure->src_node == node || measure->dst_node == node) {
-            measure_sp_comp_entry_remove(i);
-        }
-    }
-
-    for (i = 0; i < measure_stat_entry_get_count(); i++) {
-        measure_stat_t *measure = measure_stat_entry_get(i);
-
-        if (measure->node == node) {
-            measure_stat_entry_remove(i);
-        }
-    }
-
-    measurement_entries_to_gui();
-
-    measures_unlock();
 
     events_unlock();
 
@@ -543,12 +519,6 @@ void rs_system_start(bool start_paused)
         rs_system->paused = start_paused;
         rs_system->step = FALSE;
 
-        measure_sp_comp_reset_output();
-        measure_converg_reset_output();
-        measure_stat_reset_output();
-
-        measurement_output_to_gui();
-
         rs_system->now = 0;
         rs_system->event_count = 0;
 
@@ -681,7 +651,7 @@ char *rs_system_sim_time_to_string(sim_time_t time)
         }
     }
     else {
-        snprintf(text, 256, ".%d", ms);
+        snprintf(text, 256, "0.03%d", ms);
     }
 
     return text;
@@ -801,8 +771,6 @@ static bool schedule_destroy(event_schedule_t *schedule)
 
 static bool event_handler_node_wake(node_t *node)
 {
-    measure_node_reset(node);
-
     if (!event_execute(phy_event_node_wake, node, NULL, NULL))
         return FALSE;
     if (!event_execute(mac_event_node_wake, node, NULL, NULL))
@@ -835,7 +803,7 @@ static bool event_handler_node_kill(node_t *node)
 
 static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, phy_pdu_t *message)
 {
-    if (!phy_receive(node, incoming_node, message)) {
+    if (!phy_node_receive(node, incoming_node, message)) {
         rs_error("node '%s': failed to receive PHY pdu from node '%s'", node->phy_info->name, incoming_node->phy_info->name);
         return FALSE;
     }

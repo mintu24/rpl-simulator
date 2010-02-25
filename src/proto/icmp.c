@@ -133,7 +133,7 @@ void icmp_node_done(node_t *node)
     }
 }
 
-bool icmp_send(node_t *node, char *dst_ip_address, uint8 type, uint8 code, void *sdu)
+bool icmp_node_send(node_t *node, char *dst_ip_address, uint8 type, uint8 code, void *sdu)
 {
     rs_assert(node != NULL);
 
@@ -148,7 +148,7 @@ bool icmp_send(node_t *node, char *dst_ip_address, uint8 type, uint8 code, void 
     return TRUE;
 }
 
-bool icmp_receive(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu)
+bool icmp_node_receive(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu)
 {
     rs_assert(node != NULL);
     rs_assert(ip_pdu != NULL);
@@ -182,7 +182,7 @@ static bool event_handler_node_kill(node_t *node)
 
 static bool event_handler_pdu_send(node_t *node, char *dst_ip_address, icmp_pdu_t *pdu)
 {
-    return ip_send(node, dst_ip_address, IP_NEXT_HEADER_ICMP, pdu);
+    return ip_node_send(node, dst_ip_address, IP_NEXT_HEADER_ICMP, pdu);
 }
 
 static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu)
@@ -197,7 +197,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
         case ICMP_TYPE_ECHO_REQUEST: {
             rs_debug(DEBUG_ICMP, "node '%s': received a ping request from '%s'", node->phy_info->name, ip_pdu->src_address);
             rs_debug(DEBUG_ICMP, "node '%s': sending a ping reply to '%s'", node->phy_info->name, ip_pdu->src_address);
-            icmp_send(node, ip_pdu->src_address, ICMP_TYPE_ECHO_REPLY, 0, NULL);
+            icmp_node_send(node, ip_pdu->src_address, ICMP_TYPE_ECHO_REPLY, 0, NULL);
 
             break;
         }
@@ -214,7 +214,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
             switch (pdu->code) {
 
                 case ICMP_RPL_CODE_DIS: {
-                    if (!rpl_receive_dis(node, incoming_node)) {
+                    if (!rpl_node_receive_dis(node, incoming_node)) {
                         rs_error("node '%s': failed to receive RPL DIS from node '%s'", node->phy_info->name, incoming_node->phy_info->name);
                         all_ok = FALSE;
                     }
@@ -224,7 +224,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
 
                 case ICMP_RPL_CODE_DIO: {
                     rpl_dio_pdu_t *rpl_dio_pdu = pdu->sdu;
-                    if (!rpl_receive_dio(node, incoming_node, rpl_dio_pdu)) {
+                    if (!rpl_node_receive_dio(node, incoming_node, rpl_dio_pdu)) {
                         rs_error("node '%s': failed to receive RPL DIO from node '%s'", node->phy_info->name, incoming_node->phy_info->name);
                         all_ok = FALSE;
                     }
@@ -234,7 +234,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
 
                 case ICMP_RPL_CODE_DAO: {
                     rpl_dao_pdu_t *rpl_dao_pdu = pdu->sdu;
-                    if (!rpl_receive_dao(node, incoming_node, rpl_dao_pdu)) {
+                    if (!rpl_node_receive_dao(node, incoming_node, rpl_dao_pdu)) {
                         rs_error("node '%s': failed to receive RPL DAO from node '%s'", node->phy_info->name, incoming_node->phy_info->name);
                         all_ok = FALSE;
                     }
@@ -264,7 +264,7 @@ static bool event_handler_ping_send(node_t *node)
     }
 
     rs_debug(DEBUG_ICMP, "node '%s': sending a ping request to '%s'", node->phy_info->name, node->icmp_info->ping_ip_address);
-    icmp_send(node, node->icmp_info->ping_ip_address, ICMP_TYPE_ECHO_REQUEST, 0, NULL);
+    icmp_node_send(node, node->icmp_info->ping_ip_address, ICMP_TYPE_ECHO_REQUEST, 0, NULL);
 
     rs_system_schedule_event(node, icmp_event_ping_timeout, node->icmp_info->ping_ip_address, NULL, node->icmp_info->ping_timeout);
     rs_system_schedule_event(node, icmp_event_ping_send, NULL, NULL, node->icmp_info->ping_interval);

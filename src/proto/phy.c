@@ -155,7 +155,7 @@ void phy_node_set_tx_power(node_t* node, percent_t tx_power)
     }
 }
 
-bool phy_send(node_t *node, node_t *outgoing_node, void *sdu)
+bool phy_node_send(node_t *node, node_t *outgoing_node, void *sdu)
 {
     rs_assert(node != NULL);
     rs_assert(sdu != NULL);
@@ -171,7 +171,7 @@ bool phy_send(node_t *node, node_t *outgoing_node, void *sdu)
     return TRUE;
 }
 
-bool phy_receive(node_t *node, node_t *incoming_node, phy_pdu_t *pdu)
+bool phy_node_receive(node_t *node, node_t *incoming_node, phy_pdu_t *pdu)
 {
     rs_assert(node != NULL);
     rs_assert(pdu != NULL);
@@ -291,7 +291,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, phy_p
 {
     mac_pdu_t *mac_pdu = pdu->sdu;
 
-    return mac_receive(node, incoming_node, mac_pdu);
+    return mac_node_receive(node, incoming_node, mac_pdu);
 }
 
 static bool event_handler_neighbor_attach(node_t *node, node_t *neighbor_node)

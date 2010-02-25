@@ -236,12 +236,12 @@ node_t **                   rpl_node_get_next_hop_list(node_t *node, uint16 *nod
 bool                        rpl_node_process_incoming_flow_label(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu);
 node_t *                    rpl_node_process_outgoing_flow_label(node_t *node, node_t *incoming_node, node_t *proposed_dst_node, ip_pdu_t *ip_pdu);
 
-bool                        rpl_send_dis(node_t *node, char *dst_ip_address);
-bool                        rpl_receive_dis(node_t *node, node_t *incoming_node);
-bool                        rpl_send_dio(node_t *node, char *dst_ip_address, rpl_dio_pdu_t *pdu);
-bool                        rpl_receive_dio(node_t *node, node_t *incoming_node, rpl_dio_pdu_t *pdu);
-bool                        rpl_send_dao(node_t *node, char *dst_ip_address, rpl_dao_pdu_t *pdu);
-bool                        rpl_receive_dao(node_t *node, node_t *incoming_node, rpl_dao_pdu_t *pdu);
+bool                        rpl_node_send_dis(node_t *node, char *dst_ip_address);
+bool                        rpl_node_receive_dis(node_t *node, node_t *incoming_node);
+bool                        rpl_node_send_dio(node_t *node, char *dst_ip_address, rpl_dio_pdu_t *pdu);
+bool                        rpl_node_receive_dio(node_t *node, node_t *incoming_node, rpl_dio_pdu_t *pdu);
+bool                        rpl_node_send_dao(node_t *node, char *dst_ip_address, rpl_dao_pdu_t *pdu);
+bool                        rpl_node_receive_dao(node_t *node, node_t *incoming_node, rpl_dao_pdu_t *pdu);
 
 
 #endif /* RPL_H_ */

@@ -56,8 +56,8 @@ void                        icmp_pdu_set_sdu(icmp_pdu_t *pdu, uint8 type, uint8 
 void                        icmp_node_init(node_t *node);
 void                        icmp_node_done(node_t *node);
 
-bool                        icmp_send(node_t *node, char *dst_ip_address, uint8 type, uint8 code, void *sdu);
-bool                        icmp_receive(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu); /* yes, ip_pdu_t */
+bool                        icmp_node_send(node_t *node, char *dst_ip_address, uint8 type, uint8 code, void *sdu);
+bool                        icmp_node_receive(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu); /* yes, ip_pdu_t */
 
 
 #endif /* ICMP_H_ */
