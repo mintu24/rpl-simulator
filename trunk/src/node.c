@@ -3,8 +3,6 @@
 
 #include "node.h"
 #include "system.h"
-#include "measure.h"
-#include "gui/mainwin.h"
 
 
     /**** local function prototypes ****/

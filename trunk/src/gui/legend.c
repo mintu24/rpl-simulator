@@ -3,6 +3,7 @@
 
 #include "mainwin.h"
 #include "simfield.h"
+
 #include "../system.h"
 
     /**** global variables ****/

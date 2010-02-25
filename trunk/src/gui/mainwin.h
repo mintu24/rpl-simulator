@@ -17,11 +17,12 @@
 #endif
 
 
-#define MAIN_WIN_NODE_TO_GUI_PHY                    (1 << 0)
-#define MAIN_WIN_NODE_TO_GUI_MAC                    (1 << 1)
-#define MAIN_WIN_NODE_TO_GUI_IP                     (1 << 2)
-#define MAIN_WIN_NODE_TO_GUI_ICMP                   (1 << 3)
-#define MAIN_WIN_NODE_TO_GUI_RPL                    (1 << 4)
+#define MAIN_WIN_NODE_TO_GUI_MEASURE                (1 << 0)
+#define MAIN_WIN_NODE_TO_GUI_PHY                    (1 << 1)
+#define MAIN_WIN_NODE_TO_GUI_MAC                    (1 << 2)
+#define MAIN_WIN_NODE_TO_GUI_IP                     (1 << 3)
+#define MAIN_WIN_NODE_TO_GUI_ICMP                   (1 << 4)
+#define MAIN_WIN_NODE_TO_GUI_RPL                    (1 << 5)
 #define MAIN_WIN_NODE_TO_GUI_ALL                    0xFFFF
 
 

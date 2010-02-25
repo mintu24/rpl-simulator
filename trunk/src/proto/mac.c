@@ -1,7 +1,5 @@
 
 #include "mac.h"
-#include "phy.h"
-#include "ip.h"
 #include "../system.h"
 
 
@@ -143,11 +141,6 @@ bool mac_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu)
 {
     rs_assert(node != NULL);
 
-    if (node->mac_info->busy) { /* cannot send while MAC layer is busy */
-        rs_debug(DEBUG_IP, "node '%s': the MAC layer is busy", node->phy_info->name);
-        return FALSE;
-    }
-
     mac_pdu_t *mac_pdu = mac_pdu_create(node->mac_info->address, outgoing_node != NULL ? outgoing_node->mac_info->address : "");
     mac_pdu_set_sdu(mac_pdu, type, sdu);
 
@@ -156,13 +149,6 @@ bool mac_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu)
         return FALSE;
     }
 
-    node->mac_info->busy = TRUE;
-
-    /* only care about errors for unicast messages */
-    node->mac_info->error = (outgoing_node != NULL);
-
-    rs_system_schedule_event(node, mac_event_pdu_send_timeout_check, outgoing_node, mac_pdu, 2 * rs_system->transmission_time); // todo make this timeout configurable
-
     return TRUE;
 }
 
@@ -170,8 +156,6 @@ bool mac_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu)
 {
     rs_assert(pdu!= NULL);
     rs_assert(node != NULL);
-
-    incoming_node->mac_info->error = FALSE;
 
     bool all_ok = event_execute(mac_event_pdu_receive, node, incoming_node, pdu);
 
@@ -195,12 +179,23 @@ bool event_handler_node_kill(node_t *node)
 
 bool event_handler_pdu_send(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
 {
+    if (node->mac_info->busy) {
+        rs_debug(DEBUG_MAC, "node '%s': MAC layer is busy, dropping frame", node->phy_info->name);
+        return FALSE;
+    }
+
+    rs_system_schedule_event(node, mac_event_pdu_send_timeout_check, outgoing_node, pdu, 2 * rs_system->transmission_time); // todo make this timeout configurable
+
+    node->mac_info->error = TRUE;
+    node->mac_info->busy = TRUE;
+
     return phy_send(node, outgoing_node, pdu);
 }
 
 bool event_handler_pdu_send_timeout_check(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
 {
     if (node->mac_info->error) { /* the message wasn't received */
+        rs_debug(DEBUG_MAC, "node '%s': a frame wasn't correctly received, destroying it", node->phy_info->name);
         mac_pdu_destroy(pdu);
     }
 
@@ -212,6 +207,8 @@ bool event_handler_pdu_send_timeout_check(node_t *node, node_t *outgoing_node, m
 bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, mac_pdu_t *pdu)
 {
     bool all_ok = TRUE;
+
+    incoming_node->mac_info->error = FALSE; /* emulate a MAC acknowledgment */
 
     switch (pdu->type) {
 

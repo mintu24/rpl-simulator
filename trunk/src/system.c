@@ -3,7 +3,7 @@
 #include <math.h>
 
 #include "system.h"
-#include "measure.h"
+
 #include "gui/simfield.h"
 #include "gui/mainwin.h"
 #include "gui/measurement.h"
@@ -232,6 +232,9 @@ bool rs_system_remove_node(node_t *node)
     for (i = 0; i < node_count; i++) {
         node_t *other_node = node_list[i];
 
+        /* phy neighbors */
+        phy_node_rem_neighbor(other_node, node);
+
         /* nullify ip route refs */
         ip_node_rem_routes(other_node, NULL, -1, node, -1);
 
@@ -248,24 +251,9 @@ bool rs_system_remove_node(node_t *node)
         free(node_list);
     }
 
-    /* removing the phy neighboring references to this node */
-    for(i = 0; i < node->phy_info->neighbors_count; i++){
-      node_t* other_node = node->phy_info->neighbors_list[i];
-      phy_node_rem_neighbor(other_node, node->phy_info->name);
-      phy_node_rem_neighbor(node, other_node->phy_info->name);
-    }
-
     measures_lock();
 
     /* remove measurement entries that refer to this node */
-    for (i = 0; i < measure_connect_entry_get_count(); i++) {
-        measure_connect_t *measure = measure_connect_entry_get(i);
-
-        if (measure->src_node == node || measure->dst_node == node) {
-            measure_connect_entry_remove(i);
-        }
-    }
-
     for (i = 0; i < measure_sp_comp_entry_get_count(); i++) {
         measure_sp_comp_t *measure = measure_sp_comp_entry_get(i);
 
@@ -477,6 +465,7 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
 
     if (dst_node == NULL) { /* broadcast */
 
+        // todo this could be replaced by a well maintained PHY neighbor list
         uint16 node_count;
         node_t **node_list = rs_system_get_node_list_copy(&node_count);
 
@@ -492,7 +481,13 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
                 continue;
             }
 
-            // todo considering the skipped nodes the following if causes phy_pdu memory leaks
+            if (!rs_system_link_quality_enough(src_node, dst_node)) { /* no physical link */
+                rs_debug(DEBUG_SYSTEM, "link quality below threshold between '%s' and '%s'",
+                        src_node->phy_info->name, dst_node->phy_info->name);
+
+                continue;
+            }
+
             if (i < rs_system->node_count - 1) {
                 rs_system_send(src_node, dst_node, phy_pdu_duplicate(message));
             }
@@ -548,7 +543,6 @@ void rs_system_start(bool start_paused)
         rs_system->paused = start_paused;
         rs_system->step = FALSE;
 
-        measure_connect_reset_output();
         measure_sp_comp_reset_output();
         measure_converg_reset_output();
         measure_stat_reset_output();
@@ -820,8 +814,6 @@ static bool event_handler_node_wake(node_t *node)
     if (!event_execute(rpl_event_node_wake, node, NULL, NULL))
         return FALSE;
 
-    phy_node_update_neighbor_list(node);
-
     return TRUE;
 }
 
@@ -843,15 +835,6 @@ static bool event_handler_node_kill(node_t *node)
 
 static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, phy_pdu_t *message)
 {
-    percent_t quality = rs_system_get_link_quality(incoming_node, node);
-    if (quality < rs_system->no_link_quality_thresh) { /* no physical link */
-        rs_debug(DEBUG_SYSTEM, "link quality below threshold between '%s' and '%s'",
-                node->phy_info->name, incoming_node->phy_info->name);
-
-        phy_pdu_destroy(message);
-        return FALSE;
-    }
-
     if (!phy_receive(node, incoming_node, message)) {
         rs_error("node '%s': failed to receive PHY pdu from node '%s'", node->phy_info->name, incoming_node->phy_info->name);
         return FALSE;

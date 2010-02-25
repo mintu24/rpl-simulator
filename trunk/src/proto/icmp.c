@@ -182,7 +182,7 @@ static bool event_handler_node_kill(node_t *node)
 
 static bool event_handler_pdu_send(node_t *node, char *dst_ip_address, icmp_pdu_t *pdu)
 {
-    return ip_send(node, dst_ip_address, IP_NEXT_HEADER_ICMP, pdu, FALSE);
+    return ip_send(node, dst_ip_address, IP_NEXT_HEADER_ICMP, pdu);
 }
 
 static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu)

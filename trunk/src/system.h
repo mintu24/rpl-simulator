@@ -7,8 +7,8 @@
 #include "base.h"
 #include "node.h"
 #include "event.h"
-#include "measure.h"
 
+#include "proto/measure.h"
 #include "proto/phy.h"
 #include "proto/mac.h"
 #include "proto/ip.h"
@@ -102,6 +102,9 @@
 
 #define rs_system_has_node(node)        (rs_system_get_node_pos(node) >= 0)
 
+#define rs_system_link_quality_enough(src_node, dst_node) \
+        (rs_system_get_link_quality(src_node, dst_node) >= rs_system->no_link_quality_thresh)
+
 
     /* structure used for scheduling events to be executed at a certain moment */
 typedef struct event_schedule_t {
@@ -171,36 +174,36 @@ typedef struct rs_system_t {
 } rs_system_t;
 
 
-extern rs_system_t *    rs_system;
+extern rs_system_t *            rs_system;
 
-extern uint16           sys_event_node_wake;
-extern uint16           sys_event_node_kill;
-extern uint16           sys_event_pdu_receive;
+extern uint16                   sys_event_node_wake;
+extern uint16                   sys_event_node_kill;
+extern uint16                   sys_event_pdu_receive;
 
 
-bool                    rs_system_create();
-bool                    rs_system_destroy();
+bool                            rs_system_create();
+bool                            rs_system_destroy();
 
-bool                    rs_system_add_node(node_t *node);
-bool                    rs_system_remove_node(node_t *node);
-int32                   rs_system_get_node_pos(node_t *node);
-node_t *                rs_system_find_node_by_name(char *name);
-node_t *                rs_system_find_node_by_mac_address(char *address);
-node_t *                rs_system_find_node_by_ip_address(char *address);
-node_t **               rs_system_get_node_list_copy(uint16 *node_count);
+bool                            rs_system_add_node(node_t *node);
+bool                            rs_system_remove_node(node_t *node);
+int32                           rs_system_get_node_pos(node_t *node);
+node_t *                        rs_system_find_node_by_name(char *name);
+node_t *                        rs_system_find_node_by_mac_address(char *address);
+node_t *                        rs_system_find_node_by_ip_address(char *address);
+node_t **                       rs_system_get_node_list_copy(uint16 *node_count);
 
-void                    rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
-void                    rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *data2, int32 time);
-bool                    rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message);
-percent_t               rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
+void                            rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
+void                            rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *data2, int32 time);
+bool                            rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message);
+percent_t                       rs_system_get_link_quality(node_t *src_node, node_t *dst_node);
 
-void                    rs_system_start(bool start_paused);
-void                    rs_system_stop();
-void                    rs_system_pause();
-void                    rs_system_step();
+void                            rs_system_start(bool start_paused);
+void                            rs_system_stop();
+void                            rs_system_pause();
+void                            rs_system_step();
 
-char *                  rs_system_sim_time_to_string(sim_time_t time);
-uint32                  rs_system_random();
+char *                          rs_system_sim_time_to_string(sim_time_t time);
+uint32                          rs_system_random();
 
 
 #endif /* SYSTEM_H_ */
