@@ -65,7 +65,8 @@ typedef struct ip_node_info_t {
     ip_neighbor_t **        neighbor_list;
     uint16                  neighbor_count;
 
-    bool                    busy;
+    uint32                  enqueued_count;
+
 
 } ip_node_info_t;
 

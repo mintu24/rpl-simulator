@@ -98,8 +98,6 @@ void                        measure_node_add_rpl_dao_message(node_t *node, bool 
 void                        measure_node_add_ping(node_t *node, bool successful);
 void                        measure_node_reset(node_t *node);
 
-void                        measure_node_connect_update(node_t *node);
-
 void                        measure_connect_update();
 
 measure_converg_t *         measure_converg_get();

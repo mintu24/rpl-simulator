@@ -2042,7 +2042,7 @@ static void gui_to_node(node_t *node)
         }
         if (should_start_connect_measure) {
             measure_node_reset(node);
-            measure_node_connect_update(node);
+            measure_connect_update();
         }
     }
 }

@@ -239,35 +239,27 @@ void measure_node_reset(node_t *node)
     node->measure_info->ping_timeout_count = 0;
 }
 
-void measure_node_connect_update(node_t *node)
-{
-    rs_assert(node != NULL);
-
-    if (node->measure_info->connect_busy) {
-        return;
-    }
-
-    if (node->measure_info->connect_dst_node == NULL) {
-        node->measure_info->connect_dst_reachable = FALSE;
-        return;
-    }
-
-    if (node->measure_info->connect_dst_node == node) {
-        node->measure_info->connect_dst_reachable = TRUE;
-        return;
-    }
-
-    rs_system_schedule_event(node, measure_event_connect_update, node->measure_info->connect_dst_node, NULL, 0);
-}
-
 void measure_connect_update()
 {
     uint16 i;
-
     for (i = 0; i < rs_system->node_count; i++) {
         node_t *node = rs_system->node_list[i];
 
-        measure_node_connect_update(node);
+        if (node->measure_info->connect_busy) {
+            return;
+        }
+
+        if (node->measure_info->connect_dst_node == NULL) {
+            node->measure_info->connect_dst_reachable = FALSE;
+            return;
+        }
+
+        if (node->measure_info->connect_dst_node == node) {
+            node->measure_info->connect_dst_reachable = TRUE;
+            return;
+        }
+
+        rs_system_schedule_event(node, measure_event_connect_update, node->measure_info->connect_dst_node, NULL, 0);
     }
 }
 
