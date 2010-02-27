@@ -72,8 +72,12 @@ bool node_kill(node_t* node)
         return FALSE;
     }
 
-    // todo schedule this if system started, to avoid deadlock
-    event_execute(sys_event_node_kill, node, NULL, NULL);
+    if (rs_system->started) {
+        rs_system_schedule_event(node, sys_event_node_kill, NULL, NULL, 0);
+    }
+    else {
+        event_execute(sys_event_node_kill, node, NULL, NULL);
+    }
 
     node->alive = FALSE;
 

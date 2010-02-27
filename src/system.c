@@ -54,6 +54,7 @@ bool rs_system_create()
     rs_system->ip_pdu_timeout = DEFAULT_IP_PDU_TIMEOUT;
     rs_system->measure_pdu_timeout = DEFAULT_MEASURE_PDU_TIMEOUT;
     rs_system->neighbor_timeout = DEFAULT_NEIGHBOR_TIMEOUT;
+    rs_system->ip_queue_size = DEFAULT_IP_QUEUE_SIZE;
 
     rs_system->width = DEFAULT_SYS_WIDTH;
     rs_system->height = DEFAULT_SYS_HEIGHT;

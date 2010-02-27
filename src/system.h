@@ -26,6 +26,7 @@
 #define DEFAULT_IP_PDU_TIMEOUT                  (3 * DEFAULT_TRANSMISSION_TIME)
 #define DEFAULT_MEASURE_PDU_TIMEOUT             1000
 #define DEFAULT_NEIGHBOR_TIMEOUT                2000
+#define DEFAULT_IP_QUEUE_SIZE                   10
 
 #define DEFAULT_NODE_NAME                       "A"
 #define DEFAULT_NODE_MAC_ADDRESS                "0001"
@@ -118,6 +119,7 @@ typedef struct rs_system_t {
     sim_time_t                  ip_pdu_timeout;
     sim_time_t                  measure_pdu_timeout;
     sim_time_t                  neighbor_timeout;
+    uint32                      ip_queue_size;
 
     coord_t                     width;
     coord_t                     height;

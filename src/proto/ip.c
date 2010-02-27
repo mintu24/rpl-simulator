@@ -211,7 +211,7 @@ void ip_node_init(node_t *node, char *address)
     node->ip_info->neighbor_list = NULL;
     node->ip_info->neighbor_count = 0;
 
-    node->ip_info->busy = FALSE;
+    node->ip_info->enqueued_count = 0;
 }
 
 void ip_node_done(node_t *node)
@@ -516,11 +516,25 @@ static bool event_handler_node_kill(node_t *node)
 
 static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
-    if (node->ip_info->busy) {
-        rs_debug(DEBUG_IP, "node '%s': IP layer is busy, retrying later", node->phy_info->name);
-        rs_system_schedule_event(node, ip_event_pdu_send, incoming_node, pdu, rs_system->transmission_time);
+    if (node->ip_info->enqueued_count > 0) {
+        if (node->ip_info->enqueued_count < rs_system->ip_queue_size) {
+            rs_debug(DEBUG_IP, "node '%s': IP layer is busy (%d), retrying later", node->phy_info->name, node->ip_info->enqueued_count);
+            rs_system_schedule_event(node, ip_event_pdu_send, incoming_node, pdu, rs_system->transmission_time);
 
-        return TRUE;
+            return TRUE;
+        }
+        else { /* IP queue full */
+            rs_debug(DEBUG_IP, "node '%s': IP layer queue is full, dropping packet", node->phy_info->name, node->ip_info->enqueued_count);
+
+            if (pdu->next_header == IP_NEXT_HEADER_MEASURE) {
+                measure_pdu_t *measure_pdu = pdu->sdu;
+                rs_assert(measure_pdu != NULL);
+
+                event_execute(measure_event_connect_hop_failed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
+            }
+
+            return FALSE;
+        }
     }
 
     if (strlen(pdu->dst_address) == 0) { /* broadcast */
@@ -559,7 +573,7 @@ static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t
             rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu,
                     mac_ok ? rs_system->ip_pdu_timeout : 0);
 
-            node->ip_info->busy = TRUE;
+            node->ip_info->enqueued_count++;
 
             return TRUE;
         }
@@ -594,7 +608,7 @@ static bool event_handler_pdu_send_timeout_check(node_t *node, ip_send_info_t *i
                     mac_ok ? rs_system->ip_pdu_timeout : 0);
         }
         else {
-            rs_debug(DEBUG_IP, "node '%s': all next hops failed, discarding the packet", node->phy_info->name);
+            rs_debug(DEBUG_IP, "node '%s': all next hops failed, dropping packet", node->phy_info->name);
 
             rs_debug(DEBUG_RPL, "node '%s': a forwarding failure occurred, with src = '%s' and dst = '%s'",
                     node->phy_info->name,
@@ -613,12 +627,12 @@ static bool event_handler_pdu_send_timeout_check(node_t *node, ip_send_info_t *i
             ip_pdu_destroy(pdu);
 
             ip_send_info_destroy(ip_send_info);
-            node->ip_info->busy = FALSE;
+            node->ip_info->enqueued_count--;
         }
     }
     else {
         ip_send_info_destroy(ip_send_info);
-        node->ip_info->busy = FALSE;
+        node->ip_info->enqueued_count--;
     }
 
     return TRUE;
