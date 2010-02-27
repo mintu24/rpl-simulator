@@ -39,9 +39,13 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
 
     rs_assert(event_id < event_count);
 
-    bool all_ok = TRUE;
-
     event_t *event = &event_list[event_id];
+
+    if (event->handler == NULL) { /* no handler, nothing to execute */
+        events_unlock();
+
+        return TRUE;
+    }
 
     if (node != NULL) {
         rs_debug(DEBUG_EVENT, "node '%s': executing event '%s.%s' @%d ms", node->phy_info->name, event->layer, event->name, rs_system->now);
@@ -55,6 +59,8 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
         event_log(event_id, node, data1, data2);
         level++;
     }
+
+    bool all_ok = TRUE;
 
     if (!event->handler(node, data1, data2)) {
         all_ok = FALSE;

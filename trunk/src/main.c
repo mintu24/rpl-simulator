@@ -476,7 +476,7 @@ static void set_loggable_events()
 //    event_set_logging(rpl_event_forward_inconsistency, TRUE);
 //    event_set_logging(rpl_event_forward_failure, TRUE);
 //    event_set_logging(rpl_event_trickle_i_timeout, TRUE);
-//    event_set_logging(rpl_event_trickle_t_timeout, TRUE);
+    event_set_logging(rpl_event_trickle_t_timeout, TRUE);
 //    event_set_logging(rpl_event_seq_num_autoinc, TRUE);
 
 //    event_set_logging(icmp_event_pdu_send, TRUE);
@@ -491,13 +491,13 @@ static void set_loggable_events()
     event_set_logging(measure_event_connect_established, TRUE);
     event_set_logging(measure_event_connect_lost, TRUE);
 
-//    event_set_logging(ip_event_pdu_send, TRUE);
-//    event_set_logging(ip_event_pdu_send_timeout_check, TRUE);
-//    event_set_logging(ip_event_pdu_receive, TRUE);
+    event_set_logging(ip_event_pdu_send, TRUE);
+    event_set_logging(ip_event_pdu_send_timeout_check, TRUE);
+    event_set_logging(ip_event_pdu_receive, TRUE);
 //
-//    event_set_logging(mac_event_pdu_send, TRUE);
-//    event_set_logging(mac_event_pdu_send_timeout_check, TRUE);
-//    event_set_logging(mac_event_pdu_receive, TRUE);
+    event_set_logging(mac_event_pdu_send, TRUE);
+    event_set_logging(mac_event_pdu_send_timeout_check, TRUE);
+    event_set_logging(mac_event_pdu_receive, TRUE);
 //
 //    event_set_logging(phy_event_pdu_send, TRUE);
 //    event_set_logging(phy_event_pdu_receive, TRUE);

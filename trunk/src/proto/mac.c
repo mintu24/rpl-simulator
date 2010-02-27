@@ -186,6 +186,9 @@ bool event_handler_node_wake(node_t *node)
 
 bool event_handler_node_kill(node_t *node)
 {
+    node->mac_info->busy = FALSE;
+    node->mac_info->error = FALSE;
+
     return TRUE;
 }
 
