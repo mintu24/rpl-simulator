@@ -6,6 +6,16 @@
 #include "../node.h"
 
 
+typedef struct phy_mobility_t {
+
+    sim_time_t          trigger_time;
+    sim_time_t          duration;
+    coord_t             dest_x;
+    coord_t             dest_y;
+
+} phy_mobility_t;
+
+
     /* info that a node supporting PHY layer should store */
 typedef struct phy_node_info_t {
 
@@ -17,8 +27,19 @@ typedef struct phy_node_info_t {
     percent_t           tx_power;
     bool                mains_powered;
 
+    coord_t             mobility_start_x;
+    coord_t             mobility_start_y;
+    sim_time_t          mobility_start_time;
+    sim_time_t          mobility_stop_time;
+    double              mobility_cos_alpha;
+    double              mobility_sin_alpha;
+    double              mobility_speed;
+
     node_t **           neighbor_list;
     uint16              neighbor_count;
+
+    phy_mobility_t **   mobility_list;
+    uint16              mobility_count;
 
 } phy_node_info_t;
 
@@ -40,6 +61,8 @@ extern uint16           phy_event_pdu_receive;
 extern uint16           phy_event_neighbor_attach;
 extern uint16           phy_event_neighbor_detach;
 
+extern uint16           phy_event_change_mobility;
+
 
 bool                    phy_init();
 bool                    phy_done();
@@ -53,8 +76,11 @@ void                    phy_node_init(node_t *node, char *name, coord_t cx, coor
 void                    phy_node_done(node_t *node);
 
 void                    phy_node_set_name(node_t *node, const char *name);
-void                    phy_node_set_coordinates(node_t* node, coord_t cx, coord_t cy);
+void                    phy_node_set_coords(node_t* node, coord_t cx, coord_t cy);
 void                    phy_node_set_tx_power(node_t* node, percent_t tw_power);
+void                    phy_node_add_mobility(node_t *node, sim_time_t trigger_time, sim_time_t duration, coord_t dest_x, coord_t dest_y);
+void                    phy_node_rem_mobility(node_t *node, uint16 index);
+void                    phy_node_update_mobility_coords(node_t *node);
 
 bool                    phy_node_send(node_t *node, node_t *outgoing_node, void *sdu);
 bool                    phy_node_receive(node_t *node, node_t *incoming_node, phy_pdu_t *pdu);

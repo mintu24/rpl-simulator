@@ -25,6 +25,8 @@ static void *               system_core(void *data);
 static event_schedule_t *   schedule_create(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
 static bool                 schedule_destroy(event_schedule_t *schedule);
 
+static void                 update_mobilities();
+
 static bool                 event_handler_node_wake(node_t *node);
 static bool                 event_handler_node_kill(node_t *node);
 
@@ -541,7 +543,6 @@ void rs_system_start(bool start_paused)
             rs_system_schedule_event(NULL, rpl_event_seq_num_autoinc, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
         }
 
-
         /* wake all nodes, if that's the chosen option */
         if (rs_system->auto_wake_nodes) {
             uint16 node_count;
@@ -602,6 +603,7 @@ void rs_system_stop()
     }
 
     rs_system->schedule_count = 0;
+    rs_system->now = 0;
 
     events_unlock();
     schedules_unlock();
@@ -637,9 +639,10 @@ char *rs_system_sim_time_to_string(sim_time_t time)
     uint32 s = (time - h * 3600000 - m * 60000) / 1000;
     uint32 ms = (time - h * 3600000 - m * 60000 - s * 1000);
 
-    if (s > 0) {
-        if (m > 0) {
-            if (h > 0) {
+    // todo reengineer this frigging function
+    if (time >= 1000) {
+        if (time >= 60000) {
+            if (3600000 >= 0) {
                 snprintf(text, 256, "%02d:%02d:%02d.%03d", h, m, s, ms);
             }
             else {
@@ -651,7 +654,7 @@ char *rs_system_sim_time_to_string(sim_time_t time)
         }
     }
     else {
-        snprintf(text, 256, "0.03%d", ms);
+        snprintf(text, 256, "0.%03d", ms);
     }
 
     return text;
@@ -707,6 +710,8 @@ static void *system_core(void *data)
             rs_system->now = rs_system->schedules->time;
             rs_debug(DEBUG_SYSTEM, "time is now %d", rs_system->now);
             main_win_update_sim_time_status();
+
+            update_mobilities();
 
             while ((rs_system->schedules != NULL) && (rs_system->schedules->time == rs_system->now)) {
                 event_schedule_t *schedule = rs_system->schedules;
@@ -769,6 +774,24 @@ static bool schedule_destroy(event_schedule_t *schedule)
     return TRUE;
 }
 
+static void update_mobilities()
+{
+    nodes_lock();
+
+    uint16 i;
+    for (i = 0; i < rs_system->node_count; i++) {
+        node_t *node = rs_system->node_list[i];
+
+        if (node->phy_info->mobility_speed == 0) {
+            continue;
+        }
+
+        phy_node_update_mobility_coords(node);
+    }
+
+    nodes_unlock();
+}
+
 static bool event_handler_node_wake(node_t *node)
 {
     if (!event_execute(phy_event_node_wake, node, NULL, NULL))
@@ -781,12 +804,16 @@ static bool event_handler_node_wake(node_t *node)
         return FALSE;
     if (!event_execute(rpl_event_node_wake, node, NULL, NULL))
         return FALSE;
+    if (!event_execute(measure_event_node_wake, node, NULL, NULL))
+        return FALSE;
 
     return TRUE;
 }
 
 static bool event_handler_node_kill(node_t *node)
 {
+    if (!event_execute(measure_event_node_kill, node, NULL, NULL))
+        return FALSE;
     if (!event_execute(rpl_event_node_kill, node, NULL, NULL))
         return FALSE;
     if (!event_execute(icmp_event_node_kill, node, NULL, NULL))
@@ -813,7 +840,6 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, phy_p
 
 static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len)
 {
-
     str1[0] = '\0';
     str2[0] = '\0';
 

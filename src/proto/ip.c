@@ -134,6 +134,22 @@ void ip_pdu_destroy(ip_pdu_t *pdu)
     if (pdu->flow_label != NULL)
         free(pdu->flow_label);
 
+    if (pdu->sdu != NULL) {
+        switch (pdu->next_header) {
+
+            case IP_NEXT_HEADER_ICMP :
+                icmp_pdu_destroy(pdu->sdu);
+
+                break;
+
+            case IP_NEXT_HEADER_MEASURE :
+                measure_pdu_destroy(pdu->sdu);
+
+                break;
+
+        }
+    }
+
     free(pdu);
 }
 
@@ -442,7 +458,9 @@ bool ip_node_send(node_t *node, char *dst_ip_address, uint16 next_header, void *
     ip_pdu_set_sdu(ip_pdu, next_header, sdu);
 
     if (!event_execute(ip_event_pdu_send, node, NULL, ip_pdu)) {
+        ip_pdu->sdu = NULL;
         ip_pdu_destroy(ip_pdu);
+
         return FALSE;
     }
 
@@ -457,6 +475,7 @@ bool ip_node_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu) {
 
     if (!event_execute(ip_event_pdu_send, node, incoming_node, pdu)) {
         ip_pdu_destroy(pdu);
+
         return FALSE;
     }
 
@@ -535,48 +554,46 @@ static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t
         }
 
         if (ip_send_info->next_hop_count > 0) {
-            if (mac_node_send(node, ip_send_info->next_hop_list[0], MAC_TYPE_IP, pdu)) {
-                rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, rs_system->ip_pdu_timeout);
-                node->ip_info->busy = TRUE;
+            bool mac_ok = mac_node_send(node, ip_send_info->next_hop_list[0], MAC_TYPE_IP, pdu);
 
-                return TRUE;
-            }
-            else {
-                return FALSE;
-            }
+            rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu,
+                    mac_ok ? rs_system->ip_pdu_timeout : 0);
+
+            node->ip_info->busy = TRUE;
+
+            return TRUE;
         }
-        else {
-            if (pdu->next_header == IP_NEXT_HEADER_MEASURE) {
-                measure_pdu_t *measure_pdu = pdu->sdu;
-                rs_assert(measure_pdu != NULL);
 
-                event_execute(measure_event_connect_hop_failed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
-            }
+        rs_debug(DEBUG_IP, "node '%s': destination '%s' not reachable at all", node->phy_info->name, pdu->dst_address);
 
-            rs_debug(DEBUG_IP, "node '%s': destination '%s' not reachable at all", node->phy_info->name, pdu->dst_address);
+        if (pdu->next_header == IP_NEXT_HEADER_MEASURE) {
+            measure_pdu_t *measure_pdu = pdu->sdu;
+            rs_assert(measure_pdu != NULL);
 
-            return FALSE;
+            event_execute(measure_event_connect_hop_failed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
         }
+
+        return FALSE;
     }
 }
 
 static bool event_handler_pdu_send_timeout_check(node_t *node, ip_send_info_t *ip_send_info, ip_pdu_t *pdu)
 {
-    if (node->mac_info->error &&
-            ip_send_info->next_hop_index < ip_send_info->next_hop_count - 1) {
+    if (node->mac_info->error) {
+        if (ip_send_info->next_hop_index < ip_send_info->next_hop_count - 1) {
+            rs_debug(DEBUG_IP, "node '%s': hop '%s' failed, trying hop '%s'",
+                    node->phy_info->name,
+                    ip_send_info->next_hop_list[ip_send_info->next_hop_index]->phy_info->name,
+                    ip_send_info->next_hop_list[ip_send_info->next_hop_index + 1]->phy_info->name);
 
-        rs_debug(DEBUG_IP, "node '%s': hop '%s' failed, trying hop '%s'",
-                node->phy_info->name,
-                ip_send_info->next_hop_list[ip_send_info->next_hop_index]->phy_info->name,
-                ip_send_info->next_hop_list[ip_send_info->next_hop_index + 1]->phy_info->name);
+            ip_send_info->next_hop_index++;
 
-        ip_send_info->next_hop_index++;
+            bool mac_ok = mac_node_send(node, ip_send_info->next_hop_list[ip_send_info->next_hop_index], MAC_TYPE_IP, pdu);
 
-        rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, rs_system->ip_pdu_timeout);
-        mac_node_send(node, ip_send_info->next_hop_list[ip_send_info->next_hop_index], MAC_TYPE_IP, pdu);
-    }
-    else { /* succeeded to send the packet, or no more nodes to try */
-        if (node->mac_info->error) {
+            rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu,
+                    mac_ok ? rs_system->ip_pdu_timeout : 0);
+        }
+        else {
             rs_debug(DEBUG_IP, "node '%s': all next hops failed, discarding the packet", node->phy_info->name);
 
             rs_debug(DEBUG_RPL, "node '%s': a forwarding failure occurred, with src = '%s' and dst = '%s'",
@@ -593,12 +610,14 @@ static bool event_handler_pdu_send_timeout_check(node_t *node, ip_send_info_t *i
                 event_execute(measure_event_connect_hop_failed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
             }
 
-            // todo memory leak here
             ip_pdu_destroy(pdu);
+
+            ip_send_info_destroy(ip_send_info);
+            node->ip_info->busy = FALSE;
         }
-
+    }
+    else {
         ip_send_info_destroy(ip_send_info);
-
         node->ip_info->busy = FALSE;
     }
 
@@ -628,7 +647,6 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
                 node->phy_info->name, incoming_node != NULL ? incoming_node->phy_info->name : "<<unknown>>",
                 pdu->src_address, pdu->dst_address);
 
-        // todo this branch causes a systematic icmp_pdu + rpl_*_pdu memory leak
         return FALSE;
     }
 
@@ -642,7 +660,9 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
             event_execute(measure_event_connect_hop_passed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
         }
 
-        return ip_node_forward(node, incoming_node, pdu);
+        ip_node_forward(node, incoming_node, pdu);
+
+        return TRUE;
     }
     else {
         bool all_ok = TRUE;
@@ -653,12 +673,15 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
                 if (!icmp_node_receive(node, incoming_node, pdu)) { /* yes, we directly pass the IP layer pdu to ICMP */
                     all_ok = FALSE;
                 }
+                pdu->sdu = NULL;
 
                 break;
             }
 
             case IP_NEXT_HEADER_MEASURE: {
                 measure_pdu_t *measure_pdu = pdu->sdu;
+                pdu->sdu = NULL;
+
                 rs_assert(measure_pdu != NULL);
                 if (!measure_node_receive(node, incoming_node, measure_pdu)) {
                     all_ok = FALSE;

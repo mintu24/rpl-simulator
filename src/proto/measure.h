@@ -100,6 +100,8 @@ void                        measure_node_reset(node_t *node);
 
 void                        measure_node_connect_update(node_t *node);
 
+void                        measure_connect_update();
+
 measure_converg_t *         measure_converg_get();
 void                        measure_converg_reset();
 void                        measure_converg_update();

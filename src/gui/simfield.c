@@ -369,7 +369,7 @@ static gboolean cb_sim_field_drawing_area_motion_notify(GtkDrawingArea *widget, 
     coord_t current_y = event->y / scale_y;
 
     if (moving_node != NULL) {
-        phy_node_set_coordinates(moving_node, current_x - moving_dx, current_y - moving_dy);
+        phy_node_set_coords(moving_node, current_x - moving_dx, current_y - moving_dy);
 
         main_win_node_to_gui(moving_node, MAIN_WIN_NODE_TO_GUI_PHY);
     }

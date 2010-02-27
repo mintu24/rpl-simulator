@@ -65,6 +65,32 @@ void icmp_pdu_destroy(icmp_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
 
+    if (pdu->sdu != NULL) {
+
+        switch (pdu->type) {
+
+            case ICMP_TYPE_RPL:
+
+                switch (pdu->code) {
+
+                    case ICMP_RPL_CODE_DIO:
+                        rpl_dio_pdu_destroy(pdu->sdu);
+
+                        break;
+
+                    case ICMP_RPL_CODE_DAO:
+                        rpl_dao_pdu_destroy(pdu->sdu);
+
+                        break;
+
+                }
+
+                break;
+
+        }
+
+    }
+
     free(pdu);
 }
 
@@ -141,6 +167,7 @@ bool icmp_node_send(node_t *node, char *dst_ip_address, uint8 type, uint8 code, 
     icmp_pdu_set_sdu(icmp_pdu, type, code, sdu);
 
     if (!event_execute(icmp_event_pdu_send, node, dst_ip_address, icmp_pdu)) {
+        icmp_pdu->sdu = NULL;
         icmp_pdu_destroy(icmp_pdu);
         return FALSE;
     }
@@ -246,6 +273,8 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
                     rs_error("node '%': unknown ICMP code '0x%02X'", node->phy_info->name, pdu->code);
                     all_ok = FALSE;
             }
+
+            pdu->sdu = NULL;
 
             break;
 

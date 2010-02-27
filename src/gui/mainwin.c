@@ -73,6 +73,14 @@ static GtkWidget *              params_nodes_y_spin = NULL;
 static GtkWidget *              params_nodes_tx_power_spin = NULL;
 static GtkWidget *              params_nodes_bat_level_spin = NULL;
 static GtkWidget *              params_nodes_mains_powered_check = NULL;
+static GtkWidget *              params_nodes_mobility_trigger_time_spin = NULL;
+static GtkWidget *              params_nodes_mobility_duration_spin = NULL;
+static GtkWidget *              params_nodes_mobility_dx_spin = NULL;
+static GtkWidget *              params_nodes_mobility_dy_spin = NULL;
+static GtkWidget *              params_nodes_mobility_tree_view = NULL;
+static GtkWidget *              params_nodes_mobility_add_button = NULL;
+static GtkWidget *              params_nodes_mobility_rem_button = NULL;
+static GtkListStore *           params_nodes_mobility_store = NULL;
 
 static GtkWidget *              params_nodes_mac_address_entry = NULL;
 
@@ -172,6 +180,10 @@ void                            cb_params_nodes_button_clicked(GtkWidget *button
 void                            cb_gui_system_updated(GtkSpinButton *spin, gpointer data);
 void                            cb_gui_node_updated(GtkWidget *widget, gpointer data);
 void                            cb_gui_display_updated(GtkWidget *widget, gpointer data);
+void                            cb_params_nodes_mobility_tree_view_cursor_changed(GtkWidget *widget, gpointer data);
+void                            cb_params_nodes_route_tree_view_cursor_changed(GtkWidget *widget, gpointer data);
+void                            cb_params_nodes_mobility_add_button_clicked(GtkButton *button, gpointer data);
+void                            cb_params_nodes_mobility_rem_button_clicked(GtkButton *button, gpointer data);
 void                            cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data);
 void                            cb_params_nodes_route_rem_button_clicked(GtkButton *button, gpointer data);
 void                            cb_params_nodes_route_dst_combo_changed(GtkComboBoxEntry *combo_box, gpointer data);
@@ -206,6 +218,7 @@ static GtkWidget *              create_content_widget();
 static void                     initialize_widgets();
 static void                     update_sensitivity();
 static int32                    route_tree_viee_get_selected_index();
+static int32                    mobility_tree_viee_get_selected_index();
 
 static void                     gui_to_system();
 static void                     gui_to_node(node_t *node);
@@ -405,6 +418,56 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_bat_level_spin), node->phy_info->battery_level * 100);
 
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check), node->phy_info->mains_powered);
+
+        int16 prev_sel_index = mobility_tree_viee_get_selected_index();
+
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_mobility_dx_spin), node->phy_info->cx);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_mobility_dy_spin), node->phy_info->cy);
+
+        if (node->phy_info->mobility_count > 0) {
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_mobility_trigger_time_spin),
+                    node->phy_info->mobility_list[node->phy_info->mobility_count - 1]->trigger_time +
+                    node->phy_info->mobility_list[node->phy_info->mobility_count - 1]->duration);
+        }
+        else {
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_mobility_trigger_time_spin), rs_system->now);
+        }
+
+        gtk_list_store_clear(params_nodes_mobility_store);
+        uint16 i;
+        char dest_x_str[256], dest_y_str[256];
+        char *trigger_str_time, *duration_str_time;
+        GtkTreeIter iter;
+        for (i = 0; i < node->phy_info->mobility_count; i++) {
+            phy_mobility_t *mobility = node->phy_info->mobility_list[i];
+
+            trigger_str_time = rs_system_sim_time_to_string(mobility->trigger_time);
+            duration_str_time = rs_system_sim_time_to_string(mobility->duration);
+            snprintf(dest_x_str, sizeof(dest_x_str), "%.02f", mobility->dest_x);
+            snprintf(dest_y_str, sizeof(dest_x_str), "%.02f", mobility->dest_y);
+
+            gtk_list_store_append(params_nodes_mobility_store, &iter);
+            gtk_list_store_set(params_nodes_mobility_store, &iter,
+                    0, trigger_str_time,
+                    1, duration_str_time,
+                    2, dest_x_str,
+                    3, dest_y_str,
+                    -1);
+
+            free(trigger_str_time);
+            free(duration_str_time);
+        }
+
+        if (prev_sel_index >= node->phy_info->mobility_count) {
+            prev_sel_index = node->phy_info->mobility_count - 1;
+        }
+
+        if (prev_sel_index >= 0) {
+            GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(params_nodes_mobility_tree_view));
+            GtkTreePath *path = gtk_tree_path_new_from_indices(prev_sel_index, -1);
+            gtk_tree_selection_select_path(selection, path);
+            gtk_tree_path_free(path);
+        }
     }
 
     if ((what & MAIN_WIN_NODE_TO_GUI_MAC) && (node != NULL)) {
@@ -805,6 +868,52 @@ void cb_gui_display_updated(GtkWidget *widget, gpointer data)
     sim_field_redraw();
 
     signal_leave();
+}
+
+void cb_params_nodes_mobility_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
+{
+    signal_enter();
+
+    update_sensitivity();
+
+    signal_leave();
+}
+
+void cb_params_nodes_route_tree_view_cursor_changed(GtkWidget *widget, gpointer data)
+{
+    signal_enter();
+
+    update_sensitivity();
+
+    signal_leave();
+}
+
+void cb_params_nodes_mobility_add_button_clicked(GtkButton *button, gpointer data)
+{
+    rs_assert(selected_node != NULL);
+    rs_debug(DEBUG_GUI, NULL);
+
+    sim_time_t trigger_time = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_mobility_trigger_time_spin));
+    sim_time_t duration = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_mobility_duration_spin));
+    coord_t dest_x = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_mobility_dx_spin));
+    coord_t dest_y = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_mobility_dy_spin));
+
+    phy_node_add_mobility(selected_node, trigger_time, duration, dest_x, dest_y);
+
+    main_win_node_to_gui(selected_node, MAIN_WIN_NODE_TO_GUI_PHY);
+}
+
+void cb_params_nodes_mobility_rem_button_clicked(GtkButton *button, gpointer data)
+{
+    rs_assert(selected_node != NULL);
+    rs_debug(DEBUG_GUI, NULL);
+
+    int32 index = mobility_tree_viee_get_selected_index();
+    rs_assert(index >= 0 && index < selected_node->phy_info->mobility_count);
+
+    phy_node_rem_mobility(selected_node, index);
+
+    main_win_node_to_gui(selected_node, MAIN_WIN_NODE_TO_GUI_PHY);
 }
 
 void cb_params_nodes_route_add_button_clicked(GtkButton *button, gpointer data)
@@ -1236,6 +1345,14 @@ GtkWidget *create_params_widget()
     params_nodes_tx_power_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_tx_power_spin");
     params_nodes_bat_level_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_bat_level_spin");
     params_nodes_mains_powered_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mains_powered_check");
+    params_nodes_mobility_trigger_time_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mobility_trigger_time_spin");
+    params_nodes_mobility_duration_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mobility_duration_spin");
+    params_nodes_mobility_dx_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mobility_dx_spin");
+    params_nodes_mobility_dy_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mobility_dy_spin");
+    params_nodes_mobility_tree_view = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mobility_tree_view");
+    params_nodes_mobility_add_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mobility_add_button");
+    params_nodes_mobility_rem_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mobility_rem_button");
+    params_nodes_mobility_store = (GtkListStore *) gtk_builder_get_object(gtk_builder, "params_nodes_mobility_store");
 
     params_nodes_mac_address_entry = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_mac_address_entry");
 
@@ -1294,6 +1411,42 @@ GtkWidget *create_params_widget()
 //    }
 
     GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(params_nodes_mobility_tree_view),
+            -1,
+            "Trigger Time",
+            renderer,
+            "text", 0,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(params_nodes_mobility_tree_view),
+            -1,
+            "Duration",
+            renderer,
+            "text", 1,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(params_nodes_mobility_tree_view),
+            -1,
+            "Dest. X",
+            renderer,
+            "text", 2,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(params_nodes_mobility_tree_view),
+            -1,
+            "Dest. Y",
+            renderer,
+            "text", 3,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_route_next_hop_combo), renderer, FALSE);
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(params_nodes_route_next_hop_combo), renderer, "text", 0, NULL);
 
@@ -1606,6 +1759,8 @@ static void update_sensitivity()
     bool node_alive = node_selected && selected_node->alive;
     bool route_selected = gtk_tree_selection_count_selected_rows(
             gtk_tree_view_get_selection(GTK_TREE_VIEW(params_nodes_route_tree_view))) > 0;
+    bool mobility_selected = gtk_tree_selection_count_selected_rows(
+            gtk_tree_view_get_selection(GTK_TREE_VIEW(params_nodes_mobility_tree_view))) > 0;
     bool sim_started = rs_system->started;
     bool sim_paused = rs_system->paused;
 
@@ -1618,6 +1773,13 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_tx_power_spin, node_selected);
     gtk_widget_set_sensitive(params_nodes_bat_level_spin, node_selected && !mains_powered);
     gtk_widget_set_sensitive(params_nodes_mains_powered_check, node_selected);
+    gtk_widget_set_sensitive(params_nodes_mobility_trigger_time_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_mobility_duration_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_mobility_dx_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_mobility_dy_spin, node_selected);
+    gtk_widget_set_sensitive(params_nodes_mobility_tree_view, node_selected);
+    gtk_widget_set_sensitive(params_nodes_mobility_add_button, node_selected);
+    gtk_widget_set_sensitive(params_nodes_mobility_rem_button, node_selected && mobility_selected);
 
     gtk_widget_set_sensitive(params_nodes_mac_address_entry, node_selected);
 
@@ -1676,6 +1838,24 @@ static void update_sensitivity()
 static int32 route_tree_viee_get_selected_index()
 {
     GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(params_nodes_route_tree_view));
+    GList *path_list = gtk_tree_selection_get_selected_rows(selection, NULL);
+
+    if (path_list == NULL) {
+        return -1;
+    }
+    else {
+        int32 index = gtk_tree_path_get_indices((GtkTreePath *) g_list_nth_data(path_list, 0))[0];
+
+        g_list_foreach(path_list, (GFunc) gtk_tree_path_free, NULL);
+        g_list_free(path_list);
+
+        return index;
+    }
+}
+
+static int32 mobility_tree_viee_get_selected_index()
+{
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(params_nodes_mobility_tree_view));
     GList *path_list = gtk_tree_selection_get_selected_rows(selection, NULL);
 
     if (path_list == NULL) {
@@ -1780,7 +1960,7 @@ static void gui_to_node(node_t *node)
         }
     }
 
-    phy_node_set_coordinates(node, 
+    phy_node_set_coords(node, 
         gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_x_spin)),
         gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_y_spin)));
 

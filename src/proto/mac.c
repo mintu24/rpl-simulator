@@ -69,6 +69,16 @@ void mac_pdu_destroy(mac_pdu_t *pdu)
     if (pdu->src_address != NULL)
         free(pdu->src_address);
 
+    if (pdu->sdu != NULL) {
+        switch (pdu->type) {
+
+            case MAC_TYPE_IP :
+                ip_pdu_destroy(pdu->sdu);
+                break;
+
+        }
+    }
+
     free(pdu);
 }
 
@@ -145,7 +155,9 @@ bool mac_node_send(node_t *node, node_t *outgoing_node, uint16 type, void *sdu)
     mac_pdu_set_sdu(mac_pdu, type, sdu);
 
     if (!event_execute(mac_event_pdu_send, node, outgoing_node, mac_pdu)) {
+        mac_pdu->sdu = NULL;
         mac_pdu_destroy(mac_pdu);
+
         return FALSE;
     }
 
@@ -181,6 +193,11 @@ bool event_handler_pdu_send(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
 {
     if (node->mac_info->busy) {
         rs_debug(DEBUG_MAC, "node '%s': MAC layer is busy, dropping frame", node->phy_info->name);
+
+        return FALSE;
+    }
+
+    if (!phy_node_send(node, outgoing_node, pdu)) {
         return FALSE;
     }
 
@@ -189,13 +206,14 @@ bool event_handler_pdu_send(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
     node->mac_info->error = TRUE;
     node->mac_info->busy = TRUE;
 
-    return phy_node_send(node, outgoing_node, pdu);
+    return TRUE;
 }
 
 bool event_handler_pdu_send_timeout_check(node_t *node, node_t *outgoing_node, mac_pdu_t *pdu)
 {
     if (node->mac_info->error) { /* the message wasn't received */
         rs_debug(DEBUG_MAC, "node '%s': a frame wasn't correctly received, destroying it", node->phy_info->name);
+        pdu->sdu = NULL;
         mac_pdu_destroy(pdu);
     }
 
@@ -214,6 +232,7 @@ bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, mac_pdu_t *p
 
         case MAC_TYPE_IP : {
             ip_pdu_t *ip_pdu = pdu->sdu;
+            pdu->sdu = NULL;
 
             if (!ip_node_receive(node, incoming_node, ip_pdu)) {
                 all_ok = FALSE;
