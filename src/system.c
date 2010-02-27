@@ -17,6 +17,8 @@ uint16                      sys_event_node_kill;
 
 uint16                      sys_event_pdu_receive;
 
+uint16                      sys_event_dummy;
+
 
     /**** local function prototypes ****/
 
@@ -90,6 +92,8 @@ bool rs_system_create()
     sys_event_node_kill = event_register("node_kill", "sys", (event_handler_t) event_handler_node_kill, NULL);
 
     sys_event_pdu_receive = event_register("pdu_receive", "sys", (event_handler_t) event_handler_pdu_receive, event_arg_str);
+
+    sys_event_dummy = event_register("dummy", "sys", NULL, NULL);
 
     if (!phy_init()) {
         rs_error("failed to initialize PHY layer");
@@ -443,40 +447,21 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
     rs_assert(src_node != NULL);
 
     if (dst_node == NULL) { /* broadcast */
-
-        // todo this could be replaced by a well maintained PHY neighbor list
-        uint16 node_count;
-        node_t **node_list = rs_system_get_node_list_copy(&node_count);
-
         uint16 i;
-        for (i = 0; i < node_count; i++) {
-            dst_node = node_list[i];
-
-            if (dst_node == src_node) { /* don't process our own broadcast */
-                continue;
-            }
+        for (i = 0; i < src_node->phy_info->neighbor_count; i++) {
+            dst_node = src_node->phy_info->neighbor_list[i];
 
             if (!dst_node->alive) { /* don't send messages to dead nodes */
                 continue;
             }
 
-            if (!rs_system_link_quality_enough(src_node, dst_node)) { /* no physical link */
-                rs_debug(DEBUG_SYSTEM, "link quality below threshold between '%s' and '%s'",
-                        src_node->phy_info->name, dst_node->phy_info->name);
-
-                continue;
-            }
-
-            if (i < rs_system->node_count - 1) {
+            // todo this could cause memory leak if the last neighbor is skipped (e.g. not alive)
+            if (i < src_node->phy_info->neighbor_count - 1) {
                 rs_system_send(src_node, dst_node, phy_pdu_duplicate(message));
             }
             else {
                 rs_system_send(src_node, dst_node, message);
             }
-        }
-
-        if (node_list != NULL) {
-            free(node_list);
         }
     }
     else {
@@ -540,7 +525,7 @@ void rs_system_start(bool start_paused)
         }
 
         /* schedule the auto incrementing of seq num mechanism */
-        if (rs_system->rpl_auto_sn_inc_interval > 0 ) { // todo this blocks the startup for 10 seconds!
+        if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
             rs_system_schedule_event(NULL, rpl_event_seq_num_autoinc, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
         }
 
@@ -640,10 +625,9 @@ char *rs_system_sim_time_to_string(sim_time_t time)
     uint32 s = (time - h * 3600000 - m * 60000) / 1000;
     uint32 ms = (time - h * 3600000 - m * 60000 - s * 1000);
 
-    // todo reengineer this frigging function
     if (time >= 1000) {
         if (time >= 60000) {
-            if (3600000 >= 0) {
+            if (time >= 3600000) {
                 snprintf(text, 256, "%02d:%02d:%02d.%03d", h, m, s, ms);
             }
             else {
@@ -693,12 +677,20 @@ static void *system_core(void *data)
 #endif /* DEBUG_EVENTS */
 
             if (rs_system->simulation_second > 0 && !rs_system->step) {
-                sim_time_t diff = rs_system->schedules->time - rs_system->now;
+                int32 sleep_count = 0;
+                int32 diff = rs_system->schedules->time - rs_system->now;
 
-                if (diff * rs_system->simulation_second > SYS_CORE_SLEEP) {
+                while (sleep_count * SYS_REAL_TIME_GRANULARITY < (diff * rs_system->simulation_second - SYS_CORE_SLEEP)) {
                     schedules_unlock();
-                    usleep(diff * rs_system->simulation_second - SYS_CORE_SLEEP);
+                    usleep(SYS_REAL_TIME_GRANULARITY);
                     schedules_lock();
+
+                    if (rs_system->schedules == NULL) { /* if system stopped, thus all schedules were cleared */
+                        break;
+                    }
+
+                    diff = rs_system->schedules->time - rs_system->now;
+                    sleep_count++;
                 }
 
                 /* if system was paused or stopped or all the schedules removed while sleeping... */
@@ -720,13 +712,17 @@ static void *system_core(void *data)
 
                 /* test to see if the concerned node still exists and is alive */
 
-                if (schedule->node == NULL || schedule->node->alive) {
-                    event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
+                if (schedule->node != NULL) {
+                    if (schedule->node->alive || schedule->event_id == sys_event_node_kill) {
+                        event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
+                    }
+                    else {
+                        event_t event = event_find_by_id(schedule->event_id);
+                        rs_warn("a '%s.%s' event for a dead/inexistent node was left out in the system scheduler", event.layer, event.name);
+                    }
                 }
                 else {
-                    // todo check to see why do some orphan schedules remain in the system
-                    event_t event = event_find_by_id(schedule->event_id);
-                    rs_warn("a '%s.%s' event for a dead/inexistent node was left out in the system", event.layer, event.name);
+                    event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
                 }
 
                 schedule_destroy(schedule);
@@ -825,6 +821,8 @@ static bool event_handler_node_kill(node_t *node)
         return FALSE;
     if (!event_execute(phy_event_node_kill, node, NULL, NULL))
         return FALSE;
+
+    rs_system_cancel_event(node, -1, NULL, NULL, 0); /* cancel all events scheduled by this node */
 
     return TRUE;
 }

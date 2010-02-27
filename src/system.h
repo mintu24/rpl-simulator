@@ -26,21 +26,21 @@
 #define DEFAULT_IP_PDU_TIMEOUT                  (3 * DEFAULT_TRANSMISSION_TIME)
 #define DEFAULT_MEASURE_PDU_TIMEOUT             1000
 #define DEFAULT_NEIGHBOR_TIMEOUT                2000
-#define DEFAULT_IP_QUEUE_SIZE                   10
+#define DEFAULT_IP_QUEUE_SIZE                   100
 
 #define DEFAULT_NODE_NAME                       "A"
 #define DEFAULT_NODE_MAC_ADDRESS                "0001"
 #define DEFAULT_NODE_IP_ADDRESS                 "AA01"
 
-#define DEFAULT_RPL_AUTO_SN_INC_INT             -1 /* disabled */
+#define DEFAULT_RPL_AUTO_SN_INC_INT             10000 /* -1 disables */
 #define DEFAULT_RPL_STARTUP_SILENT              FALSE
 #define DEFAULT_RPL_POISON_COUNT                4
 
 #define DEFAULT_RPL_DAO_SUPPORTED               FALSE
 #define DEFAULT_RPL_DAO_TRIGGER                 FALSE
 
-#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      8 /* 8 times */
-#define DEFAULT_RPL_DIO_INTERVAL_MIN            2 /* 2^2 = 4ms */
+#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      3 /* 3 times */
+#define DEFAULT_RPL_DIO_INTERVAL_MIN            7 /* 2^7 = 128ms */
 #define DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
 
 #define DEFAULT_RPL_MAX_RANK_INC                4
@@ -51,8 +51,9 @@
 #define RANDOM_SEED_Z                           1234
 #define RANDOM_SEED_W                           6789
 
+#define SYS_CORE_SLEEP                          100
 
-#define SYS_CORE_SLEEP                  100
+#define SYS_REAL_TIME_GRANULARITY               1000 /* in microseconds */
 
 #define events_lock() { \
         rs_debug(DEBUG_EVENTS_MUTEX, "EVENTS(%d) mutex: locking", rs_system->events_mutex.depth); \
@@ -171,7 +172,10 @@ extern rs_system_t *            rs_system;
 
 extern uint16                   sys_event_node_wake;
 extern uint16                   sys_event_node_kill;
+
 extern uint16                   sys_event_pdu_receive;
+
+extern uint16                   sys_event_dummy;
 
 
 bool                            rs_system_create();

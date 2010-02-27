@@ -246,17 +246,17 @@ void measure_connect_update()
         node_t *node = rs_system->node_list[i];
 
         if (node->measure_info->connect_busy) {
-            return;
+            continue;
         }
 
         if (node->measure_info->connect_dst_node == NULL) {
             node->measure_info->connect_dst_reachable = FALSE;
-            return;
+            continue;
         }
 
         if (node->measure_info->connect_dst_node == node) {
             node->measure_info->connect_dst_reachable = TRUE;
-            return;
+            continue;
         }
 
         rs_system_schedule_event(node, measure_event_connect_update, node->measure_info->connect_dst_node, NULL, 0);

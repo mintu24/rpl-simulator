@@ -212,6 +212,7 @@ void ip_node_init(node_t *node, char *address)
     node->ip_info->neighbor_count = 0;
 
     node->ip_info->enqueued_count = 0;
+    node->ip_info->busy = FALSE;
 }
 
 void ip_node_done(node_t *node)
@@ -511,15 +512,24 @@ static bool event_handler_node_kill(node_t *node)
         ip_node_rem_neighbor(node, neighbor);
     }
 
+    node->ip_info->enqueued_count = 0;
+    node->ip_info->busy = FALSE;
+
+    ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_CONNECTED);
+    ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DAO);
+    ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DIO);
+
     return TRUE;
 }
 
 static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t *pdu)
 {
-    if (node->ip_info->enqueued_count > 0) {
-        if (node->ip_info->enqueued_count < rs_system->ip_queue_size) {
+    if (node->ip_info->busy) { /* IP layer busy */
+        if (node->ip_info->enqueued_count < rs_system->ip_queue_size) { /* still enough room in IP queue */
             rs_debug(DEBUG_IP, "node '%s': IP layer is busy (%d), retrying later", node->phy_info->name, node->ip_info->enqueued_count);
-            rs_system_schedule_event(node, ip_event_pdu_send, incoming_node, pdu, rs_system->transmission_time);
+            rs_system_schedule_event(node, ip_event_pdu_send, incoming_node, pdu, rs_system->ip_pdu_timeout);
+
+            node->ip_info->enqueued_count++;
 
             return TRUE;
         }
@@ -536,103 +546,134 @@ static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t
             return FALSE;
         }
     }
-
-    if (strlen(pdu->dst_address) == 0) { /* broadcast */
-        return mac_node_send(node, NULL, MAC_TYPE_IP, pdu);
-    }
-    else {
-        /* route the packet */
-        ip_route_t *route = ip_node_get_next_hop_route(node, pdu->dst_address);
-
-        node_t *next_hop = NULL;
-
-        if (route == NULL) {
-            rs_debug(DEBUG_IP, "node '%s': destination '%s' not reachable, querying RPL for next hops", node->phy_info->name, pdu->dst_address);
-        }
-        else {
-            next_hop = route->next_hop;
-        }
-
-        node_t *redir_next_hop = rpl_node_process_outgoing_flow_label(node, incoming_node, next_hop, pdu);
-        if (redir_next_hop != next_hop) { /* RPL redirected us, don't try all the parents & stuff in case of failure */
-            return mac_node_send(node, redir_next_hop, MAC_TYPE_IP, pdu);
-        }
-
-        uint16 next_hop_count;
-        node_t **next_hop_list = rpl_node_get_next_hop_list(node, &next_hop_count);
-
-        ip_send_info_t *ip_send_info = ip_send_info_create(incoming_node, next_hop, next_hop_list, next_hop_count);
-
-        if (next_hop_list != NULL) {
-            free(next_hop_list);
-        }
-
-        if (ip_send_info->next_hop_count > 0) {
-            bool mac_ok = mac_node_send(node, ip_send_info->next_hop_list[0], MAC_TYPE_IP, pdu);
-
-            rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu,
-                    mac_ok ? rs_system->ip_pdu_timeout : 0);
-
-            node->ip_info->enqueued_count++;
+    else { /* IP layer idle */
+        if (strlen(pdu->dst_address) == 0) { /* broadcast */
+            if (mac_node_send(node, NULL, MAC_TYPE_IP, pdu)) {
+                rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, NULL, pdu, rs_system->ip_pdu_timeout);
+                node->ip_info->busy = TRUE;
+            }
+            else {
+                rs_error("node '%s': MAC layer should never be busy, please increase IP PDU timeout", node->phy_info->name);
+            }
 
             return TRUE;
         }
+        else { /* unicast, must route the packet */
+            ip_route_t *route = ip_node_get_next_hop_route(node, pdu->dst_address);
 
-        rs_debug(DEBUG_IP, "node '%s': destination '%s' not reachable at all", node->phy_info->name, pdu->dst_address);
+            node_t *next_hop = NULL;
 
-        if (pdu->next_header == IP_NEXT_HEADER_MEASURE) {
-            measure_pdu_t *measure_pdu = pdu->sdu;
-            rs_assert(measure_pdu != NULL);
+            if (route == NULL) {
+                rs_debug(DEBUG_IP, "node '%s': destination '%s' not reachable, querying RPL for next hops", node->phy_info->name, pdu->dst_address);
+            }
+            else {
+                next_hop = route->next_hop;
+            }
 
-            event_execute(measure_event_connect_hop_failed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
+            node_t *redir_next_hop = rpl_node_process_outgoing_flow_label(node, incoming_node, next_hop, pdu);
+            if (redir_next_hop != next_hop) { /* RPL redirected us, don't try all the parents & stuff in case of failure */
+                return mac_node_send(node, redir_next_hop, MAC_TYPE_IP, pdu);
+            }
+
+            uint16 next_hop_count;
+            node_t **next_hop_list = rpl_node_get_next_hop_list(node, &next_hop_count);
+
+            ip_send_info_t *ip_send_info = ip_send_info_create(incoming_node, next_hop, next_hop_list, next_hop_count);
+
+            if (next_hop_list != NULL) {
+                free(next_hop_list);
+            }
+
+            if (ip_send_info->next_hop_count > 0) {
+                if (mac_node_send(node, ip_send_info->next_hop_list[0], MAC_TYPE_IP, pdu)) {
+                    rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, rs_system->ip_pdu_timeout);
+                    node->ip_info->busy = TRUE;
+                }
+                else {
+                    rs_error("node '%s': MAC layer should never be busy, please increase IP PDU timeout", node->phy_info->name);
+                }
+
+                return TRUE;
+            }
+            else {
+                rs_debug(DEBUG_IP, "node '%s': destination '%s' not reachable at all", node->phy_info->name, pdu->dst_address);
+
+                if (pdu->next_header == IP_NEXT_HEADER_MEASURE) {
+                    measure_pdu_t *measure_pdu = pdu->sdu;
+                    rs_assert(measure_pdu != NULL);
+
+                    event_execute(measure_event_connect_hop_failed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
+                }
+
+                return FALSE;
+            }
         }
-
-        return FALSE;
     }
 }
 
 static bool event_handler_pdu_send_timeout_check(node_t *node, ip_send_info_t *ip_send_info, ip_pdu_t *pdu)
 {
     if (node->mac_info->error) {
-        if (ip_send_info->next_hop_index < ip_send_info->next_hop_count - 1) {
-            rs_debug(DEBUG_IP, "node '%s': hop '%s' failed, trying hop '%s'",
-                    node->phy_info->name,
-                    ip_send_info->next_hop_list[ip_send_info->next_hop_index]->phy_info->name,
-                    ip_send_info->next_hop_list[ip_send_info->next_hop_index + 1]->phy_info->name);
+        if (ip_send_info != NULL) { /* unicast */
+            if (ip_send_info->next_hop_index < ip_send_info->next_hop_count - 1) { /* still some next_hops to try */
+                rs_debug(DEBUG_IP, "node '%s': hop '%s' failed, trying hop '%s'",
+                        node->phy_info->name,
+                        ip_send_info->next_hop_list[ip_send_info->next_hop_index]->phy_info->name,
+                        ip_send_info->next_hop_list[ip_send_info->next_hop_index + 1]->phy_info->name);
 
-            ip_send_info->next_hop_index++;
-
-            bool mac_ok = mac_node_send(node, ip_send_info->next_hop_list[ip_send_info->next_hop_index], MAC_TYPE_IP, pdu);
-
-            rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu,
-                    mac_ok ? rs_system->ip_pdu_timeout : 0);
-        }
-        else {
-            rs_debug(DEBUG_IP, "node '%s': all next hops failed, dropping packet", node->phy_info->name);
-
-            rs_debug(DEBUG_RPL, "node '%s': a forwarding failure occurred, with src = '%s' and dst = '%s'",
-                    node->phy_info->name,
-                    ip_send_info->incoming_node != NULL ? ip_send_info->incoming_node->phy_info->name : "<<local>>",
-                    pdu->src_address, pdu->dst_address);
-
-            event_execute(rpl_event_forward_failure, node, ip_send_info->incoming_node, pdu);
-
-            if (pdu->next_header == IP_NEXT_HEADER_MEASURE) {
-                measure_pdu_t *measure_pdu = pdu->sdu;
-                rs_assert(measure_pdu != NULL);
-
-                event_execute(measure_event_connect_hop_failed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
+                if (mac_node_send(node, ip_send_info->next_hop_list[++ip_send_info->next_hop_index], MAC_TYPE_IP, pdu)) {
+                    rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, ip_send_info, pdu, rs_system->ip_pdu_timeout);
+                }
+                else {
+                    rs_error("node '%s': MAC layer should never be busy, please increase IP PDU timeout", node->phy_info->name);
+                }
             }
+            else { /* no more next_hops to try */
+                rs_debug(DEBUG_IP, "node '%s': all next hops failed, dropping packet", node->phy_info->name);
+
+                rs_debug(DEBUG_RPL, "node '%s': a forwarding failure occurred, with src = '%s' and dst = '%s'",
+                        node->phy_info->name,
+                        ip_send_info->incoming_node != NULL ? ip_send_info->incoming_node->phy_info->name : "<<local>>",
+                        pdu->src_address, pdu->dst_address);
+
+                event_execute(rpl_event_forward_failure, node, ip_send_info->incoming_node, pdu);
+
+                if (pdu->next_header == IP_NEXT_HEADER_MEASURE) {
+                    measure_pdu_t *measure_pdu = pdu->sdu;
+                    rs_assert(measure_pdu != NULL);
+
+                    event_execute(measure_event_connect_hop_failed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
+                }
+
+                ip_pdu_destroy(pdu);
+                ip_send_info_destroy(ip_send_info);
+
+                node->ip_info->busy = FALSE;
+                if (node->ip_info->enqueued_count > 0) {
+                    node->ip_info->enqueued_count--;
+                }
+            }
+        }
+        else { /* broadcast */
+            rs_debug(DEBUG_IP, "node '%s': no neighbor to receive broadcast", node->phy_info->name);
 
             ip_pdu_destroy(pdu);
 
-            ip_send_info_destroy(ip_send_info);
-            node->ip_info->enqueued_count--;
+            node->ip_info->busy = FALSE;
+            if (node->ip_info->enqueued_count > 0) {
+                node->ip_info->enqueued_count--;
+            }
         }
     }
-    else {
-        ip_send_info_destroy(ip_send_info);
-        node->ip_info->enqueued_count--;
+    else { /* at least one node received the message */
+        if (ip_send_info != NULL) {
+            ip_send_info_destroy(ip_send_info);
+        }
+
+        node->ip_info->busy = FALSE;
+        if (node->ip_info->enqueued_count > 0) {
+            node->ip_info->enqueued_count--;
+        }
     }
 
     return TRUE;
@@ -772,9 +813,11 @@ static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1,
     else if (event_id == ip_event_pdu_send_timeout_check) {
         ip_send_info_t *send_info = data1;
 
-        snprintf(str1, len, "send_info = {incoming_node = '%s', next_hop_index = %d, next_hop_count = %d}",
-                (send_info->incoming_node != NULL ? send_info->incoming_node->phy_info->name : "<<local>>"),
-                send_info->next_hop_index, send_info->next_hop_count);
+        if (send_info != NULL) {
+            snprintf(str1, len, "send_info = {incoming_node = '%s', next_hop_index = %d, next_hop_count = %d}",
+                    (send_info->incoming_node != NULL ? send_info->incoming_node->phy_info->name : "<<local>>"),
+                    send_info->next_hop_index, send_info->next_hop_count);
+        }
     }
     else if (event_id == ip_event_pdu_receive) {
         node_t *node = data1;
