@@ -1151,7 +1151,7 @@ static bool event_handler_dio_pdu_receive(node_t *node, node_t *incoming_node, r
         }
     }
 
-    measure_node_connect_update(node);
+    measure_connect_update();
     measure_converg_update();
 
     return TRUE;
@@ -1252,7 +1252,7 @@ static bool event_handler_neighbor_detach(node_t *node, node_t *neighbor_node)
         }
     }
 
-    measure_node_connect_update(node);
+    measure_connect_update();
     measure_converg_update();
 
     return TRUE;

@@ -32,7 +32,7 @@
 #define SIM_FIELD_HOVER_COLOR                   0xFFFFFFFF
 #define SIM_FIELD_SELECTED_COLOR                0xFFFFFFFF
 
-#define SIM_FIELD_REDRAW_INTERVAL               200
+#define SIM_FIELD_REDRAW_INTERVAL               100
 
 
 #define EXPAND_COLOR(color, r, g, b, a) { \

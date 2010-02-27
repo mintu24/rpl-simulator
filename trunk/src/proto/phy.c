@@ -1,4 +1,6 @@
 
+#include <math.h>
+
 #include "phy.h"
 #include "../system.h"
 
@@ -14,6 +16,8 @@ uint16                  phy_event_pdu_receive;
 uint16                  phy_event_neighbor_attach;
 uint16                  phy_event_neighbor_detach;
 
+uint16                  phy_event_change_mobility;
+
 
     /**** local function prototypes ****/
 
@@ -25,6 +29,8 @@ static bool             event_handler_pdu_receive(node_t *node, node_t *incoming
 
 static bool             event_handler_neighbor_attach(node_t *node, node_t *neighbor_node);
 static bool             event_handler_neighbor_detach(node_t *node, node_t *neighbor_node);
+
+static bool             event_handler_change_mobility(node_t *node, phy_mobility_t *mobility);
 
 static void             update_neighbors(node_t *node);
 
@@ -43,6 +49,8 @@ bool phy_init()
     
     phy_event_neighbor_attach = event_register("neighbor_attach", "phy", (event_handler_t) event_handler_neighbor_attach, event_arg_str);
     phy_event_neighbor_detach = event_register("neighbor_detach", "phy", (event_handler_t) event_handler_neighbor_detach, event_arg_str);
+
+    phy_event_change_mobility = event_register("change_mobility", "phy", (event_handler_t) event_handler_change_mobility, event_arg_str);
 
     return TRUE;
 }
@@ -64,6 +72,10 @@ phy_pdu_t *phy_pdu_create()
 void phy_pdu_destroy(phy_pdu_t *pdu)
 {
     rs_assert(pdu != NULL);
+
+    if (pdu->sdu != NULL) {
+        mac_pdu_destroy(pdu->sdu);
+    }
 
     free(pdu);
 }
@@ -101,8 +113,19 @@ void phy_node_init(node_t *node, char *name, coord_t cx, coord_t cy)
     node->phy_info->tx_power = 0.5;
     node->phy_info->battery_level = 0.5;
 
+    node->phy_info->mobility_start_x = 0;
+    node->phy_info->mobility_start_y = 0;
+    node->phy_info->mobility_start_time = 0;
+    node->phy_info->mobility_stop_time = 0;
+    node->phy_info->mobility_cos_alpha = 0;
+    node->phy_info->mobility_sin_alpha = 0;
+    node->phy_info->mobility_speed = 0;
+
     node->phy_info->neighbor_list = NULL;
     node->phy_info->neighbor_count = 0;
+
+    node->phy_info->mobility_list = NULL;
+    node->phy_info->mobility_count = 0;
 }
 
 void phy_node_done(node_t *node)
@@ -115,6 +138,10 @@ void phy_node_done(node_t *node)
 
         if (node->phy_info->neighbor_list != NULL)
             free(node->phy_info->neighbor_list);
+
+        while (node->phy_info->mobility_count > 0) {
+            phy_node_rem_mobility(node, node->phy_info->mobility_count - 1);
+        }
 
         free(node->phy_info);
         node->phy_info = NULL;
@@ -132,7 +159,7 @@ void phy_node_set_name(node_t *node, const char *name)
     node->phy_info->name = strdup(name);
 }
 
-void phy_node_set_coordinates(node_t* node, coord_t cx, coord_t cy)
+void phy_node_set_coords(node_t* node, coord_t cx, coord_t cy)
 {
     rs_assert(node != NULL);
 
@@ -155,6 +182,67 @@ void phy_node_set_tx_power(node_t* node, percent_t tx_power)
     }
 }
 
+void phy_node_add_mobility(node_t *node, sim_time_t trigger_time, sim_time_t duration, coord_t dest_x, coord_t dest_y)
+{
+    rs_assert(node != NULL);
+
+    phy_mobility_t *mobility = malloc(sizeof(phy_mobility_t));
+    mobility->trigger_time = trigger_time;
+    mobility->duration = duration;
+    mobility->dest_x = dest_x;
+    mobility->dest_y = dest_y;
+
+    node->phy_info->mobility_list = realloc(node->phy_info->mobility_list, (node->phy_info->mobility_count + 1) * sizeof(phy_mobility_t *));
+    node->phy_info->mobility_list[node->phy_info->mobility_count++] = mobility;
+
+    if (trigger_time >= rs_system->now) {
+        rs_system_schedule_event(node, phy_event_change_mobility, mobility, NULL, trigger_time);
+    }
+}
+
+void phy_node_rem_mobility(node_t *node, uint16 index)
+{
+    rs_assert(node != NULL);
+    rs_assert(index < node->phy_info->mobility_count);
+
+    uint16 i;
+    for (i = index; i < node->phy_info->mobility_count - 1; i++) {
+        node->phy_info->mobility_list[i] = node->phy_info->mobility_list[i + 1];
+    }
+
+    rs_system_cancel_event(node, phy_event_change_mobility, node->phy_info->mobility_list[index], NULL, node->phy_info->mobility_list[index]->trigger_time);
+    free(node->phy_info->mobility_list[index]);
+
+    node->phy_info->mobility_list = realloc(node->phy_info->mobility_list, (--node->phy_info->mobility_count) * sizeof(phy_mobility_t *));
+
+    if (node->phy_info->mobility_count == 0) {
+        node->phy_info->mobility_list = NULL;
+    }
+}
+
+void phy_node_update_mobility_coords(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    if (node->phy_info->mobility_speed == 0) {
+        return;
+    }
+
+    if (node->phy_info->mobility_stop_time <= rs_system->now) {
+        node->phy_info->mobility_speed = 0;
+        return;
+    }
+
+    node->phy_info->cx = node->phy_info->mobility_start_x +
+            node->phy_info->mobility_speed * (rs_system->now - node->phy_info->mobility_start_time) * node->phy_info->mobility_cos_alpha;
+    node->phy_info->cy  = node->phy_info->mobility_start_y +
+            node->phy_info->mobility_speed * (rs_system->now - node->phy_info->mobility_start_time) * node->phy_info->mobility_sin_alpha;
+
+    if (node->alive) {
+        update_neighbors(node);
+    }
+}
+
 bool phy_node_send(node_t *node, node_t *outgoing_node, void *sdu)
 {
     rs_assert(node != NULL);
@@ -164,6 +252,7 @@ bool phy_node_send(node_t *node, node_t *outgoing_node, void *sdu)
     phy_pdu_set_sdu(phy_pdu, sdu);
 
     if (!event_execute(phy_event_pdu_send, node, outgoing_node, phy_pdu)) {
+        phy_pdu->sdu = NULL;
         phy_pdu_destroy(phy_pdu);
         return FALSE;
     }
@@ -250,6 +339,12 @@ static bool event_handler_node_wake(node_t *node)
 {
     update_neighbors(node);
 
+    uint16 i; /* schedule all the mobility changes that were programmed */
+    for (i = 0; i < node->phy_info->mobility_count; i++) {
+        phy_mobility_t *mobility = node->phy_info->mobility_list[i];
+        rs_system_schedule_event(node, phy_event_change_mobility, mobility, NULL, mobility->trigger_time);
+    }
+
     return TRUE;
 }
 
@@ -290,20 +385,47 @@ static bool event_handler_pdu_send(node_t *node, node_t *outgoing_node, phy_pdu_
 static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, phy_pdu_t *pdu)
 {
     mac_pdu_t *mac_pdu = pdu->sdu;
+    pdu->sdu = NULL;
 
     return mac_node_receive(node, incoming_node, mac_pdu);
 }
 
 static bool event_handler_neighbor_attach(node_t *node, node_t *neighbor_node)
 {
-    measure_node_connect_update(node);
+    measure_connect_update();
 
     return TRUE;
 }
 
 static bool event_handler_neighbor_detach(node_t *node, node_t *neighbor_node)
 {
-    measure_node_connect_update(node);
+    measure_connect_update();
+
+    return TRUE;
+}
+
+static bool event_handler_change_mobility(node_t *node, phy_mobility_t *mobility)
+{
+    if (mobility->duration == 0) { /* instant position change */
+        node->phy_info->mobility_speed = 0;
+        node->phy_info->cx = mobility->dest_x;
+        node->phy_info->cy = mobility->dest_y;
+
+        if (node->alive) {
+            update_neighbors(node);
+        }
+    }
+    else {
+        coord_t dist = sqrt(pow(mobility->dest_x - node->phy_info->cx, 2) + pow(mobility->dest_y - node->phy_info->cy, 2));
+
+        node->phy_info->mobility_start_x = node->phy_info->cx;
+        node->phy_info->mobility_start_y = node->phy_info->cy;
+        node->phy_info->mobility_start_time = rs_system->now;
+        node->phy_info->mobility_stop_time = rs_system->now + mobility->duration;
+        node->phy_info->mobility_sin_alpha = sin(atan2(mobility->dest_y - node->phy_info->cy, mobility->dest_x - node->phy_info->cx));
+        node->phy_info->mobility_cos_alpha = cos(atan2(mobility->dest_y - node->phy_info->cy, mobility->dest_x - node->phy_info->cx));
+        node->phy_info->mobility_speed = dist / mobility->duration;
+    }
 
     return TRUE;
 }
@@ -376,5 +498,11 @@ static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1,
         node_t *neighbor_node = data1;
 
         snprintf(str1, len, "neighbor = '%s'", (neighbor_node != NULL ? neighbor_node->phy_info->name : "<<unknown>>"));
+    }
+    else if (event_id == phy_event_change_mobility) {
+        phy_mobility_t *mobility = data1;
+
+        snprintf(str1, len, "mobility = {duration = %d, dest_x = %.02f, dest_y = %.02f}",
+                mobility->duration, mobility->dest_x, mobility->dest_y);
     }
 }
