@@ -1,0 +1,47 @@
+system = {
+    no_link_dist_thresh = 33.00;
+    no_link_quality_thresh = 0.22;
+    node = {
+        phy = {
+            name = A;
+            cx = 20.00;
+            cy = 20.00;
+        }
+    }
+    node = {
+        phy = {
+            name = B;
+            cx = 40.00;
+            cy = 30.00;
+        }
+    }
+    node = {
+        phy = {
+            name = BUNICA;
+            cx = 56.53;
+            cy = 32.41;
+        }
+    }
+    node = {
+        phy = {
+            name = D;
+            cx = 31.92;
+            cy = 61.27;
+        }
+    }
+    node = {
+        phy = {
+            name = E;
+            cx = 69.62;
+            cy = 61.57;
+        }
+    }
+    node = {
+        phy = {
+            name = F;
+            cx = 22.31;
+            cy = 35.96;
+        }
+    }
+}
+

@@ -9,6 +9,7 @@
 
 #include "main.h"
 #include "system.h"
+#include "scenario.h"
 
 #include "gui/mainwin.h"
 #include "gui/simfield.h"
@@ -30,14 +31,14 @@ static void         set_loggable_events();
 
     /**** exported functions ****/
 
-void rs_open(char *filename)
+char *rs_open(char *filename)
 {
-    // todo: implement me
+    return scenario_load(filename);
 }
 
-void rs_save(char *filename)
+char* rs_save(char *filename)
 {
-    // todo: implement me
+    return scenario_save(filename);
 }
 
 void rs_quit()
@@ -143,14 +144,6 @@ node_t *rs_add_node(coord_t x, coord_t y)
     rpl_node_init(node);
 
     rs_system_add_node(node);
-
-    // **** todo only for testing purposes ****
-
-    if (rs_system->node_count == 1) {
-        node->rpl_info->root_info->grounded = TRUE;
-    }
-
-    // **** todo only for testing purposes ****
 
     free(new_name);
     free(new_mac_address);
@@ -527,6 +520,13 @@ int main(int argc, char *argv[])
 
 	set_loggable_events();
 
+	// todo only for testing purposes
+    char *msg = scenario_load("scenario2.txt");
+    if (msg != NULL) {
+        printf("failed to parse scenario file: %s\n", msg);
+    }
+    // ***
+
     gtk_init(&argc, &argv);
 
     if (!main_win_init()) {
@@ -541,12 +541,19 @@ int main(int argc, char *argv[])
 	    return -1;
 	}
 
+    // todo only for testing purposes
+    msg = scenario_save("scenario2.txt");
+    if (msg != NULL) {
+        printf("failed to save scenario: %s\n", msg);
+    }
+    // ***
+
 	if (!rs_system_destroy()) {
 	    rs_error("failed to destroy the system");
 	    return -1;
 	}
 
-	rs_info("bye!");
+    rs_info("bye!");
 
 	return 0;
 }

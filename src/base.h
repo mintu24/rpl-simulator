@@ -62,6 +62,7 @@
 #define DEBUG_SCHEDULES_MUTEX       (1 << 11)
 #define DEBUG_NODES_MUTEX           (1 << 12)
 #define DEBUG_MEASURES_MUTEX        (1 << 13)
+#define DEBUG_SCENARIO              (1 << 14)
 
 #define DEBUG_NONE                  0
 #define DEBUG_MINIMAL               (DEBUG_MAIN | DEBUG_SYSTEM | DEBUG_EVENT)
@@ -69,7 +70,7 @@
 #define DEBUG_MUTEX                 (DEBUG_EVENTS_MUTEX | DEBUG_SCHEDULES_MUTEX | DEBUG_NODES_MUTEX | DEBUG_MEASURES_MUTEX)
 #define DEBUG_ALL                   (DEBUG_MINIMAL | DEBUG_PROTO | DEBUG_GUI | DEBUG_MUTEX)
 
-#define DEBUG                       (DEBUG_MAIN | DEBUG_MEASURE | DEBUG_IP)
+#define DEBUG                       (DEBUG_MAIN | DEBUG_SCENARIO)
 
 #define rs_info(args...)            rs_print(stdout, "* ", NULL, 0, NULL, args)
 
