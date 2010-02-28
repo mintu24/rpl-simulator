@@ -1,6 +1,6 @@
 
 EXE = rpl-simulator
-OBJS = main.o event.o node.o system.o gui/mainwin.o gui/simfield.o gui/legend.o gui/dialogs.o proto/measure.o proto/phy.o proto/mac.o proto/ip.o proto/icmp.o proto/rpl.o
+OBJS = main.o event.o node.o system.o scenario.o gui/mainwin.o gui/simfield.o gui/legend.o gui/dialogs.o proto/measure.o proto/phy.o proto/mac.o proto/ip.o proto/icmp.o proto/rpl.o
 CFLAGS = -Wall -g3 -pg -pthread -std=gnu99 `pkg-config --cflags gtk+-2.0 gthread-2.0`
 LDFLAGS = -Wall -g3 -pg -rdynamic -pthread -lm `pkg-config --libs gtk+-2.0 gthread-2.0 gmodule-export-2.0`
 
@@ -25,6 +25,8 @@ event.o: event.c event.h base.h node.h system.h proto/measure.h proto/phy.h prot
 node.o: node.c node.h base.h system.h event.h proto/measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
 
 system.o: system.c system.h base.h node.h event.h gui/simfield.h gui/mainwin.h proto/measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
+
+scenario.o: scenario.c scenario.h base.h node.h event.h system.h gui/mainwin.h proto/measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
 
 gui/mainwin.o: gui/mainwin.c gui/mainwin.h base.h node.h main.h system.h event.h gui/simfield.h gui/dialogs.h proto/measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
 
