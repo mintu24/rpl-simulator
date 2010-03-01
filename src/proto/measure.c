@@ -371,7 +371,6 @@ static bool event_handler_connect_update(node_t *node, node_t *dst_node)
         }
         node->measure_info->connect_update_start_time = rs_system->now;
 
-        rs_system_cancel_event(node, measure_event_connect_hop_timeout, dst_node, NULL, 0); /* cancel all possible previous hop timeouts */
         rs_system_schedule_event(node, measure_event_connect_hop_timeout, node->measure_info->connect_dst_node, node, rs_system->measure_pdu_timeout);
 
         return TRUE;
@@ -419,6 +418,10 @@ static bool event_handler_connect_hop_failed(node_t *node, node_t *dst_node, nod
 
 static bool event_handler_connect_hop_timeout(node_t *node, node_t *dst_node, node_t *last_hop)
 {
+    if (!node->measure_info->connect_busy) {
+        return FALSE;
+    }
+
     node->measure_info->connect_busy = FALSE;
 
     if (node->measure_info->connect_dst_reachable) { /* was reachable before */

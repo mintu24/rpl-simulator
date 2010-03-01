@@ -25,7 +25,10 @@ uint16                      sys_event_dummy;
 static void *               system_core(void *data);
 
 static event_schedule_t *   schedule_create(node_t *node, uint16 event_id, void *data1, void *data2, sim_time_t time);
-static bool                 schedule_destroy(event_schedule_t *schedule);
+static void                 schedule_destroy(event_schedule_t *schedule);
+
+static schedule_bucket_t *  bucket_create(sim_time_t time, event_schedule_t *schedule);
+static void                 bucket_destroy(schedule_bucket_t *bucket);
 
 static void                 update_mobilities();
 
@@ -36,9 +39,6 @@ static bool                 event_handler_pdu_receive(node_t *node, node_t *inco
 
 static void                 event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
-#ifdef DEBUG_EVENTS
-static void                 print_scheduled_events();
-#endif /* DEBUG_EVENTS */
 
     /**** exported functions ****/
 
@@ -79,7 +79,7 @@ bool rs_system_create()
     rs_system->rpl_prefer_floating = DEFAULT_RPL_PREFER_FLOATING;
 //    rs_system->rpl_min_hop_rank_inc = DEFAULT_RPL_MIN_HOP_RANK_INC;
 
-    rs_system->schedules = NULL;
+    rs_system->schedule_bucket_first = NULL;
     rs_system->schedule_count = 0;
 
     rs_system->started = FALSE;
@@ -136,11 +136,16 @@ bool rs_system_destroy()
     if (rs_system->node_list != NULL)
         free(rs_system->node_list);
 
-    while (rs_system->schedules != NULL) {
-        event_schedule_t *schedule = rs_system->schedules;
-        rs_system->schedules = rs_system->schedules->next;
+    while (rs_system->schedule_bucket_first != NULL) {
+        while (rs_system->schedule_bucket_first->first != NULL) {
+            event_schedule_t *temp_schedule = rs_system->schedule_bucket_first->first;
+            rs_system->schedule_bucket_first->first = rs_system->schedule_bucket_first->first->next;
+            schedule_destroy(temp_schedule);
+        }
 
-        schedule_destroy(schedule);
+        schedule_bucket_t *temp_bucket = rs_system->schedule_bucket_first;
+        rs_system->schedule_bucket_first = rs_system->schedule_bucket_first->next;
+        bucket_destroy(temp_bucket);
     }
     rs_system->schedule_count = 0;
 
@@ -378,20 +383,29 @@ void rs_system_schedule_event(node_t *node, uint16 event_id, void *data1, void *
 
     event_schedule_t *new_schedule = schedule_create(node, event_id, data1, data2, time);
 
-    event_schedule_t *schedule = rs_system->schedules;
-    event_schedule_t *prev_schedule = NULL;
+    schedule_bucket_t *bucket = rs_system->schedule_bucket_first;
+    schedule_bucket_t *prev_bucket = NULL;
 
-    while ((schedule != NULL) && (schedule->time <= time)) {
-        prev_schedule = schedule;
-        schedule = schedule->next;
+    while ((bucket != NULL) && (bucket->time < time)) {
+        prev_bucket = bucket;
+        bucket = bucket->next;
     }
 
-    new_schedule->next = schedule;
-    if (prev_schedule == NULL) {
-        rs_system->schedules = new_schedule;
+    if (bucket == NULL || bucket->time != time) { /* new bucket */
+        schedule_bucket_t *new_bucket = bucket_create(time, new_schedule);
+
+        if (prev_bucket == NULL) { /* first element of the list */
+            new_bucket->next = rs_system->schedule_bucket_first;
+            rs_system->schedule_bucket_first = new_bucket;
+        }
+        else {
+            new_bucket->next = prev_bucket->next;
+            prev_bucket->next = new_bucket;
+        }
     }
-    else {
-        prev_schedule->next = new_schedule;
+    else { /* existing matching bucket */
+        bucket->last->next = new_schedule;
+        bucket->last = new_schedule;
     }
 
     rs_system->schedule_count++;
@@ -405,36 +419,61 @@ void rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *dat
 
     schedules_lock();
 
-    event_schedule_t *schedule = rs_system->schedules;
-    event_schedule_t *prev_schedule = NULL;
+    schedule_bucket_t *bucket = rs_system->schedule_bucket_first;
+    schedule_bucket_t *prev_bucket = NULL;
 
     if (time < 0) {
         time = rs_system->now - time;
     }
 
-    while (schedule != NULL) {
-        if ((event_id ==-1 || schedule->event_id == event_id) &&
-                (node == NULL || node == schedule->node) &&
-                (data1 == NULL || data1 == schedule->data1) &&
-                (data2 == NULL || data2 == schedule->data2) &&
-                (time == 0 || time == schedule->time)) {
+    while (bucket != NULL) {
+        event_schedule_t *schedule = bucket->first;
+        event_schedule_t *prev_schedule = NULL;
 
-            event_schedule_t *schedule_to_destroy = schedule;
+        while (schedule != NULL) {
+            if ((event_id ==-1 || schedule->event_id == event_id) &&
+                    (node == NULL || node == schedule->node) &&
+                    (data1 == NULL || data1 == schedule->data1) &&
+                    (data2 == NULL || data2 == schedule->data2) &&
+                    (time == 0 || time == schedule->time)) {
 
-            if (prev_schedule == NULL) {
-                rs_system->schedules = schedule->next;
+                if (prev_schedule == NULL) {
+                    bucket->first = schedule->next;
+                }
+                else {
+                    prev_schedule->next = schedule->next;
+                }
+
+                if (schedule == bucket->last) {
+                    bucket->last = prev_schedule;
+                }
+
+                event_schedule_t *temp_schedule = schedule;
+                schedule = schedule->next;
+                schedule_destroy(temp_schedule);
+                rs_system->schedule_count--;
             }
             else {
-                prev_schedule->next = schedule->next;
+                prev_schedule = schedule;
+                schedule = schedule->next;
+            }
+        }
+
+        if (bucket->first == NULL) {
+            if (prev_bucket == NULL) {
+                rs_system->schedule_bucket_first = bucket->next;
+            }
+            else {
+                prev_bucket->next = bucket->next;
             }
 
-            schedule = schedule->next;
-            schedule_destroy(schedule_to_destroy);
-            rs_system->schedule_count--;
+            schedule_bucket_t *temp_bucket = bucket;
+            bucket = bucket->next;
+            bucket_destroy(temp_bucket);
         }
         else {
-            prev_schedule = schedule;
-            schedule = schedule->next;
+            prev_bucket = bucket;
+            bucket = bucket->next;
         }
     }
 
@@ -581,11 +620,16 @@ void rs_system_stop()
         free(node_list);
     }
 
-    while (rs_system->schedules != NULL) {
-        event_schedule_t *schedule = rs_system->schedules;
-        rs_system->schedules = rs_system->schedules->next;
+    while (rs_system->schedule_bucket_first != NULL) {
+        while (rs_system->schedule_bucket_first->first != NULL) {
+            event_schedule_t *temp_schedule = rs_system->schedule_bucket_first->first;
+            rs_system->schedule_bucket_first->first = rs_system->schedule_bucket_first->first->next;
+            schedule_destroy(temp_schedule);
+        }
 
-        schedule_destroy(schedule);
+        schedule_bucket_t *temp_bucket = rs_system->schedule_bucket_first;
+        rs_system->schedule_bucket_first = rs_system->schedule_bucket_first->next;
+        bucket_destroy(temp_bucket);
     }
 
     rs_system->schedule_count = 0;
@@ -670,48 +714,44 @@ static void *system_core(void *data)
 
         schedules_lock();
 
-        if (rs_system->schedules != NULL) {
-
-#ifdef DEBUG_EVENTS
-            print_scheduled_events();
-#endif /* DEBUG_EVENTS */
-
+        if (rs_system->schedule_bucket_first != NULL) {
             if (rs_system->simulation_second > 0 && !rs_system->step) {
                 int32 sleep_count = 0;
-                int32 diff = rs_system->schedules->time - rs_system->now;
+                int32 diff = rs_system->schedule_bucket_first->time - rs_system->now;
 
                 while (sleep_count * SYS_REAL_TIME_GRANULARITY < (diff * rs_system->simulation_second - SYS_CORE_SLEEP)) {
                     schedules_unlock();
                     usleep(SYS_REAL_TIME_GRANULARITY);
                     schedules_lock();
 
-                    if (rs_system->schedules == NULL) { /* if system stopped, thus all schedules were cleared */
+                    if (rs_system->schedule_bucket_first == NULL) { /* if system stopped, thus all schedules were cleared */
                         break;
                     }
 
-                    diff = rs_system->schedules->time - rs_system->now;
+                    diff = rs_system->schedule_bucket_first->time - rs_system->now;
                     sleep_count++;
                 }
 
                 /* if system was paused or stopped or all the schedules removed while sleeping... */
-                if (rs_system->paused || !rs_system->started || rs_system->schedules == NULL) {
+                if (rs_system->paused || !rs_system->started || rs_system->schedule_bucket_first == NULL) {
                     schedules_unlock();
                     continue;
                 }
             }
 
-            rs_system->now = rs_system->schedules->time;
+            rs_system->now = rs_system->schedule_bucket_first->time;
             rs_debug(DEBUG_SYSTEM, "time is now %d", rs_system->now);
             main_win_update_sim_time_status();
 
             update_mobilities();
 
-            while ((rs_system->schedules != NULL) && (rs_system->schedules->time == rs_system->now)) {
-                event_schedule_t *schedule = rs_system->schedules;
-                rs_system->schedules = rs_system->schedules->next;
+            event_schedule_t *schedule = rs_system->schedule_bucket_first->first;
+            schedule_bucket_t *temp_bucket = rs_system->schedule_bucket_first;
 
-                /* test to see if the concerned node still exists and is alive */
+            rs_system->schedule_bucket_first = rs_system->schedule_bucket_first->next;
+            bucket_destroy(temp_bucket);
 
+            while (schedule != NULL) {
                 if (schedule->node != NULL) {
                     if (schedule->node->alive || schedule->event_id == sys_event_node_kill) {
                         event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
@@ -725,7 +765,10 @@ static void *system_core(void *data)
                     event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
                 }
 
-                schedule_destroy(schedule);
+                event_schedule_t *temp_schedule = schedule;
+                schedule = schedule->next;
+                schedule_destroy(temp_schedule);
+
                 rs_system->schedule_count--;
             }
         }
@@ -762,13 +805,30 @@ static event_schedule_t *schedule_create(node_t *node, uint16 event_id, void *da
 }
 
 
-static bool schedule_destroy(event_schedule_t *schedule)
+static void schedule_destroy(event_schedule_t *schedule)
 {
     rs_assert(schedule != NULL);
 
     free(schedule);
+}
 
-    return TRUE;
+static schedule_bucket_t *bucket_create(sim_time_t time, event_schedule_t *schedule)
+{
+    schedule_bucket_t *bucket = malloc(sizeof(schedule_bucket_t));
+
+    bucket->first = schedule;
+    bucket->last = schedule;
+    bucket->next = NULL;
+    bucket->time = time;
+
+    return bucket;
+}
+
+static void bucket_destroy(schedule_bucket_t *bucket)
+{
+    rs_assert(bucket != NULL);
+
+    free(bucket);
 }
 
 static void update_mobilities()
@@ -848,29 +908,3 @@ static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1,
         snprintf(str1, len, "incoming_node = '%s'", node != NULL ? node->phy_info->name : "<<unknown>>");
     }
 }
-
-#ifdef DEBUG_EVENTS
-
-static void print_scheduled_events()
-{
-    event_schedule_t *schedule = rs_system->schedules;
-
-    fprintf(stderr, "######## event list @%d ########\n", rs_system->now);
-
-    while (schedule != NULL) {
-        event_t event = event_find_by_id(schedule->event_id);
-
-        fprintf(stderr, "event: name = '%s', node = '%s', data1 = %p, data2 = %p, time = @%d\n",
-                event.name,
-                schedule->node->phy_info->name,
-                schedule->data1,
-                schedule->data2,
-                schedule->time);
-
-        schedule = schedule->next;
-    }
-
-    fprintf(stderr, "######## event list end ########\n");
-}
-
-#endif /* DEBUG_EVENTS */

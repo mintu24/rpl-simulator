@@ -205,13 +205,13 @@ void phy_node_rem_mobility(node_t *node, uint16 index)
     rs_assert(node != NULL);
     rs_assert(index < node->phy_info->mobility_count);
 
+    rs_system_cancel_event(node, phy_event_change_mobility, node->phy_info->mobility_list[index], NULL, node->phy_info->mobility_list[index]->trigger_time);
+    free(node->phy_info->mobility_list[index]);
+
     uint16 i;
     for (i = index; i < node->phy_info->mobility_count - 1; i++) {
         node->phy_info->mobility_list[i] = node->phy_info->mobility_list[i + 1];
     }
-
-    rs_system_cancel_event(node, phy_event_change_mobility, node->phy_info->mobility_list[index], NULL, node->phy_info->mobility_list[index]->trigger_time);
-    free(node->phy_info->mobility_list[index]);
 
     node->phy_info->mobility_list = realloc(node->phy_info->mobility_list, (--node->phy_info->mobility_count) * sizeof(phy_mobility_t *));
 

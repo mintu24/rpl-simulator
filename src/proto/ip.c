@@ -227,8 +227,13 @@ void ip_node_done(node_t *node)
             while (node->ip_info->route_count > 0) {
                 ip_route_t *route = node->ip_info->route_list[node->ip_info->route_count - 1];
 
-                free(route->dst);
-                free(route->dst_bit_expanded);
+                if (route->dst != NULL) {
+                    free(route->dst);
+                }
+                if (route->dst_bit_expanded != NULL) {
+                    free(route->dst_bit_expanded);
+                }
+
                 free(route);
 
                 node->ip_info->route_count--;
@@ -352,6 +357,10 @@ ip_route_t *ip_node_get_next_hop_route(node_t *node, char *dst_address)
         if (dst_len < route->prefix_len) {
             rs_warn("node '%s': invalid IP address '%s' for route '%s/%d'", node->phy_info->name, dst_address, route->dst, route->prefix_len);
             continue;
+        }
+
+        if (route->dst_bit_expanded == NULL) {
+            route->dst_bit_expanded = route_expand_to_bits(route->dst, route->prefix_len);
         }
 
         bool match = TRUE;
