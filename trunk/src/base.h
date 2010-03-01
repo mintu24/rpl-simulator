@@ -47,6 +47,7 @@
 
 
 #define RES_DIR                     "../resources"
+#define SCENARIO_DIR                "../scenarios"
 
 #define DEBUG_MAIN                  (1 << 0)
 #define DEBUG_EVENT                 (1 << 1)
@@ -85,6 +86,7 @@
 #define rs_assert(cond)             { if (!(cond)) rs_print(stderr, "# ", __FILE__, __LINE__, __FUNCTION__, "assertion '%s' failed", #cond); }
 
 extern char *                       rs_app_dir;
+extern char *                       rs_scenario_file_name;
 
 void                                rs_print(FILE *stream, char *sym, const char *file, int line, const char *function, const char *fmt, ...);
 

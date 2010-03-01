@@ -1,3 +1,7 @@
+// todo add GUI for event filters
+// todo add a (non)deterministic random system option, w/ GUI
+// todo implement event log dump
+
 #include <gdk/gdk.h>
 #include <cairo.h>
 
@@ -21,7 +25,7 @@
 
 GtkBuilder *                    gtk_builder = NULL;
 
-static display_params_t *       display_params = NULL;
+static display_params_t         display_params;
 static GtkWidget *              main_window = NULL;
 static GtkWidget *              legend_widget = NULL;
 static GtkWidget *              sim_status_bar = NULL;
@@ -234,14 +238,13 @@ static void                     update_rpl_root_configurations();
 
 bool main_win_init()
 {
-    display_params = malloc(sizeof(display_params_t));
-    display_params->show_node_names = TRUE;
-    display_params->show_node_addresses = TRUE;
-    display_params->show_node_tx_power = TRUE;
-    display_params->show_node_ranks = TRUE;
-    display_params->show_preferred_parent_arrows = TRUE;
-    display_params->show_parent_arrows = TRUE;
-    display_params->show_sibling_arrows = TRUE;
+    display_params.show_node_names = TRUE;
+    display_params.show_node_addresses = TRUE;
+    display_params.show_node_tx_power = TRUE;
+    display_params.show_node_ranks = TRUE;
+    display_params.show_preferred_parent_arrows = TRUE;
+    display_params.show_parent_arrows = TRUE;
+    display_params.show_sibling_arrows = TRUE;
 
     gtk_builder = gtk_builder_new();
 
@@ -398,6 +401,14 @@ void main_win_system_to_gui()
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_ping_address_combo), 0);
     if (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(params_nodes_measure_connect_dst_store), NULL) > 0)
         gtk_combo_box_set_active(GTK_COMBO_BOX(params_nodes_measure_connect_dst_combo), 0);
+
+    update_sensitivity();
+
+    char title[256];
+    char *scenario_file_name = rs_scenario_file_name != NULL ? rs_scenario_file_name : MAIN_WIN_TITLE_UNSAVED;
+
+    snprintf(title, sizeof(title), MAIN_WIN_TITLE, scenario_file_name);
+    gtk_window_set_title(GTK_WINDOW(main_window), title);
 
     signals_enable();
 }
@@ -699,20 +710,20 @@ void main_win_display_to_gui()
 {
     signals_disable();
 
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_names_check), display_params->show_node_names);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_addresses_check), display_params->show_node_addresses);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_tx_power_check), display_params->show_node_tx_power);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_ranks_check), display_params->show_node_ranks);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_preferred_parent_arrows_check), display_params->show_preferred_parent_arrows);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_parent_arrows_check), display_params->show_parent_arrows);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_sibling_arrows_check), display_params->show_sibling_arrows);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_names_check), display_params.show_node_names);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_addresses_check), display_params.show_node_addresses);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_tx_power_check), display_params.show_node_tx_power);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_node_ranks_check), display_params.show_node_ranks);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_preferred_parent_arrows_check), display_params.show_preferred_parent_arrows);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_parent_arrows_check), display_params.show_parent_arrows);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_sibling_arrows_check), display_params.show_sibling_arrows);
 
     signals_enable();
 }
 
 display_params_t *main_win_get_display_params()
 {
-    return display_params;
+    return &display_params;
 }
 
 void main_win_event_after_node_wake(node_t *node)
@@ -1020,6 +1031,38 @@ static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
 
     rs_debug(DEBUG_GUI, NULL);
 
+    GtkWidget *open_dialog = gtk_file_chooser_dialog_new(
+            "Load scenario",
+            GTK_WINDOW(main_window),
+            GTK_FILE_CHOOSER_ACTION_OPEN,
+            GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
+
+    char path[256];
+    snprintf(path, sizeof(path), "%s/%s", rs_app_dir, SCENARIO_DIR);
+
+    gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(open_dialog), path);
+
+    if (gtk_dialog_run(GTK_DIALOG(open_dialog)) == GTK_RESPONSE_ACCEPT) {
+        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(open_dialog));
+        char *msg = rs_open(filename);
+
+        free(filename);
+
+        if (msg != NULL) {
+            GtkWidget *msg_dialog = gtk_message_dialog_new(
+                    GTK_WINDOW(main_window),
+                    GTK_DIALOG_DESTROY_WITH_PARENT,
+                    GTK_MESSAGE_ERROR,
+                    GTK_BUTTONS_CLOSE,
+                    "Error loading scenario: %s", msg);
+
+            gtk_dialog_run(GTK_DIALOG(msg_dialog));
+            gtk_widget_destroy(msg_dialog);
+        }
+    }
+
+    gtk_widget_destroy(open_dialog);
+
     sim_field_redraw();
     update_sensitivity();
 
@@ -1031,6 +1074,43 @@ static void cb_save_menu_item_activate(GtkWidget *widget, gpointer *data)
     signal_enter();
 
     rs_debug(DEBUG_GUI, NULL);
+
+    GtkWidget *save_dialog = gtk_file_chooser_dialog_new(
+            "Save scenario",
+            GTK_WINDOW(main_window),
+            GTK_FILE_CHOOSER_ACTION_SAVE,
+            GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
+
+    if (rs_scenario_file_name != NULL) {
+        gtk_file_chooser_set_filename (GTK_FILE_CHOOSER(save_dialog), rs_scenario_file_name);
+    }
+    else {
+        char path[256];
+        snprintf(path, sizeof(path), "%s/%s", rs_app_dir, SCENARIO_DIR);
+
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(save_dialog), path);
+    }
+
+    if (gtk_dialog_run(GTK_DIALOG(save_dialog)) == GTK_RESPONSE_ACCEPT) {
+        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(save_dialog));
+        char *msg = rs_save(filename);
+
+        free(filename);
+
+        if (msg != NULL) {
+            GtkWidget *msg_dialog = gtk_message_dialog_new(
+                    GTK_WINDOW(main_window),
+                    GTK_DIALOG_DESTROY_WITH_PARENT,
+                    GTK_MESSAGE_ERROR,
+                    GTK_BUTTONS_CLOSE,
+                    "Error saving scenario: %s", msg);
+
+            gtk_dialog_run(GTK_DIALOG(msg_dialog));
+            gtk_widget_destroy(msg_dialog);
+        }
+    }
+
+    gtk_widget_destroy(save_dialog);
 
     sim_field_redraw();
     update_sensitivity();
@@ -1810,6 +1890,9 @@ static void update_sensitivity()
 
     gtk_widget_set_sensitive(params_nodes_measure_connect_dst_combo, node_selected);
 
+    gtk_widget_set_sensitive(open_menu_item, !sim_started);
+    gtk_widget_set_sensitive(save_menu_item, !sim_started);
+
     gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected && !sim_started);
     gtk_widget_set_sensitive(rem_menu_item, node_selected &&  !sim_started);
 
@@ -2049,13 +2132,13 @@ static void gui_to_node(node_t *node)
 
 static void gui_to_display()
 {
-    display_params->show_node_names = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_names_check));
-    display_params->show_node_addresses = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_addresses_check));
-    display_params->show_node_tx_power = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_tx_power_check));
-    display_params->show_node_ranks = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_ranks_check));
-    display_params->show_parent_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_parent_arrows_check));
-    display_params->show_preferred_parent_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_preferred_parent_arrows_check));
-    display_params->show_sibling_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_sibling_arrows_check));
+    display_params.show_node_names = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_names_check));
+    display_params.show_node_addresses = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_addresses_check));
+    display_params.show_node_tx_power = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_tx_power_check));
+    display_params.show_node_ranks = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_node_ranks_check));
+    display_params.show_parent_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_parent_arrows_check));
+    display_params.show_preferred_parent_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_preferred_parent_arrows_check));
+    display_params.show_sibling_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_sibling_arrows_check));
 
     gtk_widget_queue_draw(legend_widget);
 }

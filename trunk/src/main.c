@@ -19,9 +19,13 @@
     /**** global variables ****/
 
 char *              rs_app_dir;
+char *              rs_scenario_file_name = NULL;
 
 
     /**** local function prototypes ****/
+
+static void         load_last_scenario();
+static void         save_last_scenario();
 
 static char *       get_next_name(char *name);
 static char *       get_next_mac_address(char *address);
@@ -33,11 +37,28 @@ static void         set_loggable_events();
 
 char *rs_open(char *filename)
 {
+    rs_rem_all_nodes();
+
+    if (rs_scenario_file_name != NULL) {
+        free(rs_scenario_file_name);
+    }
+
+    rs_scenario_file_name = strdup(filename);
+    main_win_system_to_gui();
+    main_win_display_to_gui();
+
     return scenario_load(filename);
 }
 
 char* rs_save(char *filename)
 {
+    if (rs_scenario_file_name != NULL) {
+        free(rs_scenario_file_name);
+    }
+
+    rs_scenario_file_name = strdup(filename);
+    main_win_system_to_gui();
+
     return scenario_save(filename);
 }
 
@@ -359,6 +380,33 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
 
     /**** local functions ****/
 
+static void load_last_scenario()
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/%s/%s", rs_app_dir, SCENARIO_DIR, LAST_SCENARIO_FILENAME);
+
+    char *msg = scenario_load(path);
+
+    if (msg != NULL) {
+        rs_error("failed to load last scenario file: %s", msg);
+    }
+
+    main_win_system_to_gui();
+    main_win_display_to_gui();
+}
+
+static void save_last_scenario()
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%s/%s/%s", rs_app_dir, SCENARIO_DIR, LAST_SCENARIO_FILENAME);
+
+    char *msg = scenario_save(path);
+
+    if (msg != NULL) {
+        rs_error("failed to save last scenario: %s", msg);
+    }
+}
+
 static char *get_next_name(char *name)
 {
     char *new_name = malloc(256);
@@ -469,7 +517,7 @@ static void set_loggable_events()
 //    event_set_logging(rpl_event_forward_inconsistency, TRUE);
 //    event_set_logging(rpl_event_forward_failure, TRUE);
 //    event_set_logging(rpl_event_trickle_i_timeout, TRUE);
-    event_set_logging(rpl_event_trickle_t_timeout, TRUE);
+//    event_set_logging(rpl_event_trickle_t_timeout, TRUE);
 //    event_set_logging(rpl_event_seq_num_autoinc, TRUE);
 
 //    event_set_logging(icmp_event_pdu_send, TRUE);
@@ -477,20 +525,20 @@ static void set_loggable_events()
 //    event_set_logging(icmp_event_ping_send, TRUE);
 //    event_set_logging(icmp_event_ping_timeout, TRUE);
 
-    event_set_logging(measure_event_pdu_send, TRUE);
-    event_set_logging(measure_event_pdu_receive, TRUE);
-    event_set_logging(measure_event_connect_hop_passed, TRUE);
-    event_set_logging(measure_event_connect_hop_timeout, TRUE);
-    event_set_logging(measure_event_connect_established, TRUE);
-    event_set_logging(measure_event_connect_lost, TRUE);
-
-    event_set_logging(ip_event_pdu_send, TRUE);
-    event_set_logging(ip_event_pdu_send_timeout_check, TRUE);
-    event_set_logging(ip_event_pdu_receive, TRUE);
+//    event_set_logging(measure_event_pdu_send, TRUE);
+//    event_set_logging(measure_event_pdu_receive, TRUE);
+//    event_set_logging(measure_event_connect_hop_passed, TRUE);
+//    event_set_logging(measure_event_connect_hop_timeout, TRUE);
+//    event_set_logging(measure_event_connect_established, TRUE);
+//    event_set_logging(measure_event_connect_lost, TRUE);
 //
-    event_set_logging(mac_event_pdu_send, TRUE);
-    event_set_logging(mac_event_pdu_send_timeout_check, TRUE);
-    event_set_logging(mac_event_pdu_receive, TRUE);
+//    event_set_logging(ip_event_pdu_send, TRUE);
+//    event_set_logging(ip_event_pdu_send_timeout_check, TRUE);
+//    event_set_logging(ip_event_pdu_receive, TRUE);
+//
+//    event_set_logging(mac_event_pdu_send, TRUE);
+//    event_set_logging(mac_event_pdu_send_timeout_check, TRUE);
+//    event_set_logging(mac_event_pdu_receive, TRUE);
 //
 //    event_set_logging(phy_event_pdu_send, TRUE);
 //    event_set_logging(phy_event_pdu_receive, TRUE);
@@ -520,13 +568,6 @@ int main(int argc, char *argv[])
 
 	set_loggable_events();
 
-	// todo only for testing purposes
-    char *msg = scenario_load("scenario2.txt");
-    if (msg != NULL) {
-        printf("failed to parse scenario file: %s\n", msg);
-    }
-    // ***
-
     gtk_init(&argc, &argv);
 
     if (!main_win_init()) {
@@ -534,19 +575,16 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    load_last_scenario();
+
 	gtk_main();
+
+	save_last_scenario();
 
 	if (!measure_done()) {
 	    rs_error("failed to destroy measurements");
 	    return -1;
 	}
-
-    // todo only for testing purposes
-    msg = scenario_save("scenario2.txt");
-    if (msg != NULL) {
-        printf("failed to save scenario: %s\n", msg);
-    }
-    // ***
 
 	if (!rs_system_destroy()) {
 	    rs_error("failed to destroy the system");

@@ -110,6 +110,18 @@ typedef struct event_schedule_t {
 
 } event_schedule_t;
 
+typedef struct schedule_bucket_t {
+
+    event_schedule_t *          first;
+    event_schedule_t *          last;
+
+    struct schedule_bucket_t *  next;
+
+    sim_time_t                  time;
+
+} schedule_bucket_t;
+
+
 typedef struct rs_system_t {
 
     /* params */
@@ -162,7 +174,7 @@ typedef struct rs_system_t {
     GStaticRecMutex             schedules_mutex;
     GStaticRecMutex             nodes_mutex;
 
-    event_schedule_t *          schedules;
+    schedule_bucket_t *         schedule_bucket_first;
     uint32                      schedule_count; /* redundant size counter */
 
 } rs_system_t;

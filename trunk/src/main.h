@@ -7,6 +7,8 @@
 
 #define                 AUTOINC_ADDRESS_PART        16
 
+#define                 LAST_SCENARIO_FILENAME      "last.scenario"
+
 char *                  rs_open();
 char *                  rs_save();
 void                    rs_quit();
