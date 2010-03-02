@@ -102,8 +102,8 @@ typedef struct rpl_node_info_t {
     uint8                   trickle_i_doublings_so_far;
     sim_time_t              trickle_i;
     uint8                   trickle_c;
-    int32                   last_trickle_i_schedule_time; /* scheduler performance boost */
-    int32                   last_trickle_t_schedule_time;
+    sim_time_t              last_trickle_i_schedule_time; /* scheduler performance boost */
+    sim_time_t              last_trickle_t_schedule_time;
 
     rpl_neighbor_t**        neighbor_list;
     uint16                  neighbor_count;

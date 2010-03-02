@@ -112,7 +112,7 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
 
     char text[256];
 
-    char *str_time = rs_system_sim_time_to_string(rs_system->now);
+    char *str_time = rs_system_sim_time_to_string(rs_system->now, TRUE);
 
     char str1[256]; str1[0] = '\0';
     char str2[256]; str2[0] = '\0';

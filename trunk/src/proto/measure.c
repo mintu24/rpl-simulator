@@ -372,7 +372,6 @@ static bool event_handler_connect_update(node_t *node, node_t *dst_node)
         node->measure_info->connect_busy = FALSE;
 
         if (node->measure_info->connect_dst_reachable) {
-            node->measure_info->connect_dst_reachable = FALSE;
             event_execute(measure_event_connect_lost, node, dst_node, node);
         }
 
@@ -383,11 +382,6 @@ static bool event_handler_connect_update(node_t *node, node_t *dst_node)
 static bool event_handler_connect_hop_passed(node_t *node, node_t *dst_node, node_t *hop)
 {
     rs_system_cancel_event(node, measure_event_connect_hop_timeout, dst_node, NULL, 0);
-
-    if (node->measure_info->connect_last_establish_time != -1) {
-        node->measure_info->connect_connected_time += rs_system->now - node->measure_info->connect_last_establish_time;
-        node->measure_info->connect_last_establish_time = rs_system->now;
-    }
 
     if (hop != dst_node) {
         rs_system_schedule_event(node, measure_event_connect_hop_timeout, dst_node, hop, rs_system->measure_pdu_timeout);
@@ -436,10 +430,8 @@ static bool event_handler_connect_lost(node_t *node, node_t *dst_node, node_t *l
 {
     node->measure_info->connect_dst_reachable = FALSE;
 
-    if (node->measure_info->connect_last_establish_time != -1) {
-        node->measure_info->connect_connected_time += rs_system->now - node->measure_info->connect_last_establish_time;
-        node->measure_info->connect_last_establish_time = -1;
-    }
+	node->measure_info->connect_connected_time += rs_system->now - node->measure_info->connect_last_establish_time;
+	node->measure_info->connect_last_establish_time = -1;
 
     return FALSE;
 }

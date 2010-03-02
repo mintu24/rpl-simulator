@@ -711,7 +711,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
                 node->phy_info->name, incoming_node != NULL ? incoming_node->phy_info->name : "<<unknown>>",
                 pdu->src_address, pdu->dst_address);
 
-        return FALSE;
+        return TRUE;
     }
 
     /* if the packet is not intended for us, neither broadcasted, we forward it */

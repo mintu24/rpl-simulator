@@ -43,7 +43,7 @@
 
 #define coord_t                     float
 #define percent_t                   float
-#define sim_time_t                  uint32
+#define sim_time_t                  int32
 
 
 #define RES_DIR                     "../resources"
