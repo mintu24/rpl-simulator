@@ -486,8 +486,8 @@ link: </property>
   <object class="GtkAdjustment" id="params_rpl_autoinc_sn_adjustment">
     <property name="lower">1</property>
     <property name="upper">1000000</property>
-    <property name="step_increment">1</property>
-    <property name="page_increment">100</property>
+    <property name="step_increment">100</property>
+    <property name="page_increment">1000</property>
   </object>
   <object class="GtkAdjustment" id="params_rpl_poison_count_adjustment">
     <property name="upper">10000</property>
@@ -499,10 +499,22 @@ link: </property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
-  <object class="GtkAdjustment" id="params_system_neighbor_timeout_adjustment">
+  <object class="GtkAdjustment" id="params_system_ip_neighbor_timeout_adjustment">
     <property name="upper">100000</property>
     <property name="step_increment">100</property>
     <property name="page_increment">1000</property>
+  </object>
+  <object class="GtkListStore" id="params_nodes_mobility_store">
+    <columns>
+      <!-- column-name Trigger -->
+      <column type="gchararray"/>
+      <!-- column-name Duration -->
+      <column type="gchararray"/>
+      <!-- column-name Dest. -->
+      <column type="gchararray"/>
+      <!-- column-name Dest.1 -->
+      <column type="gchararray"/>
+    </columns>
   </object>
   <object class="GtkTable" id="params_table">
     <property name="visible">True</property>
@@ -520,15 +532,1231 @@ link: </property>
             <child>
               <object class="GtkVBox" id="vbox1">
                 <property name="visible">True</property>
+                <property name="border_width">5</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">2</property>
+                <child>
+                  <object class="GtkVBox" id="vbox17">
+                    <property name="visible">True</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkFrame" id="frame2">
+                        <property name="visible">True</property>
+                        <property name="label_xalign">0</property>
+                        <child>
+                          <object class="GtkTable" id="table2">
+                            <property name="visible">True</property>
+                            <property name="border_width">5</property>
+                            <property name="n_rows">4</property>
+                            <property name="n_columns">3</property>
+                            <property name="column_spacing">2</property>
+                            <property name="row_spacing">2</property>
+                            <child>
+                              <object class="GtkSpinButton" id="params_system_sim_second_spin">
+                                <property name="width_request">20</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="invisible_char">&#x25CF;</property>
+                                <property name="adjustment">params_system_sim_second_adjustment</property>
+                                <property name="climb_rate">10.050000000000001</property>
+                                <property name="numeric">True</property>
+                                <property name="update_policy">if-valid</property>
+                                <signal name="value_changed" handler="cb_gui_system_updated"/>
+                              </object>
+                              <packing>
+                                <property name="left_attach">1</property>
+                                <property name="right_attach">2</property>
+                                <property name="top_attach">3</property>
+                                <property name="bottom_attach">4</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="label1">
+                                <property name="visible">True</property>
+                                <property name="xalign">1</property>
+                                <property name="label" translatable="yes">Simulation second: </property>
+                              </object>
+                              <packing>
+                                <property name="top_attach">3</property>
+                                <property name="bottom_attach">4</property>
+                                <property name="x_options">GTK_FILL</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="label2">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">ms</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">2</property>
+                                <property name="right_attach">3</property>
+                                <property name="top_attach">3</property>
+                                <property name="bottom_attach">4</property>
+                                <property name="x_options">GTK_FILL</property>
+                                <property name="x_padding">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_system_auto_wake_check">
+                                <property name="label" translatable="yes">Automatically wake nodes upon start</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_system_updated"/>
+                              </object>
+                              <packing>
+                                <property name="right_attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_system_real_time_sim_check">
+                                <property name="label" translatable="yes">Simulate in real time</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_system_updated"/>
+                              </object>
+                              <packing>
+                                <property name="right_attach">3</property>
+                                <property name="top_attach">2</property>
+                                <property name="bottom_attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_system_deterministic_random_check">
+                                <property name="label" translatable="yes">Use "deterministic" random</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_system_updated"/>
+                              </object>
+                              <packing>
+                                <property name="right_attach">3</property>
+                                <property name="top_attach">1</property>
+                                <property name="bottom_attach">2</property>
+                              </packing>
+                            </child>
+                          </object>
+                        </child>
+                        <child type="label">
+                          <object class="GtkLabel" id="label76">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes"> General </property>
+                            <property name="use_markup">True</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkFrame" id="frame4">
+                        <property name="visible">True</property>
+                        <property name="label_xalign">0</property>
+                        <child>
+                          <object class="GtkVBox" id="vbox19">
+                            <property name="visible">True</property>
+                            <property name="border_width">3</property>
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">2</property>
+                            <child>
+                              <object class="GtkExpander" id="params_events_system_expander">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <child>
+                                  <object class="GtkVBox" id="vbox20">
+                                    <property name="visible">True</property>
+                                    <property name="border_width">5</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_sys_node_wake_check">
+                                        <property name="label" translatable="yes">Node Wake</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_sys_node_kill_check">
+                                        <property name="label" translatable="yes">Node Kill</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_sys_pdu_receive_check">
+                                        <property name="label" translatable="yes">PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child type="label">
+                                  <object class="GtkLabel" id="label108">
+                                    <property name="visible">True</property>
+                                    <property name="label" translatable="yes">System</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkExpander" id="params_events_phy_expander">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <child>
+                                  <object class="GtkVBox" id="vbox21">
+                                    <property name="visible">True</property>
+                                    <property name="border_width">5</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_phy_node_wake_check">
+                                        <property name="label" translatable="yes">Node Wake</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_phy_node_kill_check">
+                                        <property name="label" translatable="yes">Node Kill</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_phy_pdu_send_check">
+                                        <property name="label" translatable="yes">PDU Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_phy_pdu_receive_check">
+                                        <property name="label" translatable="yes">PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">3</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_phy_neighbor_attach_check">
+                                        <property name="label" translatable="yes">Neighbor Attach</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">4</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_phy_neighbor_detach_check">
+                                        <property name="label" translatable="yes">Neighbor Detach</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">5</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_phy_change_mobility_check">
+                                        <property name="label" translatable="yes">Change Mobility</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">6</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child type="label">
+                                  <object class="GtkLabel" id="label111">
+                                    <property name="visible">True</property>
+                                    <property name="label" translatable="yes">PHY</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkExpander" id="params_events_mac_expander">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <child>
+                                  <object class="GtkVBox" id="vbox22">
+                                    <property name="visible">True</property>
+                                    <property name="border_width">5</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_mac_node_wake_check">
+                                        <property name="label" translatable="yes">Node Wake</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_mac_node_kill_check">
+                                        <property name="label" translatable="yes">Node Kill</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_mac_pdu_send_check">
+                                        <property name="label" translatable="yes">PDU Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_mac_pdu_send_timeout_check_check">
+                                        <property name="label" translatable="yes">PDU Send Timeout Check</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">3</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_mac_pdu_receive_check">
+                                        <property name="label" translatable="yes">PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">4</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child type="label">
+                                  <object class="GtkLabel" id="label112">
+                                    <property name="visible">True</property>
+                                    <property name="label" translatable="yes">MAC</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkExpander" id="params_events_ip_expander">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <child>
+                                  <object class="GtkVBox" id="vbox23">
+                                    <property name="visible">True</property>
+                                    <property name="border_width">5</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_ip_node_wake_check">
+                                        <property name="label" translatable="yes">Node Wake</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_ip_node_kill_check">
+                                        <property name="label" translatable="yes">Node Kill</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_ip_pdu_send_check">
+                                        <property name="label" translatable="yes">PDU Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_ip_pdu_send_timeout_check_check">
+                                        <property name="label" translatable="yes">PDU Send Timeout Check</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">3</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_ip_pdu_receive_check">
+                                        <property name="label" translatable="yes">PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">4</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_ip_neighbor_cache_timeout_check_check">
+                                        <property name="label" translatable="yes">Neighbor Cache Timeout Check</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">5</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child type="label">
+                                  <object class="GtkLabel" id="label113">
+                                    <property name="visible">True</property>
+                                    <property name="label" translatable="yes">IP</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkExpander" id="params_events_icmp_expander">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <child>
+                                  <object class="GtkVBox" id="vbox24">
+                                    <property name="visible">True</property>
+                                    <property name="border_width">5</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_icmp_node_wake_check">
+                                        <property name="label" translatable="yes">Node Wake</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_icmp_node_kill_check">
+                                        <property name="label" translatable="yes">Node Kill</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_icmp_pdu_send_check">
+                                        <property name="label" translatable="yes">PDU Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_icmp_pdu_receive_check">
+                                        <property name="label" translatable="yes">PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">3</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_icmp_ping_send_check">
+                                        <property name="label" translatable="yes">Ping Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">4</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_icmp_ping_timeout_check">
+                                        <property name="label" translatable="yes">Ping Timeout</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">5</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child type="label">
+                                  <object class="GtkLabel" id="label114">
+                                    <property name="visible">True</property>
+                                    <property name="label" translatable="yes">ICMP</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">4</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkExpander" id="params_events_rpl_expander">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <child>
+                                  <object class="GtkVBox" id="vbox25">
+                                    <property name="visible">True</property>
+                                    <property name="border_width">5</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_node_wake_check">
+                                        <property name="label" translatable="yes">Node Wake</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_node_kill_check">
+                                        <property name="label" translatable="yes">Node Kill</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_dis_pdu_send_check">
+                                        <property name="label" translatable="yes">DIS PDU Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_dis_pdu_receive_check">
+                                        <property name="label" translatable="yes">DIS PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">3</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_dio_pdu_send_check">
+                                        <property name="label" translatable="yes">DIO PDU Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">4</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_dio_pdu_receive_check">
+                                        <property name="label" translatable="yes">DIO PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">5</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_dao_pdu_send_check">
+                                        <property name="label" translatable="yes">DAO PDU Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">6</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_dao_pdu_receive_check">
+                                        <property name="label" translatable="yes">DAO PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">7</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_neighbor_attach_check">
+                                        <property name="label" translatable="yes">Neighbor Attach</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">8</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_neighbor_detach_check">
+                                        <property name="label" translatable="yes">Neighbor Detach</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">9</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_forward_failure_check">
+                                        <property name="label" translatable="yes">Forward Failure</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">10</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_forward_inconsistency_check">
+                                        <property name="label" translatable="yes">Forward Inconsistency</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">11</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_trickle_t_timeout_check">
+                                        <property name="label" translatable="yes">Trickle T Timeout</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">12</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_trickle_i_timeout_check">
+                                        <property name="label" translatable="yes">Trickle I Timeout</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">13</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_rpl_seq_num_autoinc_check">
+                                        <property name="label" translatable="yes">Sequence Number Increment</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">14</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child type="label">
+                                  <object class="GtkLabel" id="label115">
+                                    <property name="visible">True</property>
+                                    <property name="label" translatable="yes">RPL</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">5</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkExpander" id="params_events_measure_expander">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <child>
+                                  <object class="GtkVBox" id="vbox26">
+                                    <property name="visible">True</property>
+                                    <property name="border_width">5</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">2</property>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_node_wake_check">
+                                        <property name="label" translatable="yes">Node Wake</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_node_kill_check">
+                                        <property name="label" translatable="yes">Node Kill</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_pdu_send_check">
+                                        <property name="label" translatable="yes">PDU Send</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">2</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_pdu_receive_check">
+                                        <property name="label" translatable="yes">PDU Receive</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">3</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_connect_update_check">
+                                        <property name="label" translatable="yes">Connectivity Update</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">4</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_connect_hop_passed_check">
+                                        <property name="label" translatable="yes">Connectivity Hop Passed</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">5</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_connect_hop_failed_check">
+                                        <property name="label" translatable="yes">Connectivity Hop Failed</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">6</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_connect_hop_timeout_check">
+                                        <property name="label" translatable="yes">Connectivity Hop Timeout</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">7</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_connect_established_check">
+                                        <property name="label" translatable="yes">Connectivity Established</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">8</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_measure_connect_lost_check">
+                                        <property name="label" translatable="yes">Connectivity Lost</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
+                                      </object>
+                                      <packing>
+                                        <property name="position">9</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child type="label">
+                                  <object class="GtkLabel" id="label116">
+                                    <property name="visible">True</property>
+                                    <property name="label" translatable="yes">Measure</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="position">6</property>
+                              </packing>
+                            </child>
+                          </object>
+                        </child>
+                        <child type="label">
+                          <object class="GtkLabel" id="label77">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes"> Event Logging </property>
+                            <property name="use_markup">True</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkFrame" id="frame5">
+                        <property name="visible">True</property>
+                        <property name="label_xalign">0</property>
+                        <child>
+                          <object class="GtkTable" id="table5">
+                            <property name="visible">True</property>
+                            <property name="border_width">5</property>
+                            <property name="n_rows">7</property>
+                            <property name="column_spacing">2</property>
+                            <property name="row_spacing">2</property>
+                            <child>
+                              <object class="GtkCheckButton" id="params_display_show_node_names_check">
+                                <property name="label" translatable="yes">Show Node Names</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_display_updated"/>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_display_show_node_addresses_check">
+                                <property name="label" translatable="yes">Show Node Addresses</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_display_updated"/>
+                              </object>
+                              <packing>
+                                <property name="top_attach">1</property>
+                                <property name="bottom_attach">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_display_show_node_tx_power_check">
+                                <property name="label" translatable="yes">Show Node Tx Power</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_display_updated"/>
+                              </object>
+                              <packing>
+                                <property name="top_attach">2</property>
+                                <property name="bottom_attach">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_display_show_node_ranks_check">
+                                <property name="label" translatable="yes">Show Node Ranks</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_display_updated"/>
+                              </object>
+                              <packing>
+                                <property name="top_attach">3</property>
+                                <property name="bottom_attach">4</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_display_show_preferred_parent_arrows_check">
+                                <property name="label" translatable="yes">Show Preferred Parent Arrows</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_display_updated"/>
+                              </object>
+                              <packing>
+                                <property name="top_attach">4</property>
+                                <property name="bottom_attach">5</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_display_show_sibling_arrows_check">
+                                <property name="label" translatable="yes">Show Sibling Arrows</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_display_updated"/>
+                              </object>
+                              <packing>
+                                <property name="top_attach">6</property>
+                                <property name="bottom_attach">7</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="params_display_show_parent_arrows_check">
+                                <property name="label" translatable="yes">Show Parent Arrows</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="cb_gui_display_updated"/>
+                              </object>
+                              <packing>
+                                <property name="top_attach">5</property>
+                                <property name="bottom_attach">6</property>
+                              </packing>
+                            </child>
+                          </object>
+                        </child>
+                        <child type="label">
+                          <object class="GtkLabel" id="label105">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes"> Display </property>
+                            <property name="use_markup">True</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="position">2</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+              </object>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label46">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">System</property>
+              </object>
+              <packing>
+                <property name="tab_fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkVBox" id="vbox10">
+                <property name="visible">True</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkTable" id="table2">
+                  <object class="GtkTable" id="table9">
                     <property name="visible">True</property>
                     <property name="border_width">5</property>
-                    <property name="n_rows">11</property>
+                    <property name="n_rows">5</property>
                     <property name="n_columns">3</property>
-                    <property name="column_spacing">2</property>
+                    <property name="column_spacing">1</property>
                     <property name="row_spacing">2</property>
+                    <child>
+                      <object class="GtkLabel" id="label25">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Width: </property>
+                      </object>
+                      <packing>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_system_width_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">width_distance_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="digits">2</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label27">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">m</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="x_options">GTK_FILL</property>
+                        <property name="x_padding">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label26">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Height: </property>
+                      </object>
+                      <packing>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_system_height_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">height_distance_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="digits">2</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label28">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">m</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="x_options">GTK_FILL</property>
+                        <property name="x_padding">2</property>
+                      </packing>
+                    </child>
                     <child>
                       <object class="GtkLabel" id="label10">
                         <property name="visible">True</property>
@@ -577,105 +1805,16 @@ link: </property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="label25">
+                      <object class="GtkLabel" id="label43">
                         <property name="visible">True</property>
                         <property name="xalign">1</property>
                         <property name="yalign">0.49000000953674316</property>
-                        <property name="label" translatable="yes">Width: </property>
+                        <property name="label" translatable="yes">No-link quality: </property>
                       </object>
                       <packing>
-                        <property name="x_options">GTK_FILL</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="label26">
-                        <property name="visible">True</property>
-                        <property name="xalign">1</property>
-                        <property name="yalign">0.49000000953674316</property>
-                        <property name="label" translatable="yes">Height: </property>
-                      </object>
-                      <packing>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                        <property name="x_options">GTK_FILL</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkSpinButton" id="params_system_height_spin">
-                        <property name="width_request">20</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="invisible_char">&#x25CF;</property>
-                        <property name="adjustment">height_distance_adjustment</property>
-                        <property name="climb_rate">10.050000000000001</property>
-                        <property name="digits">2</property>
-                        <property name="numeric">True</property>
-                        <property name="update_policy">if-valid</property>
-                        <signal name="value_changed" handler="cb_gui_system_updated"/>
-                      </object>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="label27">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">m</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">2</property>
-                        <property name="right_attach">3</property>
-                        <property name="x_options">GTK_FILL</property>
-                        <property name="x_padding">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="label28">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">m</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">2</property>
-                        <property name="right_attach">3</property>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
-                        <property name="x_options">GTK_FILL</property>
-                        <property name="x_padding">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkSpinButton" id="params_system_width_spin">
-                        <property name="width_request">20</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="invisible_char">&#x25CF;</property>
-                        <property name="adjustment">width_distance_adjustment</property>
-                        <property name="climb_rate">10.050000000000001</property>
-                        <property name="digits">2</property>
-                        <property name="numeric">True</property>
-                        <property name="update_policy">if-valid</property>
-                        <signal name="value_changed" handler="cb_gui_system_updated"/>
-                      </object>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="label42">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">%</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">2</property>
-                        <property name="right_attach">3</property>
                         <property name="top_attach">3</property>
                         <property name="bottom_attach">4</property>
                         <property name="x_options">GTK_FILL</property>
-                        <property name="x_padding">2</property>
                       </packing>
                     </child>
                     <child>
@@ -697,101 +1836,17 @@ link: </property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="label43">
+                      <object class="GtkLabel" id="label42">
                         <property name="visible">True</property>
-                        <property name="xalign">1</property>
-                        <property name="yalign">0.49000000953674316</property>
-                        <property name="label" translatable="yes">No-link quality: </property>
-                      </object>
-                      <packing>
-                        <property name="top_attach">3</property>
-                        <property name="bottom_attach">4</property>
-                        <property name="x_options">GTK_FILL</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkSpinButton" id="params_system_sim_second_spin">
-                        <property name="width_request">20</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="invisible_char">&#x25CF;</property>
-                        <property name="adjustment">params_system_sim_second_adjustment</property>
-                        <property name="climb_rate">10.050000000000001</property>
-                        <property name="numeric">True</property>
-                        <property name="update_policy">if-valid</property>
-                        <signal name="value_changed" handler="cb_gui_system_updated"/>
-                      </object>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="right_attach">2</property>
-                        <property name="top_attach">9</property>
-                        <property name="bottom_attach">10</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="label1">
-                        <property name="visible">True</property>
-                        <property name="xalign">1</property>
-                        <property name="label" translatable="yes">Simulation second: </property>
-                      </object>
-                      <packing>
-                        <property name="top_attach">9</property>
-                        <property name="bottom_attach">10</property>
-                        <property name="x_options">GTK_FILL</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="label2">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">ms</property>
+                        <property name="label" translatable="yes">%</property>
                       </object>
                       <packing>
                         <property name="left_attach">2</property>
                         <property name="right_attach">3</property>
-                        <property name="top_attach">9</property>
-                        <property name="bottom_attach">10</property>
+                        <property name="top_attach">3</property>
+                        <property name="bottom_attach">4</property>
                         <property name="x_options">GTK_FILL</property>
                         <property name="x_padding">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkCheckButton" id="params_system_auto_wake_check">
-                        <property name="label" translatable="yes">Automatically wake nodes upon start</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">False</property>
-                        <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_system_updated"/>
-                      </object>
-                      <packing>
-                        <property name="right_attach">3</property>
-                        <property name="top_attach">10</property>
-                        <property name="bottom_attach">11</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkCheckButton" id="params_system_real_time_sim_check">
-                        <property name="label" translatable="yes">Simulate in real time</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">False</property>
-                        <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_system_updated"/>
-                      </object>
-                      <packing>
-                        <property name="right_attach">3</property>
-                        <property name="top_attach">8</property>
-                        <property name="bottom_attach">9</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkHSeparator" id="hseparator1">
-                        <property name="visible">True</property>
-                      </object>
-                      <packing>
-                        <property name="right_attach">3</property>
-                        <property name="top_attach">7</property>
-                        <property name="bottom_attach">8</property>
                       </packing>
                     </child>
                     <child>
@@ -802,8 +1857,8 @@ link: </property>
                         <property name="label" translatable="yes">Trasmission time: </property>
                       </object>
                       <packing>
-                        <property name="top_attach">5</property>
-                        <property name="bottom_attach">6</property>
+                        <property name="top_attach">4</property>
+                        <property name="bottom_attach">5</property>
                         <property name="x_options">GTK_FILL</property>
                       </packing>
                     </child>
@@ -822,8 +1877,8 @@ link: </property>
                       <packing>
                         <property name="left_attach">1</property>
                         <property name="right_attach">2</property>
-                        <property name="top_attach">5</property>
-                        <property name="bottom_attach">6</property>
+                        <property name="top_attach">4</property>
+                        <property name="bottom_attach">5</property>
                       </packing>
                     </child>
                     <child>
@@ -834,42 +1889,62 @@ link: </property>
                       <packing>
                         <property name="left_attach">2</property>
                         <property name="right_attach">3</property>
-                        <property name="top_attach">5</property>
-                        <property name="bottom_attach">6</property>
+                        <property name="top_attach">4</property>
+                        <property name="bottom_attach">5</property>
                         <property name="x_options">GTK_FILL</property>
                         <property name="x_padding">2</property>
                       </packing>
                     </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label71">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">PHY</property>
+              </object>
+              <packing>
+                <property name="position">1</property>
+                <property name="tab_fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkVBox" id="vbox18">
+                <property name="visible">True</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkTable" id="table12">
+                    <property name="visible">True</property>
+                    <property name="border_width">5</property>
+                    <property name="n_columns">3</property>
+                    <property name="column_spacing">1</property>
+                    <property name="row_spacing">2</property>
                     <child>
-                      <object class="GtkHSeparator" id="hseparator2">
-                        <property name="visible">True</property>
-                      </object>
-                      <packing>
-                        <property name="right_attach">3</property>
-                        <property name="top_attach">4</property>
-                        <property name="bottom_attach">5</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="label95">
+                      <object class="GtkLabel" id="label109">
                         <property name="visible">True</property>
                         <property name="xalign">1</property>
                         <property name="yalign">0.49000000953674316</property>
-                        <property name="label" translatable="yes">Neighbor timeout: </property>
+                        <property name="label" translatable="yes">Frame timeout: </property>
                       </object>
                       <packing>
-                        <property name="top_attach">6</property>
-                        <property name="bottom_attach">7</property>
                         <property name="x_options">GTK_FILL</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkSpinButton" id="params_system_neighbor_timeout_spin">
+                      <object class="GtkSpinButton" id="params_system_mac_pdu_timeout_spin">
                         <property name="width_request">20</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="invisible_char">&#x25CF;</property>
-                        <property name="adjustment">params_system_neighbor_timeout_adjustment</property>
+                        <property name="adjustment">params_system_mac_pdu_timeout_adjustment</property>
                         <property name="climb_rate">10.050000000000001</property>
                         <property name="numeric">True</property>
                         <property name="update_policy">if-valid</property>
@@ -878,8 +1953,83 @@ link: </property>
                       <packing>
                         <property name="left_attach">1</property>
                         <property name="right_attach">2</property>
-                        <property name="top_attach">6</property>
-                        <property name="bottom_attach">7</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label110">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">ms</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="x_options">GTK_FILL</property>
+                        <property name="x_padding">2</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label74">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">MAC</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+                <property name="tab_fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkVBox" id="vbox11">
+                <property name="visible">True</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkTable" id="table11">
+                    <property name="visible">True</property>
+                    <property name="border_width">5</property>
+                    <property name="n_rows">3</property>
+                    <property name="n_columns">3</property>
+                    <property name="column_spacing">2</property>
+                    <property name="row_spacing">2</property>
+                    <child>
+                      <object class="GtkLabel" id="label95">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Neighbor timeout: </property>
+                      </object>
+                      <packing>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_system_ip_neighbor_timeout_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_system_ip_neighbor_timeout_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
                       </packing>
                     </child>
                     <child>
@@ -890,8 +2040,93 @@ link: </property>
                       <packing>
                         <property name="left_attach">2</property>
                         <property name="right_attach">3</property>
-                        <property name="top_attach">6</property>
-                        <property name="bottom_attach">7</property>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
+                        <property name="x_options">GTK_FILL</property>
+                        <property name="x_padding">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label79">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Packet retry timeout: </property>
+                      </object>
+                      <packing>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_system_ip_pdu_timeout_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_system_ip_pdu_timeout_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label83">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">ms</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="x_options">GTK_FILL</property>
+                        <property name="x_padding">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label84">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Buffer queue size: </property>
+                      </object>
+                      <packing>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_system_ip_queue_size">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_system_ip_queue_size_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label89">
+                        <property name="visible">True</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
                         <property name="x_options">GTK_FILL</property>
                         <property name="x_padding">2</property>
                       </packing>
@@ -903,428 +2138,316 @@ link: </property>
                   </packing>
                 </child>
               </object>
+              <packing>
+                <property name="position">3</property>
+              </packing>
             </child>
             <child type="tab">
-              <object class="GtkLabel" id="label46">
+              <object class="GtkLabel" id="label75">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">System</property>
+                <property name="label" translatable="yes">IP</property>
               </object>
               <packing>
+                <property name="position">3</property>
                 <property name="tab_fill">False</property>
               </packing>
             </child>
             <child>
-              <object class="GtkTable" id="table6">
-                <property name="visible">True</property>
-                <property name="border_width">5</property>
-                <property name="n_rows">12</property>
-                <property name="n_columns">3</property>
-                <property name="column_spacing">2</property>
-                <property name="row_spacing">2</property>
-                <child>
-                  <object class="GtkLabel" id="label94">
-                    <property name="visible">True</property>
-                    <property name="xalign">1</property>
-                    <property name="yalign">0.49000000953674316</property>
-                    <property name="label" translatable="yes">Trickle int. min.: </property>
-                  </object>
-                  <packing>
-                    <property name="x_options">GTK_FILL</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSpinButton" id="params_rpl_trickle_min_spin">
-                    <property name="width_request">20</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="invisible_char">&#x25CF;</property>
-                    <property name="adjustment">params_rpl_trickle_min_adjustment</property>
-                    <property name="climb_rate">10</property>
-                    <property name="numeric">True</property>
-                    <property name="update_policy">if-valid</property>
-                    <signal name="value_changed" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="right_attach">3</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="label96">
-                    <property name="visible">True</property>
-                    <property name="xalign">1</property>
-                    <property name="yalign">0.49000000953674316</property>
-                    <property name="label" translatable="yes">Max. rank inc.: </property>
-                  </object>
-                  <packing>
-                    <property name="top_attach">3</property>
-                    <property name="bottom_attach">4</property>
-                    <property name="x_options">GTK_FILL</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="label97">
-                    <property name="visible">True</property>
-                    <property name="xalign">1</property>
-                    <property name="yalign">0.49000000953674316</property>
-                    <property name="label" translatable="yes">Trickle redundancy: </property>
-                  </object>
-                  <packing>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
-                    <property name="x_options">GTK_FILL</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSpinButton" id="params_rpl_trickle_redundancy_spin">
-                    <property name="width_request">20</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="invisible_char">&#x25CF;</property>
-                    <property name="adjustment">params_rpl_trickle_redundancy_adjustment</property>
-                    <property name="climb_rate">10.050000000000001</property>
-                    <property name="numeric">True</property>
-                    <property name="update_policy">if-valid</property>
-                    <signal name="value_changed" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">2</property>
-                    <property name="bottom_attach">3</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSpinButton" id="params_rpl_max_rank_inc_spin">
-                    <property name="width_request">20</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="invisible_char">&#x25CF;</property>
-                    <property name="adjustment">params_rpl_max_rank_inc_adjustment</property>
-                    <property name="climb_rate">10.050000000000001</property>
-                    <property name="numeric">True</property>
-                    <property name="update_policy">if-valid</property>
-                    <signal name="value_changed" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">3</property>
-                    <property name="bottom_attach">4</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSpinButton" id="params_rpl_trickle_doublings_spin">
-                    <property name="width_request">20</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="invisible_char">&#x25CF;</property>
-                    <property name="adjustment">params_rpl_trickle_doublings_adjustment</property>
-                    <property name="numeric">True</property>
-                    <property name="update_policy">if-valid</property>
-                    <signal name="value_changed" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">1</property>
-                    <property name="bottom_attach">2</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="label101">
-                    <property name="visible">True</property>
-                    <property name="xalign">1</property>
-                    <property name="yalign">0.49000000953674316</property>
-                    <property name="label" translatable="yes">Trickle int. doublings: </property>
-                  </object>
-                  <packing>
-                    <property name="top_attach">1</property>
-                    <property name="bottom_attach">2</property>
-                    <property name="x_options">GTK_FILL</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSpinButton" id="params_rpl_autoinc_sn_spin">
-                    <property name="width_request">20</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="invisible_char">&#x25CF;</property>
-                    <property name="adjustment">params_rpl_autoinc_sn_adjustment</property>
-                    <property name="climb_rate">10.050000000000001</property>
-                    <property name="numeric">True</property>
-                    <property name="update_policy">if-valid</property>
-                    <signal name="value_changed" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="right_attach">2</property>
-                    <property name="top_attach">10</property>
-                    <property name="bottom_attach">11</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="label102">
-                    <property name="visible">True</property>
-                    <property name="xalign">1</property>
-                    <property name="yalign">0.49000000953674316</property>
-                    <property name="label" translatable="yes"> S.N. inc. interval: </property>
-                  </object>
-                  <packing>
-                    <property name="top_attach">10</property>
-                    <property name="bottom_attach">11</property>
-                    <property name="x_options">GTK_FILL</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="label103">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">ms</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">2</property>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">10</property>
-                    <property name="bottom_attach">11</property>
-                    <property name="x_options">GTK_FILL</property>
-                    <property name="x_padding">2</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkCheckButton" id="params_rpl_probe_check">
-                    <property name="label" translatable="yes">Probe for DODAGs at startup</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">7</property>
-                    <property name="bottom_attach">8</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkCheckButton" id="params_rpl_autoinc_sn_check">
-                    <property name="label" translatable="yes">Autoincrement sequence numbers</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">9</property>
-                    <property name="bottom_attach">10</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="label104">
-                    <property name="visible">True</property>
-                    <property name="xalign">1</property>
-                    <property name="yalign">0.49000000953674316</property>
-                    <property name="label" translatable="yes">Poison messages: </property>
-                  </object>
-                  <packing>
-                    <property name="top_attach">11</property>
-                    <property name="bottom_attach">12</property>
-                    <property name="x_options">GTK_FILL</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSpinButton" id="params_rpl_poison_count_spin">
-                    <property name="width_request">20</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="invisible_char">&#x25CF;</property>
-                    <property name="adjustment">params_rpl_poison_count_adjustment</property>
-                    <property name="climb_rate">10.050000000000001</property>
-                    <property name="numeric">True</property>
-                    <property name="update_policy">if-valid</property>
-                    <signal name="value_changed" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">11</property>
-                    <property name="bottom_attach">12</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkCheckButton" id="params_rpl_dao_supported_check">
-                    <property name="label" translatable="yes">DAO Supported</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">4</property>
-                    <property name="bottom_attach">5</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkCheckButton" id="params_rpl_dao_trigger_check">
-                    <property name="label" translatable="yes">DAO Trigger</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">5</property>
-                    <property name="bottom_attach">6</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkHSeparator" id="hseparator4">
-                    <property name="visible">True</property>
-                  </object>
-                  <packing>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">6</property>
-                    <property name="bottom_attach">7</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkCheckButton" id="params_rpl_prefer_floating_check">
-                    <property name="label" translatable="yes">Prefer floating DODAGs</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="draw_indicator">True</property>
-                    <signal name="toggled" handler="cb_gui_system_updated"/>
-                  </object>
-                  <packing>
-                    <property name="right_attach">3</property>
-                    <property name="top_attach">8</property>
-                    <property name="bottom_attach">9</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child type="tab">
-              <object class="GtkLabel" id="label44">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">RPL</property>
-              </object>
-              <packing>
-                <property name="position">2</property>
-                <property name="tab_fill">False</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkVBox" id="vbox7">
+              <object class="GtkVBox" id="vbox16">
                 <property name="visible">True</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkTable" id="table5">
+                  <object class="GtkTable" id="table6">
                     <property name="visible">True</property>
                     <property name="border_width">5</property>
-                    <property name="n_rows">7</property>
+                    <property name="n_rows">12</property>
+                    <property name="n_columns">3</property>
                     <property name="column_spacing">2</property>
                     <property name="row_spacing">2</property>
                     <child>
-                      <object class="GtkCheckButton" id="params_display_show_node_names_check">
-                        <property name="label" translatable="yes">Show Node Names</property>
+                      <object class="GtkLabel" id="label94">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">False</property>
-                        <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_display_updated"/>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkCheckButton" id="params_display_show_node_addresses_check">
-                        <property name="label" translatable="yes">Show Node Addresses</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">False</property>
-                        <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_display_updated"/>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Trickle int. min.: </property>
                       </object>
                       <packing>
-                        <property name="top_attach">1</property>
-                        <property name="bottom_attach">2</property>
+                        <property name="x_options">GTK_FILL</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton" id="params_display_show_node_tx_power_check">
-                        <property name="label" translatable="yes">Show Node Tx Power</property>
+                      <object class="GtkSpinButton" id="params_rpl_trickle_min_spin">
+                        <property name="width_request">20</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
-                        <property name="receives_default">False</property>
-                        <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_display_updated"/>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_rpl_trickle_min_adjustment</property>
+                        <property name="climb_rate">10</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
                       </object>
                       <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">3</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label96">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Max. rank inc.: </property>
+                      </object>
+                      <packing>
+                        <property name="top_attach">3</property>
+                        <property name="bottom_attach">4</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label97">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Trickle redundancy: </property>
+                      </object>
+                      <packing>
+                        <property name="top_attach">2</property>
+                        <property name="bottom_attach">3</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_rpl_trickle_redundancy_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_rpl_trickle_redundancy_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">3</property>
                         <property name="top_attach">2</property>
                         <property name="bottom_attach">3</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton" id="params_display_show_node_ranks_check">
-                        <property name="label" translatable="yes">Show Node Ranks</property>
+                      <object class="GtkSpinButton" id="params_rpl_max_rank_inc_spin">
+                        <property name="width_request">20</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
-                        <property name="receives_default">False</property>
-                        <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_display_updated"/>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_rpl_max_rank_inc_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
                       </object>
                       <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">3</property>
                         <property name="top_attach">3</property>
                         <property name="bottom_attach">4</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton" id="params_display_show_preferred_parent_arrows_check">
-                        <property name="label" translatable="yes">Show Preferred Parent Arrows</property>
+                      <object class="GtkSpinButton" id="params_rpl_trickle_doublings_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_rpl_trickle_doublings_adjustment</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label101">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Trickle int. doublings: </property>
+                      </object>
+                      <packing>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_rpl_autoinc_sn_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_rpl_autoinc_sn_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                        <property name="top_attach">10</property>
+                        <property name="bottom_attach">11</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label102">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes"> S.N. inc. interval: </property>
+                      </object>
+                      <packing>
+                        <property name="top_attach">10</property>
+                        <property name="bottom_attach">11</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label103">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">ms</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">10</property>
+                        <property name="bottom_attach">11</property>
+                        <property name="x_options">GTK_FILL</property>
+                        <property name="x_padding">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="params_rpl_probe_check">
+                        <property name="label" translatable="yes">Probe for DODAGs at startup</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
                         <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_display_updated"/>
+                        <signal name="toggled" handler="cb_gui_system_updated"/>
                       </object>
                       <packing>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">7</property>
+                        <property name="bottom_attach">8</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="params_rpl_autoinc_sn_check">
+                        <property name="label" translatable="yes">Autoincrement sequence numbers</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">9</property>
+                        <property name="bottom_attach">10</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label104">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Poison messages: </property>
+                      </object>
+                      <packing>
+                        <property name="top_attach">11</property>
+                        <property name="bottom_attach">12</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_rpl_poison_count_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_rpl_poison_count_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">11</property>
+                        <property name="bottom_attach">12</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="params_rpl_dao_supported_check">
+                        <property name="label" translatable="yes">DAO Supported</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">False</property>
+                        <property name="draw_indicator">True</property>
+                        <signal name="toggled" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="right_attach">3</property>
                         <property name="top_attach">4</property>
                         <property name="bottom_attach">5</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton" id="params_display_show_sibling_arrows_check">
-                        <property name="label" translatable="yes">Show Sibling Arrows</property>
+                      <object class="GtkCheckButton" id="params_rpl_dao_trigger_check">
+                        <property name="label" translatable="yes">DAO Trigger</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
                         <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_display_updated"/>
+                        <signal name="toggled" handler="cb_gui_system_updated"/>
                       </object>
                       <packing>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">5</property>
+                        <property name="bottom_attach">6</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkHSeparator" id="hseparator4">
+                        <property name="visible">True</property>
+                      </object>
+                      <packing>
+                        <property name="right_attach">3</property>
                         <property name="top_attach">6</property>
                         <property name="bottom_attach">7</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton" id="params_display_show_parent_arrows_check">
-                        <property name="label" translatable="yes">Show Parent Arrows</property>
+                      <object class="GtkCheckButton" id="params_rpl_prefer_floating_check">
+                        <property name="label" translatable="yes">Prefer floating DODAGs</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
                         <property name="draw_indicator">True</property>
-                        <signal name="toggled" handler="cb_gui_display_updated"/>
+                        <signal name="toggled" handler="cb_gui_system_updated"/>
                       </object>
                       <packing>
-                        <property name="top_attach">5</property>
-                        <property name="bottom_attach">6</property>
+                        <property name="right_attach">3</property>
+                        <property name="top_attach">8</property>
+                        <property name="bottom_attach">9</property>
                       </packing>
                     </child>
                   </object>
@@ -1335,16 +2458,88 @@ link: </property>
                 </child>
               </object>
               <packing>
-                <property name="position">2</property>
+                <property name="position">4</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label72">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">RPL</property>
+              </object>
+              <packing>
+                <property name="position">4</property>
+                <property name="tab_fill">False</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkVBox" id="vbox7">
+                <property name="visible">True</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkTable" id="table13">
+                    <property name="visible">True</property>
+                    <property name="border_width">5</property>
+                    <property name="n_columns">3</property>
+                    <property name="column_spacing">1</property>
+                    <property name="row_spacing">2</property>
+                    <child>
+                      <object class="GtkLabel" id="label44">
+                        <property name="visible">True</property>
+                        <property name="xalign">1</property>
+                        <property name="yalign">0.49000000953674316</property>
+                        <property name="label" translatable="yes">Connectivity timeout: </property>
+                      </object>
+                      <packing>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="params_system_measure_pdu_timeout_spin">
+                        <property name="width_request">20</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="adjustment">params_system_measure_pdu_timeout_adjustment</property>
+                        <property name="climb_rate">10.050000000000001</property>
+                        <property name="numeric">True</property>
+                        <property name="update_policy">if-valid</property>
+                        <signal name="value_changed" handler="cb_gui_system_updated"/>
+                      </object>
+                      <packing>
+                        <property name="left_attach">1</property>
+                        <property name="right_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label107">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">ms</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">2</property>
+                        <property name="right_attach">3</property>
+                        <property name="x_options">GTK_FILL</property>
+                        <property name="x_padding">2</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="position">5</property>
               </packing>
             </child>
             <child type="tab">
               <object class="GtkLabel" id="label5">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">Display</property>
+                <property name="label" translatable="yes">Measure</property>
               </object>
               <packing>
-                <property name="position">2</property>
+                <property name="position">5</property>
                 <property name="tab_fill">False</property>
               </packing>
             </child>
@@ -3095,21 +4290,29 @@ link: </property>
     <property name="step_increment">1</property>
     <property name="page_increment">100</property>
   </object>
-  <object class="GtkListStore" id="params_nodes_mobility_store">
-    <columns>
-      <!-- column-name Trigger Time -->
-      <column type="gchararray"/>
-      <!-- column-name Duration -->
-      <column type="gchararray"/>
-      <!-- column-name Dest. X -->
-      <column type="gchararray"/>
-      <!-- column-name Dest. Y -->
-      <column type="gchararray"/>
-    </columns>
-  </object>
   <object class="GtkAdjustment" id="params_nodes_mobility_duration_adjustment">
     <property name="upper">10000000</property>
     <property name="step_increment">100</property>
     <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="params_system_mac_pdu_timeout_adjustment">
+    <property name="upper">10000</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="params_system_ip_queue_size_adjustment">
+    <property name="upper">10000</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="params_system_ip_pdu_timeout_adjustment">
+    <property name="upper">10000</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="params_system_measure_pdu_timeout_adjustment">
+    <property name="upper">10000</property>
+    <property name="step_increment">10</property>
+    <property name="page_increment">100</property>
   </object>
 </interface>

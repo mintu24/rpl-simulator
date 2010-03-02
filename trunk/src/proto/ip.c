@@ -699,7 +699,7 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
         neighbor = ip_node_add_neighbor(node, incoming_node);
         event_execute(rpl_event_neighbor_attach, node, incoming_node, NULL);
 
-        rs_system_schedule_event(node, ip_event_neighbor_cache_timeout_check, neighbor, NULL, rs_system->neighbor_timeout);
+        rs_system_schedule_event(node, ip_event_neighbor_cache_timeout_check, neighbor, NULL, rs_system->ip_neighbor_timeout);
     }
 
     rs_debug(DEBUG_IP, "node '%s': received packet from '%s', with src = '%s' and dst = '%s'",
@@ -767,7 +767,7 @@ static bool event_handler_neighbor_cache_timeout(node_t *node, ip_neighbor_t *ne
 {
     sim_time_t diff = rs_system->now - neighbor->last_packet_time;
 
-    if (diff >= rs_system->neighbor_timeout) {
+    if (diff >= rs_system->ip_neighbor_timeout) {
         event_execute(rpl_event_neighbor_detach, node, neighbor->node, NULL);
 
         if (!ip_node_rem_neighbor(node, neighbor)) {
@@ -779,7 +779,7 @@ static bool event_handler_neighbor_cache_timeout(node_t *node, ip_neighbor_t *ne
     }
     else {
         if (neighbor->node != NULL) {
-            rs_system_schedule_event(node, ip_event_neighbor_cache_timeout_check, neighbor, NULL, rs_system->neighbor_timeout - diff);
+            rs_system_schedule_event(node, ip_event_neighbor_cache_timeout_check, neighbor, NULL, rs_system->ip_neighbor_timeout - diff);
         }
     }
 

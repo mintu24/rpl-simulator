@@ -270,19 +270,16 @@ measure_converg_t *measure_converg_get()
 
 void measure_converg_update()
 {
-    uint16 node_count;
-    node_t **node_list = rs_system_get_node_list_copy(&node_count);
-
     events_lock();
 
-    measure_converg.total_node_count = node_count;
+    measure_converg.total_node_count = rs_system->node_count;
     measure_converg.connected_node_count = 0;
 
     uint16 i;
     measure_converg.stable_node_count = 0;
     measure_converg.floating_node_count = 0;
-    for (i = 0; i < node_count; i++) {
-        node_t *node = node_list[i];
+    for (i = 0; i < rs_system->node_count; i++) {
+        node_t *node = rs_system->node_list[i];
 
         if (!node->alive) {
             continue;
@@ -308,10 +305,6 @@ void measure_converg_update()
         if (node->measure_info->connect_dst_reachable) {
             measure_converg.connected_node_count++;
         }
-    }
-
-    if (node_list != NULL) {
-        free(node_list);
     }
 
     events_unlock();

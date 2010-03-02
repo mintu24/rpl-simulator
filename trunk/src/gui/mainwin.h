@@ -53,6 +53,7 @@ void                main_win_set_selected_node(node_t *node);
 void                main_win_system_to_gui();
 void                main_win_node_to_gui(node_t *node, uint32 what);
 void                main_win_display_to_gui();
+void                main_win_events_to_gui();
 
 display_params_t *  main_win_get_display_params();
 

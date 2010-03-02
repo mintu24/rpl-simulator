@@ -403,9 +403,12 @@ void rpl_node_init(node_t *node)
     node->rpl_info->joined_dodag = NULL;
 
     node->rpl_info->storing = RPL_DEFAULT_NODE_STORING;
+
     node->rpl_info->trickle_i_doublings_so_far = 0;
     node->rpl_info->trickle_i = 0;
     node->rpl_info->trickle_c = 0;
+    node->rpl_info->last_trickle_i_schedule_time = 0;
+    node->rpl_info->last_trickle_t_schedule_time = 0;
 
     node->rpl_info->neighbor_list = NULL;
     node->rpl_info->neighbor_count = 0;
@@ -1149,10 +1152,10 @@ static bool event_handler_dio_pdu_receive(node_t *node, node_t *incoming_node, r
         else { /* this should never happen */
             rs_warn("node '%s': not root, not joined, not poisoning and not isolated either, what are we anyway?");
         }
-    }
 
-    measure_connect_update();
-    measure_converg_update();
+        measure_connect_update();
+        measure_converg_update();
+    }
 
     return TRUE;
 }
@@ -1353,6 +1356,9 @@ static bool event_handler_trickle_i_timeout(node_t *node)
 
     rs_system_schedule_event(node, rpl_event_trickle_t_timeout, NULL, NULL, t);
     rs_system_schedule_event(node, rpl_event_trickle_i_timeout, NULL, NULL, node->rpl_info->trickle_i);
+
+    node->rpl_info->last_trickle_t_schedule_time = rs_system->now + t;;
+    node->rpl_info->last_trickle_i_schedule_time = rs_system->now + node->rpl_info->trickle_i;
 
     return TRUE;
 }
@@ -1933,11 +1939,14 @@ static void reset_trickle_timer(node_t *node)
 
     uint32 t = (rs_system_random() % (node->rpl_info->trickle_i / 2)) + node->rpl_info->trickle_i / 2;
 
-    rs_system_cancel_event(node, rpl_event_trickle_t_timeout, NULL, NULL, 0);
-    rs_system_cancel_event(node, rpl_event_trickle_i_timeout, NULL, NULL, 0);
+    rs_system_cancel_event(node, rpl_event_trickle_t_timeout, NULL, NULL, node->rpl_info->last_trickle_t_schedule_time);
+    rs_system_cancel_event(node, rpl_event_trickle_i_timeout, NULL, NULL, node->rpl_info->last_trickle_i_schedule_time);
 
     rs_system_schedule_event(node, rpl_event_trickle_t_timeout, NULL, NULL, t);
     rs_system_schedule_event(node, rpl_event_trickle_i_timeout, NULL, NULL, node->rpl_info->trickle_i);
+
+    node->rpl_info->last_trickle_t_schedule_time = rs_system->now + t;;
+    node->rpl_info->last_trickle_i_schedule_time = rs_system->now + node->rpl_info->trickle_i;
 }
 
 static void forget_neighbor_messages(node_t *node)

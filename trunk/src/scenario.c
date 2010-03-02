@@ -39,6 +39,7 @@ setting_t *                 create_setting_tree();
 
 bool                        apply_system_setting(char *path, char *name, char *value);
 bool                        apply_display_setting(char *path, char *name, char *value);
+bool                        apply_events_setting(char *path, char *name, char *value);
 
 bool                        apply_phy_setting(char *path, phy_node_info_t *phy_node_info, char *name, char *value);
 bool                        apply_mobility_setting(char *path, phy_mobility_t *mobility, char *name, char *value);
@@ -336,6 +337,10 @@ bool load_post_process()
         }
     }
 
+    if (node_list != NULL) {
+        free(node_list);
+    }
+
     return TRUE;
 }
 
@@ -353,6 +358,9 @@ bool parse_setting_tree(setting_t *setting, char *path, node_t *node)
         }
         else if (strcmp(setting->parent_setting->name, "display") == 0) {
             return apply_display_setting(path, setting->name, setting->value);
+        }
+        else if (strcmp(setting->parent_setting->name, "events") == 0) {
+            return apply_events_setting(path, setting->name, setting->value);
         }
         else if (strcmp(setting->parent_setting->name, "phy") == 0) {
             return apply_phy_setting(path, node->phy_info, setting->name, setting->value);
@@ -432,6 +440,26 @@ setting_t *create_setting_tree()
     setting_t *root_setting = setting_create("scenario", NULL);
     setting_t *system_setting = setting_create("system", root_setting);
 
+    setting = setting_create("auto_wake_nodes", system_setting);
+    sprintf(text, "%s", rs_system->auto_wake_nodes ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("deterministic_random", system_setting);
+    sprintf(text, "%s", rs_system->deterministic_random ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("simulation_second", system_setting);
+    sprintf(text, "%d", rs_system->simulation_second);
+    setting_set_value(setting, text);
+
+    setting = setting_create("width", system_setting);
+    sprintf(text, "%.02f", rs_system->width);
+    setting_set_value(setting, text);
+
+    setting = setting_create("height", system_setting);
+    sprintf(text, "%.02f", rs_system->height);
+    setting_set_value(setting, text);
+
     setting = setting_create("no_link_dist_thresh", system_setting);
     sprintf(text, "%.02f", rs_system->no_link_dist_thresh);
     setting_set_value(setting, text);
@@ -440,16 +468,12 @@ setting_t *create_setting_tree()
     sprintf(text, "%.02f", rs_system->no_link_quality_thresh);
     setting_set_value(setting, text);
 
-    setting = setting_create("auto_wake_nodes", system_setting);
-    sprintf(text, "%s", rs_system->auto_wake_nodes ? "true" : "false");
+    setting = setting_create("transmission_time", system_setting);
+    sprintf(text, "%d", rs_system->transmission_time);
     setting_set_value(setting, text);
 
-    setting = setting_create("height", system_setting);
-    sprintf(text, "%.02f", rs_system->height);
-    setting_set_value(setting, text);
-
-    setting = setting_create("width", system_setting);
-    sprintf(text, "%.02f", rs_system->width);
+    setting = setting_create("mac_pdu_timeout", system_setting);
+    sprintf(text, "%d", rs_system->mac_pdu_timeout);
     setting_set_value(setting, text);
 
     setting = setting_create("ip_pdu_timeout", system_setting);
@@ -460,16 +484,12 @@ setting_t *create_setting_tree()
     sprintf(text, "%d", rs_system->ip_queue_size);
     setting_set_value(setting, text);
 
-    setting = setting_create("mac_pdu_timeout", system_setting);
-    sprintf(text, "%d", rs_system->mac_pdu_timeout);
+    setting = setting_create("ip_neighbor_timeout", system_setting);
+    sprintf(text, "%d", rs_system->ip_neighbor_timeout);
     setting_set_value(setting, text);
 
     setting = setting_create("measure_pdu_timeout", system_setting);
     sprintf(text, "%d", rs_system->measure_pdu_timeout);
-    setting_set_value(setting, text);
-
-    setting = setting_create("neighbor_timeout", system_setting);
-    sprintf(text, "%d", rs_system->neighbor_timeout);
     setting_set_value(setting, text);
 
     setting = setting_create("rpl_auto_sn_inc_interval", system_setting);
@@ -512,14 +532,6 @@ setting_t *create_setting_tree()
     sprintf(text, "%s", rs_system->rpl_start_silent ? "true" : "false");
     setting_set_value(setting, text);
 
-    setting = setting_create("simulation_second", system_setting);
-    sprintf(text, "%d", rs_system->simulation_second);
-    setting_set_value(setting, text);
-
-    setting = setting_create("transmission_time", system_setting);
-    sprintf(text, "%d", rs_system->transmission_time);
-    setting_set_value(setting, text);
-
     setting_t *display_setting = setting_create("display", system_setting);
 
     setting = setting_create("show_node_names", display_setting);
@@ -548,6 +560,216 @@ setting_t *create_setting_tree()
 
     setting = setting_create("show_sibling_arrows", display_setting);
     sprintf(text, "%s", main_win_get_display_params()->show_sibling_arrows ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting_t *events_setting = setting_create("events", system_setting);
+
+    setting = setting_create("sys_event_node_wake_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(sys_event_node_wake) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("sys_event_node_kill_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(sys_event_node_kill) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("sys_event_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(sys_event_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("phy_event_node_wake_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(phy_event_node_wake) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("phy_event_node_kill_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(phy_event_node_kill) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("phy_event_pdu_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(phy_event_pdu_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("phy_event_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(phy_event_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("phy_event_neighbor_attach_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(phy_event_neighbor_attach) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("phy_event_neighbor_detach_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(phy_event_neighbor_detach) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("phy_event_change_mobility_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(phy_event_change_mobility) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("mac_event_node_wake_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(mac_event_node_wake) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("mac_event_node_kill_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(mac_event_node_kill) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("mac_event_pdu_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(mac_event_pdu_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("mac_event_pdu_send_timeout_check_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(mac_event_pdu_send_timeout_check) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("mac_event_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(mac_event_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("ip_event_node_wake_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(ip_event_node_wake) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("ip_event_node_kill_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(ip_event_node_kill) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("ip_event_pdu_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(ip_event_pdu_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("ip_event_pdu_send_timeout_check_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(ip_event_pdu_send_timeout_check) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("ip_event_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(ip_event_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("ip_event_neighbor_cache_timeout_check_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(ip_event_neighbor_cache_timeout_check) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("icmp_event_node_wake_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(icmp_event_node_wake) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("icmp_event_node_kill_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(icmp_event_node_kill) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("icmp_event_pdu_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(icmp_event_pdu_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("icmp_event_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(icmp_event_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("icmp_event_ping_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(icmp_event_ping_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("icmp_event_ping_timeout_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(icmp_event_ping_timeout) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_node_wake_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_node_wake) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_node_kill_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_node_kill) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_dis_pdu_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_dis_pdu_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_dis_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_dis_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_dio_pdu_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_dio_pdu_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_dio_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_dio_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_dao_pdu_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_dao_pdu_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_dao_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_dao_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_neighbor_attach_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_neighbor_attach) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_neighbor_detach_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_neighbor_detach) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_forward_failure_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_forward_failure) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_forward_inconsistency_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_forward_inconsistency) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_trickle_t_timeout_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_trickle_t_timeout) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_trickle_i_timeout_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_trickle_i_timeout) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_seq_num_autoinc_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_seq_num_autoinc) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_node_wake_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_node_wake) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_node_kill_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_node_kill) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_pdu_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_pdu_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_pdu_receive_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_pdu_receive) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_connect_update_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_connect_update) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_connect_hop_passed_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_connect_hop_passed) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_connect_hop_failed_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_connect_hop_failed) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_connect_hop_timeout_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_connect_hop_timeout) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_connect_established_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_connect_established) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("measure_event_connect_lost_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(measure_event_connect_lost) ? "true" : "false");
     setting_set_value(setting, text);
 
     uint16 i, j, node_count;
@@ -706,16 +928,23 @@ setting_t *create_setting_tree()
         }
     }
 
+    if (node_list != NULL) {
+        free(node_list);
+    }
+
     return root_setting;
 }
 
 bool apply_system_setting(char *path, char *name, char *value)
 {
-    if (strcmp(name, "no_link_dist_thresh") == 0) {
-        rs_system->no_link_dist_thresh = strtof(value, NULL);
+    if (strcmp(name, "auto_wake_nodes") == 0) {
+        rs_system->auto_wake_nodes = (strcmp(value, "true") == 0);
     }
-    else if (strcmp(name, "no_link_quality_thresh") == 0) {
-        rs_system->no_link_quality_thresh = strtof(value, NULL);
+    else if (strcmp(name, "deterministic_random") == 0) {
+        rs_system->deterministic_random = (strcmp(value, "true") == 0);
+    }
+    else if (strcmp(name, "simulation_second") == 0) {
+        rs_system->simulation_second = strtol(value, NULL, 10);
     }
     else if (strcmp(name, "width") == 0) {
         rs_system->width = strtof(value, NULL);
@@ -723,26 +952,32 @@ bool apply_system_setting(char *path, char *name, char *value)
     else if (strcmp(name, "height") == 0) {
         rs_system->height = strtof(value, NULL);
     }
+    else if (strcmp(name, "no_link_dist_thresh") == 0) {
+        rs_system->no_link_dist_thresh = strtof(value, NULL);
+    }
+    else if (strcmp(name, "no_link_quality_thresh") == 0) {
+        rs_system->no_link_quality_thresh = strtof(value, NULL);
+    }
+    else if (strcmp(name, "transmission_time") == 0) {
+        rs_system->transmission_time = strtol(value, NULL, 10);
+    }
+    else if (strcmp(name, "mac_pdu_timeout") == 0) {
+        rs_system->mac_pdu_timeout = strtol(value, NULL, 10);
+    }
     else if (strcmp(name, "ip_pdu_timeout") == 0) {
         rs_system->ip_pdu_timeout = strtol(value, NULL, 10);
     }
     else if (strcmp(name, "ip_queue_size") == 0) {
         rs_system->ip_queue_size = strtol(value, NULL, 10);
     }
-    else if (strcmp(name, "mac_pdu_timeout") == 0) {
-        rs_system->mac_pdu_timeout = strtol(value, NULL, 10);
+    else if (strcmp(name, "ip_neighbor_timeout") == 0) {
+        rs_system->ip_neighbor_timeout = strtol(value, NULL, 10);
     }
     else if (strcmp(name, "measure_pdu_timeout") == 0) {
         rs_system->measure_pdu_timeout = strtol(value, NULL, 10);
     }
-    else if (strcmp(name, "neighbor_timeout") == 0) {
-        rs_system->neighbor_timeout = strtol(value, NULL, 10);
-    }
     else if (strcmp(name, "rpl_auto_sn_inc_interval") == 0) {
         rs_system->rpl_auto_sn_inc_interval = strtol(value, NULL, 10);
-    }
-    else if (strcmp(name, "auto_wake_nodes") == 0) {
-        rs_system->auto_wake_nodes = (strcmp(value, "true") == 0);
     }
     else if (strcmp(name, "rpl_dao_supported") == 0) {
         rs_system->rpl_dao_supported = (strcmp(value, "true"));
@@ -770,12 +1005,6 @@ bool apply_system_setting(char *path, char *name, char *value)
     }
     else if (strcmp(name, "rpl_start_silent") == 0) {
         rs_system->rpl_start_silent = (strcmp(value, "true"));
-    }
-    else if (strcmp(name, "simulation_second") == 0) {
-        rs_system->simulation_second = strtol(value, NULL, 10);
-    }
-    else if (strcmp(name, "transmission_time") == 0) {
-        rs_system->transmission_time = strtol(value, NULL, 10);
     }
     else {
         sprintf(error_string, "unexpected setting '%s.%s'", path, name);
@@ -807,6 +1036,172 @@ bool apply_display_setting(char *path, char *name, char *value)
     }
     else if (strcmp(name, "show_sibling_arrows") == 0) {
         main_win_get_display_params()->show_sibling_arrows = (strcmp(value, "true") == 0);
+    }
+    else {
+        sprintf(error_string, "unexpected setting '%s.%s'", path, name);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+bool apply_events_setting(char *path, char *name, char *value)
+{
+    if (strcmp(name, "sys_event_node_wake_logging") == 0) {
+        event_set_logging(sys_event_node_wake, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "sys_event_node_kill_logging") == 0) {
+        event_set_logging(sys_event_node_kill, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "sys_event_pdu_receive_logging") == 0) {
+        event_set_logging(sys_event_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "phy_event_node_wake_logging") == 0) {
+        event_set_logging(phy_event_node_wake, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "phy_event_node_kill_logging") == 0) {
+        event_set_logging(phy_event_node_kill, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "phy_event_pdu_send_logging") == 0) {
+        event_set_logging(phy_event_pdu_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "phy_event_pdu_receive_logging") == 0) {
+        event_set_logging(phy_event_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "phy_event_neighbor_attach_logging") == 0) {
+        event_set_logging(phy_event_neighbor_attach, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "phy_event_neighbor_detach_logging") == 0) {
+        event_set_logging(phy_event_neighbor_detach, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "phy_event_change_mobility_logging") == 0) {
+        event_set_logging(phy_event_change_mobility, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "mac_event_node_wake_logging") == 0) {
+        event_set_logging(mac_event_node_wake, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "mac_event_node_kill_logging") == 0) {
+        event_set_logging(mac_event_node_kill, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "mac_event_pdu_send_logging") == 0) {
+        event_set_logging(mac_event_pdu_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "mac_event_pdu_send_timeout_check_logging") == 0) {
+        event_set_logging(mac_event_pdu_send_timeout_check, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "mac_event_pdu_receive_logging") == 0) {
+        event_set_logging(mac_event_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "ip_event_node_wake_logging") == 0) {
+        event_set_logging(ip_event_node_wake, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "ip_event_node_kill_logging") == 0) {
+        event_set_logging(ip_event_node_kill, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "ip_event_pdu_send_logging") == 0) {
+        event_set_logging(ip_event_pdu_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "ip_event_pdu_send_timeout_check_logging") == 0) {
+        event_set_logging(ip_event_pdu_send_timeout_check, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "ip_event_pdu_receive_logging") == 0) {
+        event_set_logging(ip_event_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "ip_event_neighbor_cache_timeout_check_logging") == 0) {
+        event_set_logging(ip_event_neighbor_cache_timeout_check, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "icmp_event_node_wake_logging") == 0) {
+        event_set_logging(icmp_event_node_wake, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "icmp_event_node_kill_logging") == 0) {
+        event_set_logging(icmp_event_node_kill, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "icmp_event_pdu_send_logging") == 0) {
+        event_set_logging(icmp_event_pdu_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "icmp_event_pdu_receive_logging") == 0) {
+        event_set_logging(icmp_event_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "icmp_event_ping_send_logging") == 0) {
+        event_set_logging(icmp_event_ping_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "icmp_event_ping_timeout_logging") == 0) {
+        event_set_logging(icmp_event_ping_timeout, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_node_wake_logging") == 0) {
+        event_set_logging(rpl_event_node_wake, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_node_kill_logging") == 0) {
+        event_set_logging(rpl_event_node_kill, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_dis_pdu_send_logging") == 0) {
+        event_set_logging(rpl_event_dis_pdu_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_dis_pdu_receive_logging") == 0) {
+        event_set_logging(rpl_event_dis_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_dio_pdu_send_logging") == 0) {
+        event_set_logging(rpl_event_dio_pdu_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_dio_pdu_receive_logging") == 0) {
+        event_set_logging(rpl_event_dio_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_dao_pdu_send_logging") == 0) {
+        event_set_logging(rpl_event_dao_pdu_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_dao_pdu_receive_logging") == 0) {
+        event_set_logging(rpl_event_dao_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_neighbor_attach_logging") == 0) {
+        event_set_logging(rpl_event_neighbor_attach, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_neighbor_detach_logging") == 0) {
+        event_set_logging(rpl_event_neighbor_detach, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_forward_failure_logging") == 0) {
+        event_set_logging(rpl_event_forward_failure, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_forward_inconsistency_logging") == 0) {
+        event_set_logging(rpl_event_forward_inconsistency, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_trickle_t_timeout_logging") == 0) {
+        event_set_logging(rpl_event_trickle_t_timeout, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_trickle_i_timeout_logging") == 0) {
+        event_set_logging(rpl_event_trickle_i_timeout, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_seq_num_autoinc_logging") == 0) {
+        event_set_logging(rpl_event_seq_num_autoinc, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_node_wake_logging") == 0) {
+        event_set_logging(measure_event_node_wake, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_node_kill_logging") == 0) {
+        event_set_logging(measure_event_node_kill, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_pdu_send_logging") == 0) {
+        event_set_logging(measure_event_pdu_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_pdu_receive_logging") == 0) {
+        event_set_logging(measure_event_pdu_receive, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_connect_update_logging") == 0) {
+        event_set_logging(measure_event_connect_update, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_connect_hop_passed_logging") == 0) {
+        event_set_logging(measure_event_connect_hop_passed, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_connect_hop_failed_logging") == 0) {
+        event_set_logging(measure_event_connect_hop_failed, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_connect_hop_timeout_logging") == 0) {
+        event_set_logging(measure_event_connect_hop_timeout, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_connect_established_logging") == 0) {
+        event_set_logging(measure_event_connect_established, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "measure_event_connect_lost_logging") == 0) {
+        event_set_logging(measure_event_connect_lost, (strcmp(value, "true") == 0));
     }
     else {
         sprintf(error_string, "unexpected setting '%s.%s'", path, name);

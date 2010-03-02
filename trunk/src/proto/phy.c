@@ -32,8 +32,6 @@ static bool             event_handler_neighbor_detach(node_t *node, node_t *neig
 
 static bool             event_handler_change_mobility(node_t *node, phy_mobility_t *mobility);
 
-static void             update_neighbors(node_t *node);
-
 static void             event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
 
@@ -167,7 +165,7 @@ void phy_node_set_coords(node_t* node, coord_t cx, coord_t cy)
     node->phy_info->cy = cy;
 
     if (node->alive) {
-        update_neighbors(node);
+        phy_node_update_neighbors(node);
     }
 }
 
@@ -178,7 +176,7 @@ void phy_node_set_tx_power(node_t* node, percent_t tx_power)
     node->phy_info->tx_power = tx_power;
 
     if (node->alive) {
-        update_neighbors(node);
+        phy_node_update_neighbors(node);
     }
 }
 
@@ -239,7 +237,55 @@ void phy_node_update_mobility_coords(node_t *node)
             node->phy_info->mobility_speed * (rs_system->now - node->phy_info->mobility_start_time) * node->phy_info->mobility_sin_alpha;
 
     if (node->alive) {
-        update_neighbors(node);
+        phy_node_update_neighbors(node);
+    }
+}
+
+void phy_node_update_neighbors(node_t *node)
+{
+    rs_assert(node != NULL);
+
+    uint16 i, node_count;
+    node_t **node_list = rs_system_get_node_list_copy(&node_count);
+
+    for (i = 0; i < node_count; i++) {
+        node_t *other_node = node_list[i];
+
+        if (other_node == node) { /* we're not a neighbor of ourselves */
+            continue;
+        }
+
+        if (!other_node->alive) { /* ignore dead neighbors */
+            continue;
+        }
+
+        /* node to other_node link quality */
+        if (rs_system_link_quality_enough(node, other_node)) {
+            if (phy_node_add_neighbor(node, other_node)) { /* returns true if the neighbor wasn't present before */
+                rs_system_schedule_event(node, phy_event_neighbor_attach, other_node, NULL, 0);
+            }
+        }
+        else {
+            if (phy_node_rem_neighbor(node, other_node)) { /* returns true if the neighbor was present before */
+                rs_system_schedule_event(node, phy_event_neighbor_detach, other_node, NULL, 0);
+            }
+        }
+
+        /* other_node to node link quality */
+        if (rs_system_link_quality_enough(other_node, node)) {
+            if (phy_node_add_neighbor(other_node, node)) { /* returns true if the neighbor wasn't present before */
+                rs_system_schedule_event(other_node, phy_event_neighbor_attach, node, NULL, 0);
+            }
+        }
+        else {
+            if (phy_node_rem_neighbor(other_node, node)) { /* returns true if the neighbor was present before */
+                rs_system_schedule_event(other_node, phy_event_neighbor_detach, node, NULL, 0);
+            }
+        }
+    }
+
+    if (node_list != NULL) {
+        free(node_list);
     }
 }
 
@@ -337,7 +383,7 @@ bool phy_node_has_neighbor(node_t* node, node_t *neighbor_node)
 
 static bool event_handler_node_wake(node_t *node)
 {
-    update_neighbors(node);
+    phy_node_update_neighbors(node);
 
     uint16 i; /* schedule all the mobility changes that were programmed */
     for (i = 0; i < node->phy_info->mobility_count; i++) {
@@ -412,7 +458,7 @@ static bool event_handler_change_mobility(node_t *node, phy_mobility_t *mobility
         node->phy_info->cy = mobility->dest_y;
 
         if (node->alive) {
-            update_neighbors(node);
+            phy_node_update_neighbors(node);
         }
     }
     else {
@@ -428,50 +474,6 @@ static bool event_handler_change_mobility(node_t *node, phy_mobility_t *mobility
     }
 
     return TRUE;
-}
-
-static void update_neighbors(node_t *node)
-{
-    rs_assert(node != NULL);
-
-    uint16 i, node_count;
-    node_t **node_list = rs_system_get_node_list_copy(&node_count);
-
-    for (i = 0; i < node_count; i++) {
-        node_t *other_node = node_list[i];
-
-        if (other_node == node) { /* we're not a neighbor of ourselves */
-            continue;
-        }
-
-        if (!other_node->alive) { /* ignore dead neighbors */
-            continue;
-        }
-
-        /* node to other_node link quality */
-        if (rs_system_link_quality_enough(node, other_node)) {
-            if (phy_node_add_neighbor(node, other_node)) { /* returns true if the neighbor wasn't present before */
-                rs_system_schedule_event(node, phy_event_neighbor_attach, other_node, NULL, 0);
-            }
-        }
-        else {
-            if (phy_node_rem_neighbor(node, other_node)) { /* returns true if the neighbor was present before */
-                rs_system_schedule_event(node, phy_event_neighbor_detach, other_node, NULL, 0);
-            }
-        }
-
-        /* other_node to node link quality */
-        if (rs_system_link_quality_enough(other_node, node)) {
-            if (phy_node_add_neighbor(other_node, node)) { /* returns true if the neighbor wasn't present before */
-                rs_system_schedule_event(other_node, phy_event_neighbor_attach, node, NULL, 0);
-            }
-        }
-        else {
-            if (phy_node_rem_neighbor(other_node, node)) { /* returns true if the neighbor was present before */
-                rs_system_schedule_event(other_node, phy_event_neighbor_detach, node, NULL, 0);
-            }
-        }
-    }
 }
 
 static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len)

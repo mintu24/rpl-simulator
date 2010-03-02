@@ -15,22 +15,27 @@
 #include "proto/icmp.h"
 #include "proto/rpl.h"
 
-#define DEFAULT_NO_LINK_DIST_THRESH             30
-#define DEFAULT_NO_LINK_QUALITY_THRESH          0.2
-#define DEFAULT_SYS_WIDTH                       100
-#define DEFAULT_SYS_HEIGHT                      100
-#define DEFAULT_SIMULATION_SECOND               1000
-
-#define DEFAULT_TRANSMISSION_TIME               20
-#define DEFAULT_MAC_PDU_TIMEOUT                 (2 * DEFAULT_TRANSMISSION_TIME)
-#define DEFAULT_IP_PDU_TIMEOUT                  (3 * DEFAULT_TRANSMISSION_TIME)
-#define DEFAULT_MEASURE_PDU_TIMEOUT             1000
-#define DEFAULT_NEIGHBOR_TIMEOUT                2000
-#define DEFAULT_IP_QUEUE_SIZE                   100
-
 #define DEFAULT_NODE_NAME                       "A"
 #define DEFAULT_NODE_MAC_ADDRESS                "0001"
 #define DEFAULT_NODE_IP_ADDRESS                 "AA01"
+
+#define DEFAULT_AUTO_WAKE_NODES                 TRUE
+#define DEFAULT_DETERMINISTIC_RANDOM            TRUE
+#define DEFAULT_SIMULATION_SECOND               1000
+
+#define DEFAULT_SYS_WIDTH                       100
+#define DEFAULT_SYS_HEIGHT                      100
+#define DEFAULT_NO_LINK_DIST_THRESH             30
+#define DEFAULT_NO_LINK_QUALITY_THRESH          0.2
+#define DEFAULT_TRANSMISSION_TIME               20
+
+#define DEFAULT_MAC_PDU_TIMEOUT                 (2 * DEFAULT_TRANSMISSION_TIME)
+
+#define DEFAULT_IP_PDU_TIMEOUT                  (3 * DEFAULT_TRANSMISSION_TIME)
+#define DEFAULT_IP_QUEUE_SIZE                   100
+#define DEFAULT_IP_NEIGHBOR_TIMEOUT             2000
+
+#define DEFAULT_MEASURE_PDU_TIMEOUT             1000
 
 #define DEFAULT_RPL_AUTO_SN_INC_INT             10000 /* -1 disables */
 #define DEFAULT_RPL_STARTUP_SILENT              FALSE
@@ -44,7 +49,6 @@
 #define DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
 
 #define DEFAULT_RPL_MAX_RANK_INC                4
-#define DEFAULT_RPL_MIN_HOP_RANK_INC            1
 
 #define DEFAULT_RPL_PREFER_FLOATING             FALSE
 
@@ -125,21 +129,23 @@ typedef struct schedule_bucket_t {
 typedef struct rs_system_t {
 
     /* params */
-    coord_t                     no_link_dist_thresh;
-    percent_t                   no_link_quality_thresh;
-    sim_time_t                  transmission_time;
-    sim_time_t                  mac_pdu_timeout;
-    sim_time_t                  ip_pdu_timeout;
-    sim_time_t                  measure_pdu_timeout;
-    sim_time_t                  neighbor_timeout;
-    uint32                      ip_queue_size;
+    bool                        auto_wake_nodes;
+    bool                        deterministic_random;
+    int32                       simulation_second;
 
     coord_t                     width;
     coord_t                     height;
+    coord_t                     no_link_dist_thresh;
+    percent_t                   no_link_quality_thresh;
+    sim_time_t                  transmission_time;
 
-    int32                       simulation_second;
+    sim_time_t                  mac_pdu_timeout;
 
-    bool                        auto_wake_nodes;
+    sim_time_t                  ip_neighbor_timeout;
+    sim_time_t                  ip_pdu_timeout;
+    uint32                      ip_queue_size;
+
+    sim_time_t                  measure_pdu_timeout;
 
     int32                       rpl_auto_sn_inc_interval;
     bool                        rpl_start_silent;
@@ -151,7 +157,6 @@ typedef struct rs_system_t {
     uint8                       rpl_dio_interval_min;
     uint8                       rpl_dio_redundancy_constant;
     uint8                       rpl_max_inc_rank;
-    // uint8                       rpl_min_hop_rank_inc;
 
     bool                        rpl_prefer_floating;
 
@@ -159,6 +164,7 @@ typedef struct rs_system_t {
     node_t **                   node_list;
     uint16                      node_count;
 
+    /* scheduling */
     sim_time_t                  now;
     uint32                      event_count;
 
@@ -167,15 +173,16 @@ typedef struct rs_system_t {
     bool                        paused;
     bool                        step;
 
-    uint32                      random_z;
-    uint32                      random_w;
-
     GStaticRecMutex             events_mutex;
     GStaticRecMutex             schedules_mutex;
     GStaticRecMutex             nodes_mutex;
 
     schedule_bucket_t *         schedule_bucket_first;
     uint32                      schedule_count; /* redundant size counter */
+
+    /* other */
+    uint32                      random_z;
+    uint32                      random_w;
 
 } rs_system_t;
 

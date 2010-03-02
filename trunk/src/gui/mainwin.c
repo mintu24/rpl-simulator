@@ -1,5 +1,3 @@
-// todo add GUI for event filters
-// todo add a (non)deterministic random system option, w/ GUI
 // todo implement event log dump
 
 #include <gdk/gdk.h>
@@ -37,21 +35,28 @@ static GtkWidget *              xy_status_bar = NULL;
     /* params widgets */
 static GtkWidget *              params_config_button = NULL;
 static GtkWidget *              params_config_vbox = NULL;
+
+static GtkWidget *              params_system_auto_wake_check = NULL;
+static GtkWidget *              params_system_deterministic_random_check = NULL;
+static GtkWidget *              params_system_real_time_sim_check = NULL;
+static GtkWidget *              params_system_sim_second_spin = NULL;
+
+static GtkWidget *              params_system_width_spin = NULL;
+static GtkWidget *              params_system_height_spin = NULL;
 static GtkWidget *              params_system_no_link_dist_spin = NULL;
 static GtkWidget *              params_system_no_link_quality_spin = NULL;
 static GtkWidget *              params_system_transmission_time_spin = NULL;
-static GtkWidget *              params_system_neighbor_timeout_spin = NULL;
-static GtkWidget *              params_system_width_spin = NULL;
-static GtkWidget *              params_system_height_spin = NULL;
-static GtkWidget *              params_system_real_time_sim_check = NULL;
-static GtkWidget *              params_system_sim_second_spin = NULL;
-static GtkWidget *              params_system_auto_wake_check = NULL;
+
+static GtkWidget *              params_system_mac_pdu_timeout_spin = NULL;
+
+static GtkWidget *              params_system_ip_queue_size = NULL;
+static GtkWidget *              params_system_ip_pdu_timeout_spin = NULL;
+static GtkWidget *              params_system_ip_neighbor_timeout_spin = NULL;
 
 static GtkWidget *              params_rpl_trickle_min_spin = NULL;
 static GtkWidget *              params_rpl_trickle_doublings_spin = NULL;
 static GtkWidget *              params_rpl_trickle_redundancy_spin = NULL;
 static GtkWidget *              params_rpl_max_rank_inc_spin = NULL;
-// static GtkWidget *              params_rpl_min_hop_rank_inc_spin = NULL;
 static GtkWidget *              params_rpl_dao_supported_check = NULL;
 static GtkWidget *              params_rpl_dao_trigger_check = NULL;
 static GtkWidget *              params_rpl_probe_check = NULL;
@@ -60,6 +65,8 @@ static GtkWidget *              params_rpl_autoinc_sn_check = NULL;
 static GtkWidget *              params_rpl_autoinc_sn_spin = NULL;
 static GtkWidget *              params_rpl_poison_count_spin = NULL;
 
+static GtkWidget *              params_system_measure_pdu_timeout_spin = NULL;
+
 static GtkWidget *              params_display_show_node_names_check = NULL;
 static GtkWidget *              params_display_show_node_addresses_check = NULL;
 static GtkWidget *              params_display_show_node_tx_power_check = NULL;
@@ -67,6 +74,59 @@ static GtkWidget *              params_display_show_node_ranks_check = NULL;
 static GtkWidget *              params_display_show_preferred_parent_arrows_check = NULL;
 static GtkWidget *              params_display_show_parent_arrows_check = NULL;
 static GtkWidget *              params_display_show_sibling_arrows_check = NULL;
+
+static GtkWidget *              params_events_sys_node_wake_check = NULL;
+static GtkWidget *              params_events_sys_node_kill_check = NULL;
+static GtkWidget *              params_events_sys_pdu_receive_check = NULL;
+static GtkWidget *              params_events_phy_node_wake_check = NULL;
+static GtkWidget *              params_events_phy_node_kill_check = NULL;
+static GtkWidget *              params_events_phy_pdu_send_check = NULL;
+static GtkWidget *              params_events_phy_pdu_receive_check = NULL;
+static GtkWidget *              params_events_phy_neighbor_attach_check = NULL;
+static GtkWidget *              params_events_phy_neighbor_detach_check = NULL;
+static GtkWidget *              params_events_phy_change_mobility_check = NULL;
+static GtkWidget *              params_events_mac_node_wake_check = NULL;
+static GtkWidget *              params_events_mac_node_kill_check = NULL;
+static GtkWidget *              params_events_mac_pdu_send_check = NULL;
+static GtkWidget *              params_events_mac_pdu_send_timeout_check_check = NULL;
+static GtkWidget *              params_events_mac_pdu_receive_check = NULL;
+static GtkWidget *              params_events_ip_node_wake_check = NULL;
+static GtkWidget *              params_events_ip_node_kill_check = NULL;
+static GtkWidget *              params_events_ip_pdu_send_check = NULL;
+static GtkWidget *              params_events_ip_pdu_send_timeout_check_check = NULL;
+static GtkWidget *              params_events_ip_pdu_receive_check = NULL;
+static GtkWidget *              params_events_ip_neighbor_cache_timeout_check_check = NULL;
+static GtkWidget *              params_events_icmp_node_wake_check = NULL;
+static GtkWidget *              params_events_icmp_node_kill_check = NULL;
+static GtkWidget *              params_events_icmp_pdu_send_check = NULL;
+static GtkWidget *              params_events_icmp_pdu_receive_check = NULL;
+static GtkWidget *              params_events_icmp_ping_send_check = NULL;
+static GtkWidget *              params_events_icmp_ping_timeout_check = NULL;
+static GtkWidget *              params_events_rpl_node_wake_check = NULL;
+static GtkWidget *              params_events_rpl_node_kill_check = NULL;
+static GtkWidget *              params_events_rpl_dis_pdu_send_check = NULL;
+static GtkWidget *              params_events_rpl_dis_pdu_receive_check = NULL;
+static GtkWidget *              params_events_rpl_dio_pdu_send_check = NULL;
+static GtkWidget *              params_events_rpl_dio_pdu_receive_check = NULL;
+static GtkWidget *              params_events_rpl_dao_pdu_send_check = NULL;
+static GtkWidget *              params_events_rpl_dao_pdu_receive_check = NULL;
+static GtkWidget *              params_events_rpl_neighbor_attach_check = NULL;
+static GtkWidget *              params_events_rpl_neighbor_detach_check = NULL;
+static GtkWidget *              params_events_rpl_forward_failure_check = NULL;
+static GtkWidget *              params_events_rpl_forward_inconsistency_check = NULL;
+static GtkWidget *              params_events_rpl_trickle_t_timeout_check = NULL;
+static GtkWidget *              params_events_rpl_trickle_i_timeout_check = NULL;
+static GtkWidget *              params_events_rpl_seq_num_autoinc_check = NULL;
+static GtkWidget *              params_events_measure_node_wake_check = NULL;
+static GtkWidget *              params_events_measure_node_kill_check = NULL;
+static GtkWidget *              params_events_measure_pdu_send_check = NULL;
+static GtkWidget *              params_events_measure_pdu_receive_check = NULL;
+static GtkWidget *              params_events_measure_connect_update_check = NULL;
+static GtkWidget *              params_events_measure_connect_hop_passed_check = NULL;
+static GtkWidget *              params_events_measure_connect_hop_failed_check = NULL;
+static GtkWidget *              params_events_measure_connect_hop_timeout_check = NULL;
+static GtkWidget *              params_events_measure_connect_established_check = NULL;
+static GtkWidget *              params_events_measure_connect_lost_check = NULL;
 
 static GtkWidget *              params_nodes_button = NULL;
 static GtkWidget *              params_nodes_vbox = NULL;
@@ -184,6 +244,7 @@ void                            cb_params_nodes_button_clicked(GtkWidget *button
 void                            cb_gui_system_updated(GtkSpinButton *spin, gpointer data);
 void                            cb_gui_node_updated(GtkWidget *widget, gpointer data);
 void                            cb_gui_display_updated(GtkWidget *widget, gpointer data);
+void                            cb_gui_events_updated(GtkWidget *widget, gpointer data);
 void                            cb_params_nodes_mobility_tree_view_cursor_changed(GtkWidget *widget, gpointer data);
 void                            cb_params_nodes_route_tree_view_cursor_changed(GtkWidget *widget, gpointer data);
 void                            cb_params_nodes_mobility_add_button_clicked(GtkButton *button, gpointer data);
@@ -227,6 +288,7 @@ static int32                    mobility_tree_viee_get_selected_index();
 static void                     gui_to_system();
 static void                     gui_to_node(node_t *node);
 static void                     gui_to_display();
+static void                     gui_to_events();
 
 static gboolean                 gui_update_wrapper(void *data);
 static gboolean                 status_bar_update_wrapper(void *data);
@@ -292,6 +354,7 @@ bool main_win_init()
 
     main_win_system_to_gui();
     main_win_display_to_gui();
+    main_win_events_to_gui();
 
     gtk_builder_connect_signals(gtk_builder, NULL);
     initialize_widgets();
@@ -329,15 +392,7 @@ void main_win_system_to_gui()
 
     rs_assert(rs_system != NULL);
 
-    /* system (phy & misc) */
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin), rs_system->no_link_dist_thresh);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin), rs_system->no_link_quality_thresh * 100);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin), rs_system->transmission_time);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_neighbor_timeout_spin), rs_system->neighbor_timeout);
-
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_width_spin), rs_system->width);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_height_spin), rs_system->height);
-
+    /* system */
     if (rs_system->simulation_second >= 0) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_real_time_sim_check), TRUE);
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_sim_second_spin), rs_system->simulation_second);
@@ -347,13 +402,28 @@ void main_win_system_to_gui()
     }
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_auto_wake_check), rs_system->auto_wake_nodes);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_system_deterministic_random_check), rs_system->deterministic_random);
+
+    /* phy */
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_width_spin), rs_system->width);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_height_spin), rs_system->height);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin), rs_system->no_link_dist_thresh);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin), rs_system->no_link_quality_thresh * 100);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin), rs_system->transmission_time);
+
+    /* mac */
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_mac_pdu_timeout_spin), rs_system->mac_pdu_timeout);
+
+    /* ip */
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_ip_queue_size), rs_system->ip_queue_size);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_ip_pdu_timeout_spin), rs_system->ip_pdu_timeout);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_ip_neighbor_timeout_spin), rs_system->ip_neighbor_timeout);
 
     /* rpl */
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_min_spin), rs_system->rpl_dio_interval_min);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_doublings_spin), rs_system->rpl_dio_interval_doublings);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_redundancy_spin), rs_system->rpl_dio_redundancy_constant);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin), rs_system->rpl_max_inc_rank);
-    // gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_min_hop_rank_inc_spin), rs_system->rpl_min_hop_rank_inc);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check), rs_system->rpl_dao_supported);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check), rs_system->rpl_dao_trigger);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check), !rs_system->rpl_start_silent);
@@ -368,6 +438,9 @@ void main_win_system_to_gui()
     }
 
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_poison_count_spin), rs_system->rpl_poison_count);
+
+    /* measure */
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_system_measure_pdu_timeout_spin), rs_system->measure_pdu_timeout);
 
     /* add all the current possible next-hops,
      * and all the possible destination addresses */
@@ -627,7 +700,7 @@ void main_win_node_to_gui(node_t *node, uint32 what)
                 sim_time_t total_time = rs_system->now - node->measure_info->connect_global_start_time;
 
                 percent_t fraction = 0;
-                if (total_time > 0)
+                if (total_time > 0 && total_time >= connected_time)
                     fraction = (percent_t) connected_time / total_time;
 
                 snprintf(temp, sizeof(temp), "%.0f%%", fraction * 100);
@@ -659,10 +732,16 @@ void main_win_node_to_gui(node_t *node, uint32 what)
             gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_rpl_dao_messages_label), temp);
 
             float percent;
-            if (node->measure_info->ping_successful_count > 0)
+            if (node->measure_info->ping_successful_count > 0) {
                 percent = (float) node->measure_info->ping_successful_count / (node->measure_info->ping_successful_count + node->measure_info->ping_timeout_count);
-            else
+            }
+            else {
                 percent = 0;
+            }
+
+            if (percent > 1) {
+                percent = 1;
+            }
 
             gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_stat_ping_progress), percent);
 
@@ -673,14 +752,14 @@ void main_win_node_to_gui(node_t *node, uint32 what)
             /* convergence */
             measure_converg_t *measure_converg = measure_converg_get();
 
-            if (measure_converg->total_node_count > 0) {
+            if (measure_converg->total_node_count > 0 && measure_converg->total_node_count >= measure_converg->connected_node_count) {
                 fraction = (float) measure_converg->connected_node_count / measure_converg->total_node_count;
             }
             snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", measure_converg->connected_node_count, measure_converg->total_node_count, fraction * 100);
             gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_converg_connected_progress), fraction);
             gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_converg_connected_progress), temp);
 
-            if (measure_converg->total_node_count > 0) {
+            if (measure_converg->total_node_count > 0 && measure_converg->total_node_count >= measure_converg->stable_node_count) {
                 fraction = (float) measure_converg->stable_node_count / measure_converg->total_node_count;
             }
             else {
@@ -691,9 +770,13 @@ void main_win_node_to_gui(node_t *node, uint32 what)
             gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_converg_stable_progress), fraction);
             gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_converg_stable_progress), temp);
 
-            if (measure_converg->total_node_count > 0) {
+            if (measure_converg->total_node_count > 0 && measure_converg->total_node_count>= measure_converg->floating_node_count) {
                 fraction = (float) measure_converg->floating_node_count / measure_converg->total_node_count;
             }
+            else {
+                fraction = 0;
+            }
+
             snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", measure_converg->floating_node_count, measure_converg->total_node_count, fraction * 100);
             gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_converg_floating_progress), fraction);
             gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_converg_floating_progress), temp);
@@ -717,6 +800,67 @@ void main_win_display_to_gui()
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_preferred_parent_arrows_check), display_params.show_preferred_parent_arrows);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_parent_arrows_check), display_params.show_parent_arrows);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_display_show_sibling_arrows_check), display_params.show_sibling_arrows);
+
+    signals_enable();
+}
+
+void main_win_events_to_gui()
+{
+    signals_disable();
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_sys_node_wake_check), event_get_logging(sys_event_node_wake));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_sys_node_wake_check), event_get_logging(sys_event_node_wake));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_sys_node_kill_check), event_get_logging(sys_event_node_kill));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_sys_pdu_receive_check), event_get_logging(sys_event_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_phy_node_wake_check), event_get_logging(phy_event_node_wake));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_phy_node_kill_check), event_get_logging(phy_event_node_kill));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_phy_pdu_send_check), event_get_logging(phy_event_pdu_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_phy_pdu_receive_check), event_get_logging(phy_event_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_phy_neighbor_attach_check), event_get_logging(phy_event_neighbor_attach));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_phy_neighbor_detach_check), event_get_logging(phy_event_neighbor_detach));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_phy_change_mobility_check), event_get_logging(phy_event_change_mobility));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_mac_node_wake_check), event_get_logging(mac_event_node_wake));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_mac_node_kill_check), event_get_logging(mac_event_node_kill));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_mac_pdu_send_check), event_get_logging(mac_event_pdu_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_mac_pdu_send_timeout_check_check), event_get_logging(mac_event_pdu_send_timeout_check));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_mac_pdu_receive_check), event_get_logging(mac_event_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_ip_node_wake_check), event_get_logging(ip_event_node_wake));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_ip_node_kill_check), event_get_logging(ip_event_node_kill));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_ip_pdu_send_check), event_get_logging(ip_event_pdu_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_ip_pdu_send_timeout_check_check), event_get_logging(ip_event_pdu_send_timeout_check));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_ip_pdu_receive_check), event_get_logging(ip_event_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_ip_neighbor_cache_timeout_check_check), event_get_logging(ip_event_neighbor_cache_timeout_check));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_node_wake_check), event_get_logging(icmp_event_node_wake));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_node_kill_check), event_get_logging(icmp_event_node_kill));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_pdu_send_check), event_get_logging(icmp_event_pdu_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_pdu_receive_check), event_get_logging(icmp_event_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_send_check), event_get_logging(icmp_event_ping_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_timeout_check), event_get_logging(icmp_event_ping_timeout));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_node_wake_check), event_get_logging(rpl_event_node_wake));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_node_kill_check), event_get_logging(rpl_event_node_kill));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_dis_pdu_send_check), event_get_logging(rpl_event_dis_pdu_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_dis_pdu_receive_check), event_get_logging(rpl_event_dis_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_dio_pdu_send_check), event_get_logging(rpl_event_dio_pdu_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_dio_pdu_receive_check), event_get_logging(rpl_event_dio_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_dao_pdu_send_check), event_get_logging(rpl_event_dao_pdu_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_dao_pdu_receive_check), event_get_logging(rpl_event_dao_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_neighbor_attach_check), event_get_logging(rpl_event_neighbor_attach));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_neighbor_detach_check), event_get_logging(rpl_event_neighbor_detach));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_forward_failure_check), event_get_logging(rpl_event_forward_failure));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_forward_inconsistency_check), event_get_logging(rpl_event_forward_inconsistency));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_trickle_t_timeout_check), event_get_logging(rpl_event_trickle_t_timeout));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_trickle_i_timeout_check), event_get_logging(rpl_event_trickle_i_timeout));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_seq_num_autoinc_check), event_get_logging(rpl_event_seq_num_autoinc));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_node_wake_check), event_get_logging(measure_event_node_wake));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_node_kill_check), event_get_logging(measure_event_node_kill));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_pdu_send_check), event_get_logging(measure_event_pdu_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_pdu_receive_check), event_get_logging(measure_event_pdu_receive));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_update_check), event_get_logging(measure_event_connect_update));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_hop_passed_check), event_get_logging(measure_event_connect_hop_passed));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_hop_failed_check), event_get_logging(measure_event_connect_hop_failed));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_hop_timeout_check), event_get_logging(measure_event_connect_hop_timeout));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_established_check), event_get_logging(measure_event_connect_established));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_lost_check), event_get_logging(measure_event_connect_lost));
 
     signals_enable();
 }
@@ -877,6 +1021,17 @@ void cb_gui_display_updated(GtkWidget *widget, gpointer data)
 
     gui_to_display();
     sim_field_redraw();
+
+    signal_leave();
+}
+
+void cb_gui_events_updated(GtkWidget *widget, gpointer data)
+{
+    signal_enter();
+
+    rs_debug(DEBUG_GUI, NULL);
+
+    gui_to_events();
 
     signal_leave();
 }
@@ -1385,21 +1540,28 @@ GtkWidget *create_params_widget()
 
     params_config_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_button");
     params_config_vbox = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_vbox");
+
+    params_system_auto_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_auto_wake_check");
+    params_system_deterministic_random_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_deterministic_random_check");
+    params_system_real_time_sim_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_real_time_sim_check");
+    params_system_sim_second_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_sim_second_spin");
+
+    params_system_width_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_width_spin");
+    params_system_height_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_height_spin");
     params_system_no_link_dist_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_dist_spin");
     params_system_no_link_quality_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_no_link_quality_spin");
     params_system_transmission_time_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_transmission_time_spin");
-    params_system_neighbor_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_neighbor_timeout_spin");
-    params_system_width_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_width_spin");
-    params_system_height_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_height_spin");
-    params_system_real_time_sim_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_real_time_sim_check");
-    params_system_sim_second_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_sim_second_spin");
-    params_system_auto_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_auto_wake_check");
+
+    params_system_mac_pdu_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_mac_pdu_timeout_spin");
+
+    params_system_ip_queue_size = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_ip_queue_size");
+    params_system_ip_pdu_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_ip_pdu_timeout_spin");
+    params_system_ip_neighbor_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_ip_neighbor_timeout_spin");
 
     params_rpl_trickle_min_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_min_spin");
     params_rpl_trickle_doublings_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_doublings_spin");
     params_rpl_trickle_redundancy_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_redundancy_spin");
     params_rpl_max_rank_inc_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_max_rank_inc_spin");
-    // params_rpl_min_hop_rank_inc_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_min_hop_rank_inc_spin");
     params_rpl_dao_supported_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_supported_check");
     params_rpl_dao_trigger_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_trigger_check");
     params_rpl_probe_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_probe_check");
@@ -1408,6 +1570,8 @@ GtkWidget *create_params_widget()
     params_rpl_autoinc_sn_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_autoinc_sn_spin");
     params_rpl_poison_count_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_poison_count_spin");
 
+    params_system_measure_pdu_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_system_measure_pdu_timeout_spin");
+
     params_display_show_node_names_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_names_check");
     params_display_show_node_addresses_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_addresses_check");
     params_display_show_node_tx_power_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_node_tx_power_check");
@@ -1415,6 +1579,59 @@ GtkWidget *create_params_widget()
     params_display_show_preferred_parent_arrows_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_preferred_parent_arrows_check");
     params_display_show_parent_arrows_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_parent_arrows_check");
     params_display_show_sibling_arrows_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_display_show_sibling_arrows_check");
+
+    params_events_sys_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_sys_node_wake_check");
+    params_events_sys_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_sys_node_kill_check");
+    params_events_sys_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_sys_pdu_receive_check");
+    params_events_phy_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_phy_node_wake_check");
+    params_events_phy_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_phy_node_kill_check");
+    params_events_phy_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_phy_pdu_send_check");
+    params_events_phy_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_phy_pdu_receive_check");
+    params_events_phy_neighbor_attach_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_phy_neighbor_attach_check");
+    params_events_phy_neighbor_detach_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_phy_neighbor_detach_check");
+    params_events_phy_change_mobility_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_phy_change_mobility_check");
+    params_events_mac_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_mac_node_wake_check");
+    params_events_mac_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_mac_node_kill_check");
+    params_events_mac_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_mac_pdu_send_check");
+    params_events_mac_pdu_send_timeout_check_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_mac_pdu_send_timeout_check_check");
+    params_events_mac_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_mac_pdu_receive_check");
+    params_events_ip_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_ip_node_wake_check");
+    params_events_ip_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_ip_node_kill_check");
+    params_events_ip_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_ip_pdu_send_check");
+    params_events_ip_pdu_send_timeout_check_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_ip_pdu_send_timeout_check_check");
+    params_events_ip_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_ip_pdu_receive_check");
+    params_events_ip_neighbor_cache_timeout_check_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_ip_neighbor_cache_timeout_check_check");
+    params_events_icmp_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_node_wake_check");
+    params_events_icmp_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_node_kill_check");
+    params_events_icmp_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_pdu_send_check");
+    params_events_icmp_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_pdu_receive_check");
+    params_events_icmp_ping_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_ping_send_check");
+    params_events_icmp_ping_timeout_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_ping_timeout_check");
+    params_events_rpl_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_node_wake_check");
+    params_events_rpl_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_node_kill_check");
+    params_events_rpl_dis_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_dis_pdu_send_check");
+    params_events_rpl_dis_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_dis_pdu_receive_check");
+    params_events_rpl_dio_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_dio_pdu_send_check");
+    params_events_rpl_dio_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_dio_pdu_receive_check");
+    params_events_rpl_dao_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_dao_pdu_send_check");
+    params_events_rpl_dao_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_dao_pdu_receive_check");
+    params_events_rpl_neighbor_attach_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_neighbor_attach_check");
+    params_events_rpl_neighbor_detach_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_neighbor_detach_check");
+    params_events_rpl_forward_failure_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_forward_failure_check");
+    params_events_rpl_forward_inconsistency_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_forward_inconsistency_check");
+    params_events_rpl_trickle_t_timeout_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_trickle_t_timeout_check");
+    params_events_rpl_trickle_i_timeout_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_trickle_i_timeout_check");
+    params_events_rpl_seq_num_autoinc_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_seq_num_autoinc_check");
+    params_events_measure_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_node_wake_check");
+    params_events_measure_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_node_kill_check");
+    params_events_measure_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_pdu_send_check");
+    params_events_measure_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_pdu_receive_check");
+    params_events_measure_connect_update_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_connect_update_check");
+    params_events_measure_connect_hop_passed_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_connect_hop_passed_check");
+    params_events_measure_connect_hop_failed_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_connect_hop_failed_check");
+    params_events_measure_connect_hop_timeout_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_connect_hop_timeout_check");
+    params_events_measure_connect_established_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_connect_established_check");
+    params_events_measure_connect_lost_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_connect_lost_check");
 
     params_nodes_button = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_button");
     params_nodes_vbox = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_vbox");
@@ -1958,15 +2175,7 @@ static void gui_to_system()
 {
     rs_assert(rs_system != NULL);
 
-    /* system (phy & misc) */
-    rs_system->no_link_dist_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin));
-    rs_system->no_link_quality_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin)) / 100.0;
-    rs_system->transmission_time = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin));
-    rs_system->neighbor_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_neighbor_timeout_spin));
-
-    rs_system->width = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_width_spin));
-    rs_system->height = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_height_spin));
-
+    /* system */
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_system_real_time_sim_check))) {
         rs_system->simulation_second = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_sim_second_spin));
     }
@@ -1975,19 +2184,32 @@ static void gui_to_system()
     }
 
     rs_system->auto_wake_nodes = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_system_auto_wake_check));
+    rs_system->deterministic_random = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_system_deterministic_random_check));
 
+    /* phy */
+    rs_system->width = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_width_spin));
+    rs_system->height = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_height_spin));
+    rs_system->no_link_dist_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_dist_spin));
+    rs_system->no_link_quality_thresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_no_link_quality_spin)) / 100.0;
+    rs_system->transmission_time = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_transmission_time_spin));
+
+    /* mac */
+    rs_system->mac_pdu_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_mac_pdu_timeout_spin));
+
+    /* ip */
+    rs_system->ip_queue_size = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_ip_queue_size));
+    rs_system->ip_pdu_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_ip_pdu_timeout_spin));
+    rs_system->ip_neighbor_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_ip_neighbor_timeout_spin));
 
     /* rpl */
     rs_system->rpl_dio_interval_min = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_min_spin));
     rs_system->rpl_dio_interval_doublings = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_doublings_spin));
     rs_system->rpl_dio_redundancy_constant = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_redundancy_spin));
     rs_system->rpl_max_inc_rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin));
-    // rs_system->rpl_min_hop_rank_inc = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_min_hop_rank_inc_spin));
     rs_system->rpl_dao_supported = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check));
     rs_system->rpl_dao_trigger = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check));
     rs_system->rpl_start_silent = !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check));
     rs_system->rpl_prefer_floating = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_prefer_floating_check));
-
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check))) {
         if (gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_autoinc_sn_spin)) <= 0) {
@@ -2002,6 +2224,9 @@ static void gui_to_system()
 
     rs_system->rpl_poison_count = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_poison_count_spin));
 
+    /* measure */
+    rs_system->measure_pdu_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_system_measure_pdu_timeout_spin));
+
     /* update all existing nodes' root info */
     update_rpl_root_configurations();
 
@@ -2009,6 +2234,11 @@ static void gui_to_system()
     rs_system_cancel_event(NULL, rpl_event_seq_num_autoinc, NULL, NULL, 0);
     if (rs_system->rpl_auto_sn_inc_interval > 0 ) {
         rs_system_schedule_event(NULL, rpl_event_seq_num_autoinc, NULL, NULL, rs_system->rpl_auto_sn_inc_interval);
+    }
+
+    uint16 i;
+    for (i = 0; i < rs_system->node_count; i++) {
+        phy_node_update_neighbors(rs_system->node_list[i]);
     }
 }
 
@@ -2141,6 +2371,62 @@ static void gui_to_display()
     display_params.show_sibling_arrows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_display_show_sibling_arrows_check));
 
     gtk_widget_queue_draw(legend_widget);
+}
+
+static void gui_to_events()
+{
+    event_set_logging(sys_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_sys_node_wake_check)));
+    event_set_logging(sys_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_sys_node_kill_check)));
+    event_set_logging(sys_event_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_sys_pdu_receive_check)));
+    event_set_logging(phy_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_phy_node_wake_check)));
+    event_set_logging(phy_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_phy_node_kill_check)));
+    event_set_logging(phy_event_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_phy_pdu_send_check)));
+    event_set_logging(phy_event_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_phy_pdu_receive_check)));
+    event_set_logging(phy_event_neighbor_attach, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_phy_neighbor_attach_check)));
+    event_set_logging(phy_event_neighbor_detach, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_phy_neighbor_detach_check)));
+    event_set_logging(phy_event_change_mobility, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_phy_change_mobility_check)));
+    event_set_logging(mac_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_mac_node_wake_check)));
+    event_set_logging(mac_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_mac_node_kill_check)));
+    event_set_logging(mac_event_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_mac_pdu_send_check)));
+    event_set_logging(mac_event_pdu_send_timeout_check, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_mac_pdu_send_timeout_check_check)));
+    event_set_logging(mac_event_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_mac_pdu_receive_check)));
+    event_set_logging(ip_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_ip_node_wake_check)));
+    event_set_logging(ip_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_ip_node_kill_check)));
+    event_set_logging(ip_event_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_ip_pdu_send_check)));
+    event_set_logging(ip_event_pdu_send_timeout_check, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_ip_pdu_send_timeout_check_check)));
+    event_set_logging(ip_event_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_ip_pdu_receive_check)));
+    event_set_logging(ip_event_neighbor_cache_timeout_check, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_ip_neighbor_cache_timeout_check_check)));
+    event_set_logging(icmp_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_node_wake_check)));
+    event_set_logging(icmp_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_node_kill_check)));
+    event_set_logging(icmp_event_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_pdu_send_check)));
+    event_set_logging(icmp_event_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_pdu_receive_check)));
+    event_set_logging(icmp_event_ping_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_send_check)));
+    event_set_logging(icmp_event_ping_timeout, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_timeout_check)));
+    event_set_logging(rpl_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_node_wake_check)));
+    event_set_logging(rpl_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_node_kill_check)));
+    event_set_logging(rpl_event_dis_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_dis_pdu_send_check)));
+    event_set_logging(rpl_event_dis_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_dis_pdu_receive_check)));
+    event_set_logging(rpl_event_dio_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_dio_pdu_send_check)));
+    event_set_logging(rpl_event_dio_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_dio_pdu_receive_check)));
+    event_set_logging(rpl_event_dao_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_dao_pdu_send_check)));
+    event_set_logging(rpl_event_dao_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_dao_pdu_receive_check)));
+    event_set_logging(rpl_event_neighbor_attach, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_neighbor_attach_check)));
+    event_set_logging(rpl_event_neighbor_detach, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_neighbor_detach_check)));
+    event_set_logging(rpl_event_forward_failure, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_forward_failure_check)));
+    event_set_logging(rpl_event_forward_inconsistency, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_forward_inconsistency_check)));
+    event_set_logging(rpl_event_trickle_t_timeout, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_trickle_t_timeout_check)));
+    event_set_logging(rpl_event_trickle_i_timeout, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_trickle_i_timeout_check)));
+    event_set_logging(rpl_event_seq_num_autoinc, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_seq_num_autoinc_check)));
+    event_set_logging(measure_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_node_wake_check)));
+    event_set_logging(measure_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_node_kill_check)));
+    event_set_logging(measure_event_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_pdu_send_check)));
+    event_set_logging(measure_event_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_pdu_receive_check)));
+    event_set_logging(measure_event_connect_update, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_update_check)));
+    event_set_logging(measure_event_connect_hop_passed, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_hop_passed_check)));
+    event_set_logging(measure_event_connect_hop_failed, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_hop_failed_check)));
+    event_set_logging(measure_event_connect_hop_timeout, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_hop_timeout_check)));
+    event_set_logging(measure_event_connect_established, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_established_check)));
+    event_set_logging(measure_event_connect_lost, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_connect_lost_check)));
 }
 
 static gboolean gui_update_wrapper(void *data)

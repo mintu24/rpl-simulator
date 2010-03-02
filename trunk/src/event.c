@@ -84,11 +84,23 @@ event_t event_find_by_id(uint16 event_id)
     return event_list[event_id];
 }
 
+uint16 event_get_count()
+{
+    return event_count;
+}
+
 void event_set_logging(uint16 event_id, bool loggable)
 {
     rs_assert(event_id < event_count);
 
     event_list[event_id].loggable = loggable;
+}
+
+bool event_get_logging(uint16 event_id)
+{
+    rs_assert(event_id < event_count);
+
+    return event_list[event_id].loggable;
 }
 
 
