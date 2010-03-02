@@ -22,9 +22,9 @@ typedef struct measure_node_info_t {
     node_t *                connect_dst_node;
     bool                    connect_busy;
     bool                    connect_dst_reachable;
-    int32                   connect_global_start_time;
-    int32                   connect_update_start_time;
-    int32                   connect_last_establish_time;
+    sim_time_t              connect_global_start_time;
+    sim_time_t              connect_update_start_time;
+    sim_time_t              connect_last_establish_time;
     sim_time_t              connect_connected_time;
 
     /* statistics */

@@ -147,7 +147,7 @@ typedef struct rs_system_t {
 
     sim_time_t                  measure_pdu_timeout;
 
-    int32                       rpl_auto_sn_inc_interval;
+    sim_time_t                  rpl_auto_sn_inc_interval;
     bool                        rpl_start_silent;
     uint8                       rpl_poison_count;
 
@@ -218,7 +218,7 @@ void                            rs_system_stop();
 void                            rs_system_pause();
 void                            rs_system_step();
 
-char *                          rs_system_sim_time_to_string(sim_time_t time);
+char *                          rs_system_sim_time_to_string(sim_time_t time, bool millis);
 uint32                          rs_system_random();
 
 

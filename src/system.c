@@ -1,5 +1,3 @@
-// todo investigate if deterministic random is actually used
-
 #include <unistd.h>
 #include <math.h>
 
@@ -728,7 +726,7 @@ void rs_system_step()
     rs_debug(DEBUG_SYSTEM, "system core stepped");
 }
 
-char *rs_system_sim_time_to_string(sim_time_t time)
+char *rs_system_sim_time_to_string(sim_time_t time, bool millis)
 {
     char *text = malloc(256);
 
@@ -740,18 +738,38 @@ char *rs_system_sim_time_to_string(sim_time_t time)
     if (time >= 1000) {
         if (time >= 60000) {
             if (time >= 3600000) {
-                snprintf(text, 256, "%02d:%02d:%02d.%03d", h, m, s, ms);
+            	if (millis) {
+            		snprintf(text, 256, "%02d:%02d:%02d.%03d", h, m, s, ms);
+            	}
+            	else {
+            		snprintf(text, 256, "%02d:%02d:%02d", h, m, s);
+            	}
             }
             else {
-                snprintf(text, 256, "%02d:%02d.%03d", m, s, ms);
+            	if (millis) {
+            		snprintf(text, 256, "%02d:%02d.%03d", m, s, ms);
+            	}
+            	else {
+            		snprintf(text, 256, "%02d:%02d", m, s);
+            	}
             }
         }
         else {
-            snprintf(text, 256, "%02d.%03d", s, ms);
+        	if (millis) {
+        		snprintf(text, 256, "%02d.%03d", s, ms);
+        	}
+        	else {
+        		snprintf(text, 256, "%02d", s);
+        	}
         }
     }
     else {
-        snprintf(text, 256, "0.%03d", ms);
+    	if (millis) {
+    		snprintf(text, 256, "0.%03d", ms);
+    	}
+    	else {
+    		snprintf(text, 256, "0");
+    	}
     }
 
     return text;
@@ -790,7 +808,7 @@ static void *system_core(void *data)
         if (rs_system->schedule_bucket_first != NULL) {
             if (rs_system->simulation_second > 0 && !rs_system->step) {
                 int32 sleep_count = 0;
-                int32 diff = rs_system->schedule_bucket_first->time - rs_system->now;
+                sim_time_t diff = rs_system->schedule_bucket_first->time - rs_system->now;
 
                 while (sleep_count * SYS_REAL_TIME_GRANULARITY < (diff * rs_system->simulation_second - SYS_CORE_SLEEP)) {
                     schedules_unlock();

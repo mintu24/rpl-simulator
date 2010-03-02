@@ -525,8 +525,8 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         for (i = 0; i < node->phy_info->mobility_count; i++) {
             phy_mobility_t *mobility = node->phy_info->mobility_list[i];
 
-            trigger_str_time = rs_system_sim_time_to_string(mobility->trigger_time);
-            duration_str_time = rs_system_sim_time_to_string(mobility->duration);
+            trigger_str_time = rs_system_sim_time_to_string(mobility->trigger_time, TRUE);
+            duration_str_time = rs_system_sim_time_to_string(mobility->duration, TRUE);
             snprintf(dest_x_str, sizeof(dest_x_str), "%.02f", mobility->dest_x);
             snprintf(dest_y_str, sizeof(dest_x_str), "%.02f", mobility->dest_y);
 
@@ -686,6 +686,7 @@ void main_win_node_to_gui(node_t *node, uint32 what)
 
     if (what & MAIN_WIN_NODE_TO_GUI_MEASURE) {
         char temp[256];
+        char *conn_str_time, *total_str_time;
         percent_t fraction;
 
         if (node != NULL) {
@@ -696,14 +697,24 @@ void main_win_node_to_gui(node_t *node, uint32 what)
                 gtk_label_set_text(GTK_LABEL(params_nodes_measure_connect_connected_now_label),
                         node->measure_info->connect_dst_reachable ? "Yes" : "No");
 
-                sim_time_t connected_time = node->measure_info->connect_connected_time;
-                sim_time_t total_time = rs_system->now - node->measure_info->connect_global_start_time;
-
                 percent_t fraction = 0;
-                if (total_time > 0 && total_time >= connected_time)
-                    fraction = (percent_t) connected_time / total_time;
+				sim_time_t connected_time = node->measure_info->connect_connected_time;
+				sim_time_t total_time = rs_system->now - node->measure_info->connect_global_start_time;
 
-                snprintf(temp, sizeof(temp), "%.0f%%", fraction * 100);
+				if (node->measure_info->connect_last_establish_time != -1) {
+					connected_time += rs_system->now - node->measure_info->connect_last_establish_time;
+				}
+
+				if (total_time > 0 && total_time >= connected_time)
+					fraction = (percent_t) connected_time / total_time;
+
+				conn_str_time = rs_system_sim_time_to_string(connected_time, FALSE);
+				total_str_time = rs_system_sim_time_to_string(total_time, FALSE);
+
+                snprintf(temp, sizeof(temp), "%s/%s (%.0f%%)", conn_str_time, total_str_time, fraction * 100);
+
+                free(conn_str_time);
+                free(total_str_time);
 
                 gtk_progress_bar_set_text(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), temp);
                 gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_connect_progress), fraction);
@@ -917,7 +928,7 @@ void main_win_update_nodes_status()
 void main_win_update_sim_time_status()
 {
     char *text = malloc(256);
-    char *time_str = rs_system_sim_time_to_string(rs_system->now);
+    char *time_str = rs_system_sim_time_to_string(rs_system->now, TRUE);
 
     snprintf(text, 256, "Simulation time: %s, Events (scheduled/total): %d/%d", time_str, rs_system->schedule_count, rs_system->event_count);
     free(time_str);
