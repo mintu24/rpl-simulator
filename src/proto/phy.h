@@ -81,6 +81,7 @@ void                    phy_node_set_tx_power(node_t* node, percent_t tw_power);
 void                    phy_node_add_mobility(node_t *node, sim_time_t trigger_time, sim_time_t duration, coord_t dest_x, coord_t dest_y);
 void                    phy_node_rem_mobility(node_t *node, uint16 index);
 void                    phy_node_update_mobility_coords(node_t *node);
+void                    phy_node_update_neighbors(node_t *node);
 
 bool                    phy_node_send(node_t *node, node_t *outgoing_node, void *sdu);
 bool                    phy_node_receive(node_t *node, node_t *incoming_node, phy_pdu_t *pdu);

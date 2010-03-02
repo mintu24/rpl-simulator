@@ -1,3 +1,4 @@
+// todo investigate if deterministic random is actually used
 
 #include <unistd.h>
 #include <math.h>
@@ -49,21 +50,23 @@ bool rs_system_create()
     rs_system->node_list = NULL;
     rs_system->node_count = 0;
 
-    rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
-    rs_system->no_link_quality_thresh = DEFAULT_NO_LINK_QUALITY_THRESH;
-    rs_system->transmission_time = DEFAULT_TRANSMISSION_TIME;
-    rs_system->mac_pdu_timeout = DEFAULT_MAC_PDU_TIMEOUT;
-    rs_system->ip_pdu_timeout = DEFAULT_IP_PDU_TIMEOUT;
-    rs_system->measure_pdu_timeout = DEFAULT_MEASURE_PDU_TIMEOUT;
-    rs_system->neighbor_timeout = DEFAULT_NEIGHBOR_TIMEOUT;
-    rs_system->ip_queue_size = DEFAULT_IP_QUEUE_SIZE;
+    rs_system->auto_wake_nodes = DEFAULT_AUTO_WAKE_NODES;
+    rs_system->deterministic_random = DEFAULT_DETERMINISTIC_RANDOM;
+    rs_system->simulation_second = DEFAULT_SIMULATION_SECOND;
 
     rs_system->width = DEFAULT_SYS_WIDTH;
     rs_system->height = DEFAULT_SYS_HEIGHT;
+    rs_system->no_link_dist_thresh = DEFAULT_NO_LINK_DIST_THRESH;
+    rs_system->no_link_quality_thresh = DEFAULT_NO_LINK_QUALITY_THRESH;
+    rs_system->transmission_time = DEFAULT_TRANSMISSION_TIME;
 
-    rs_system->auto_wake_nodes = TRUE;
+    rs_system->mac_pdu_timeout = DEFAULT_MAC_PDU_TIMEOUT;
 
-    rs_system->simulation_second = DEFAULT_SIMULATION_SECOND;
+    rs_system->ip_pdu_timeout = DEFAULT_IP_PDU_TIMEOUT;
+    rs_system->ip_queue_size = DEFAULT_IP_QUEUE_SIZE;
+    rs_system->ip_neighbor_timeout = DEFAULT_IP_NEIGHBOR_TIMEOUT;
+
+    rs_system->measure_pdu_timeout = DEFAULT_MEASURE_PDU_TIMEOUT;
 
     rs_system->rpl_auto_sn_inc_interval = DEFAULT_RPL_AUTO_SN_INC_INT;
     rs_system->rpl_start_silent = DEFAULT_RPL_STARTUP_SILENT;
@@ -422,11 +425,76 @@ void rs_system_cancel_event(node_t *node, int32 event_id, void *data1, void *dat
     schedule_bucket_t *bucket = rs_system->schedule_bucket_first;
     schedule_bucket_t *prev_bucket = NULL;
 
-    if (time < 0) {
-        time = rs_system->now - time;
-    }
+    if (time == 0) {
+        while (bucket != NULL) {
+            event_schedule_t *schedule = bucket->first;
+            event_schedule_t *prev_schedule = NULL;
 
-    while (bucket != NULL) {
+            while (schedule != NULL) {
+                if ((event_id ==-1 || schedule->event_id == event_id) &&
+                        (node == NULL || node == schedule->node) &&
+                        (data1 == NULL || data1 == schedule->data1) &&
+                        (data2 == NULL || data2 == schedule->data2) &&
+                        (time == 0 || time == schedule->time)) {
+
+                    if (prev_schedule == NULL) {
+                        bucket->first = schedule->next;
+                    }
+                    else {
+                        prev_schedule->next = schedule->next;
+                    }
+
+                    if (schedule == bucket->last) {
+                        bucket->last = prev_schedule;
+                    }
+
+                    event_schedule_t *temp_schedule = schedule;
+                    schedule = schedule->next;
+                    schedule_destroy(temp_schedule);
+                    rs_system->schedule_count--;
+                }
+                else {
+                    prev_schedule = schedule;
+                    schedule = schedule->next;
+                }
+            }
+
+            if (bucket->first == NULL) { /* no schedule left in this bucket */
+                if (prev_bucket == NULL) {
+                    rs_system->schedule_bucket_first = bucket->next;
+                }
+                else {
+                    prev_bucket->next = bucket->next;
+                }
+
+                schedule_bucket_t *temp_bucket = bucket;
+                bucket = bucket->next;
+                bucket_destroy(temp_bucket);
+            }
+            else {
+                prev_bucket = bucket;
+                bucket = bucket->next;
+            }
+        }
+    }
+    else {
+        if (time < 0) {
+            time = rs_system->now - time;
+        }
+
+        schedule_bucket_t *bucket = rs_system->schedule_bucket_first;
+        schedule_bucket_t *prev_bucket = NULL;
+
+        while ((bucket != NULL) && (bucket->time < time)) {
+            prev_bucket = bucket;
+            bucket = bucket->next;
+        }
+
+        if (bucket == NULL || bucket->time != time) { /* no event scheduled for the given time */
+            schedules_unlock();
+            return;
+        }
+
         event_schedule_t *schedule = bucket->first;
         event_schedule_t *prev_schedule = NULL;
 
@@ -691,10 +759,15 @@ char *rs_system_sim_time_to_string(sim_time_t time)
 
 uint32 rs_system_random()
 {
-    rs_system->random_z = 36969 * (rs_system->random_z & 0xFFFF) + (rs_system->random_z >> 16);
-    rs_system->random_w = 18000 * (rs_system->random_w & 0xFFFF) + (rs_system->random_w >> 16);
+    if (rs_system->deterministic_random) {
+        rs_system->random_z = 36969 * (rs_system->random_z & 0xFFFF) + (rs_system->random_z >> 16);
+        rs_system->random_w = 18000 * (rs_system->random_w & 0xFFFF) + (rs_system->random_w >> 16);
 
-    return (rs_system->random_z << 16) + rs_system->random_w;
+        return (rs_system->random_z << 16) + rs_system->random_w;
+    }
+    else {
+        return rand();
+    }
 }
 
     /**** local functions ****/

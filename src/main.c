@@ -46,6 +46,7 @@ char *rs_open(char *filename)
     rs_scenario_file_name = strdup(filename);
     main_win_system_to_gui();
     main_win_display_to_gui();
+    main_win_events_to_gui();
 
     return scenario_load(filename);
 }
@@ -393,6 +394,7 @@ static void load_last_scenario()
 
     main_win_system_to_gui();
     main_win_display_to_gui();
+    main_win_events_to_gui();
 }
 
 static void save_last_scenario()

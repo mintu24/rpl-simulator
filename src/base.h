@@ -71,19 +71,20 @@
 #define DEBUG_MUTEX                 (DEBUG_EVENTS_MUTEX | DEBUG_SCHEDULES_MUTEX | DEBUG_NODES_MUTEX | DEBUG_MEASURES_MUTEX)
 #define DEBUG_ALL                   (DEBUG_MINIMAL | DEBUG_PROTO | DEBUG_GUI | DEBUG_MUTEX)
 
-#define DEBUG                       (DEBUG_MAIN | DEBUG_SCENARIO)
+#undef DEBUG
 
 #define rs_info(args...)            rs_print(stdout, "* ", NULL, 0, NULL, args)
 
 #ifdef DEBUG
 #define rs_debug(cat, args...)      { if (cat & (DEBUG)) rs_print(stderr, "@ ", __FILE__, __LINE__, __FUNCTION__, args); }
+#define rs_assert(cond)             { if (!(cond)) rs_print(stderr, "# ", __FILE__, __LINE__, __FUNCTION__, "assertion '%s' failed", #cond); }
 #else
 #define rs_debug(node, args...)
+#define rs_assert(cond)
 #endif  /* DEBUG */
 
 #define rs_warn(args...)            rs_print(stderr, "# ", __FILE__, __LINE__, __FUNCTION__, args)
 #define rs_error(args...)           rs_print(stderr, "! ", __FILE__, __LINE__, __FUNCTION__, args)
-#define rs_assert(cond)             { if (!(cond)) rs_print(stderr, "# ", __FILE__, __LINE__, __FUNCTION__, "assertion '%s' failed", #cond); }
 
 extern char *                       rs_app_dir;
 extern char *                       rs_scenario_file_name;
