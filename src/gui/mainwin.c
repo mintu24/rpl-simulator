@@ -1,5 +1,3 @@
-// todo implement event log dump
-
 #include <gdk/gdk.h>
 #include <cairo.h>
 
@@ -1248,7 +1246,7 @@ static void cb_save_menu_item_activate(GtkWidget *widget, gpointer *data)
             GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
 
     if (rs_scenario_file_name != NULL) {
-        gtk_file_chooser_set_filename (GTK_FILE_CHOOSER(save_dialog), rs_scenario_file_name);
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(save_dialog), rs_scenario_file_name);
     }
     else {
         char path[256];

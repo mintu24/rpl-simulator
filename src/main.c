@@ -44,6 +44,11 @@ char *rs_open(char *filename)
     }
 
     rs_scenario_file_name = strdup(filename);
+
+    char temp[256];
+    snprintf(temp, sizeof(temp), "%s.log", filename);
+    event_set_log_file(temp);
+
     main_win_system_to_gui();
     main_win_display_to_gui();
     main_win_events_to_gui();
@@ -73,6 +78,12 @@ void rs_quit()
 void rs_start()
 {
     rs_system_start(FALSE);
+
+    if (rs_scenario_file_name != NULL) {
+        char temp[256];
+        snprintf(temp, sizeof(temp), "%s.log", rs_scenario_file_name);
+        event_set_log_file(temp);
+    }
 
     main_win_update_sim_status();
 }
