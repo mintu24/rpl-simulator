@@ -12,6 +12,8 @@ static uint16               event_count = 0;
 
 static uint8                level = 0; /* not thread safe !!! */
 
+static FILE *				log_file = NULL;
+
 
     /**** local functions prototypes ****/
 
@@ -19,6 +21,20 @@ void                        event_log(uint16 event_id, node_t *node, void *data1
 
 
     /**** exported functions ****/
+
+void event_init()
+{
+}
+
+void event_done()
+{
+	if (log_file != NULL) {
+        rs_debug(DEBUG_EVENT, "closing event log");
+
+        fclose(log_file);
+		log_file = NULL;
+	}
+}
 
 uint16 event_register(char *name, char *layer, event_handler_t handler, event_arg_str_t str_func)
 {
@@ -103,6 +119,25 @@ bool event_get_logging(uint16 event_id)
     return event_list[event_id].loggable;
 }
 
+void event_set_log_file(char *filename)
+{
+	if (log_file != NULL) {
+        rs_debug(DEBUG_EVENT, "closing event log");
+
+        fclose(log_file);
+        log_file = NULL;
+    }
+
+    if (filename != NULL) {
+        rs_debug(DEBUG_EVENT, "opening event log '%s'", filename);
+
+        log_file = fopen(filename, "w");
+        if (log_file == NULL) {
+            rs_error("failed to open event log '%s' for writing: ", filename, strerror(errno));
+        }
+    }
+}
+
 
     /**** local functions ****/
 
@@ -152,7 +187,14 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
         snprintf(text, 256, "%s.%s.%s()", node_name, event->layer, event->name);
     }
 
-    fprintf(stderr, "%s : %s%s\n", str_time, indent, text);
+    if (log_file != NULL) {
+        fprintf(log_file, "%s : %s%s\n", str_time, indent, text);
+        fflush(log_file);
+    }
+    else {
+        fprintf(stderr, "%s : %s%s\n", str_time, indent, text);
+    }
 
     free(str_time);
 }
+

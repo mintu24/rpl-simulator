@@ -999,6 +999,8 @@ static bool event_handler_node_kill(node_t *node)
     ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DAO);
     /* the IP layer should trigger the removal of all our neighbors */
 
+    node->rpl_info->last_dio_send_time = -1;
+
     return TRUE;
 }
 
