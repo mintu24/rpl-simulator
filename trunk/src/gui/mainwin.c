@@ -1,3 +1,6 @@
+// todo reload combo lists when renaming a node
+// todo add a "log events to console" option
+
 #include <gdk/gdk.h>
 #include <cairo.h>
 
@@ -204,8 +207,10 @@ static GtkWidget *              params_nodes_measure_converg_floating_progress;
 static GtkWidget *              main_win_first_hpaned;
 static GtkWidget *              main_win_second_hpaned;
 
+static GtkWidget *              new_menu_item = NULL;
 static GtkWidget *              open_menu_item = NULL;
 static GtkWidget *              save_menu_item = NULL;
+static GtkWidget *              save_as_menu_item = NULL;
 static GtkWidget *              quit_menu_item = NULL;
 static GtkWidget *              start_menu_item = NULL;
 static GtkWidget *              pause_menu_item = NULL;
@@ -253,8 +258,10 @@ void                            cb_params_nodes_route_dst_combo_changed(GtkCombo
 void                            cb_params_nodes_root_button_clicked(GtkButton *button, gpointer data);
 void                            cb_params_nodes_isolate_button_clicked(GtkButton *button, gpointer data);
 
+static void                     cb_new_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void                     cb_open_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void                     cb_save_menu_item_activate(GtkWidget *widget, gpointer *data);
+static void                     cb_save_as_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void                     cb_quit_menu_item_activate(GtkMenuItem *widget, gpointer user_data);
 static void                     cb_start_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void                     cb_pause_menu_item_activate(GtkWidget *widget, gpointer *data);
@@ -308,6 +315,7 @@ bool main_win_init()
 
     gtk_builder = gtk_builder_new();
 
+    /* glade/gtkbuilder UI */
     char path[256];
     snprintf(path, sizeof(path), "%s/%s/mainwin.glade", rs_app_dir, RES_DIR);
 
@@ -322,6 +330,10 @@ bool main_win_init()
     gtk_window_set_default_size(GTK_WINDOW(main_window), MAIN_WIN_WIDTH, MAIN_WIN_HEIGHT);
     gtk_window_set_title(GTK_WINDOW(main_window), "RPL Simulator");
     gtk_signal_connect(GTK_OBJECT(main_window), "delete-event", GTK_SIGNAL_FUNC(cb_main_window_delete), NULL);
+
+    /* icon */
+    snprintf(path, sizeof(path), "%s/%s/%s", rs_app_dir, RES_DIR, MAIN_WIN_ICON);
+    gtk_window_set_icon_from_file(GTK_WINDOW(main_window), path, NULL);
 
     GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(main_window), vbox);
@@ -645,7 +657,7 @@ void main_win_node_to_gui(node_t *node, uint32 what)
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_nodes_dao_trigger_check), root_info->dao_trigger);
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_nodes_dag_pref_spin), root_info->dodag_pref);
 
-        gtk_entry_set_editable(GTK_ENTRY(params_nodes_dag_id_entry), rpl_node_is_joined(node) || rpl_node_is_root(node));
+        gtk_entry_set_editable(GTK_ENTRY(params_nodes_dag_id_entry), !rpl_node_is_poisoning(node) && !rpl_node_is_joined(node));
 
         if (rpl_node_is_joined(node)) {
             gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), dodag->dodag_id);
@@ -665,15 +677,15 @@ void main_win_node_to_gui(node_t *node, uint32 what)
             gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), temp);
         }
         else if (rpl_node_is_poisoning(node)) {
-            gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), "<<poisoning>>");
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), dodag->dodag_id);
 
             gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), "0");
 
             snprintf(temp, sizeof(temp), "%d", RPL_RANK_INFINITY);
             gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), temp);
         }
-        else {
-            gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), "<<isolated>>");
+        else { /* isolated */
+            gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), "");
 
             gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), "0");
 
@@ -763,6 +775,9 @@ void main_win_node_to_gui(node_t *node, uint32 what)
 
             if (measure_converg->total_node_count > 0 && measure_converg->total_node_count >= measure_converg->connected_node_count) {
                 fraction = (float) measure_converg->connected_node_count / measure_converg->total_node_count;
+            }
+            else {
+                fraction = 0;
             }
             snprintf(temp, sizeof(temp), "%d/%d (%.0f%%)", measure_converg->connected_node_count, measure_converg->total_node_count, fraction * 100);
             gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(params_nodes_measure_converg_connected_progress), fraction);
@@ -1156,6 +1171,12 @@ void cb_params_nodes_root_button_clicked(GtkButton *button, gpointer data)
     rs_assert(selected_node != NULL);
     rs_debug(DEBUG_GUI, NULL);
 
+    rpl_root_info_t *root_info = selected_node->rpl_info->root_info;
+    if (root_info->configured_dodag_id != NULL) {
+        free(root_info->configured_dodag_id);
+    }
+    root_info->configured_dodag_id = strdup(root_info->dodag_id);
+
     rpl_node_start_as_root(selected_node);
 
     signal_leave();
@@ -1189,6 +1210,20 @@ void cb_params_nodes_ping_timeout_spin_changed(GtkSpinButton *spin, gpointer dat
 }
 
 
+static void cb_new_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    rs_debug(DEBUG_GUI, NULL);
+
+    rs_new();
+
+    sim_field_redraw();
+    update_sensitivity();
+
+    signal_leave();
+}
+
 static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
@@ -1206,10 +1241,14 @@ static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
 
     gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(open_dialog), path);
 
+    char *filename = NULL;
     if (gtk_dialog_run(GTK_DIALOG(open_dialog)) == GTK_RESPONSE_ACCEPT) {
-        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(open_dialog));
-        char *msg = rs_open(filename);
+        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(open_dialog));
+    }
+    gtk_widget_destroy(open_dialog);
 
+    if (filename != NULL) {
+        char *msg = rs_open(filename);
         free(filename);
 
         if (msg != NULL) {
@@ -1225,8 +1264,6 @@ static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
         }
     }
 
-    gtk_widget_destroy(open_dialog);
-
     sim_field_redraw();
     update_sensitivity();
 
@@ -1234,6 +1271,37 @@ static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
 }
 
 static void cb_save_menu_item_activate(GtkWidget *widget, gpointer *data)
+{
+    if (rs_scenario_file_name == NULL) { /* no scenario loaded/saved yet */
+        cb_save_as_menu_item_activate(widget, data);
+        return;
+    }
+
+    signal_enter();
+
+    rs_debug(DEBUG_GUI, NULL);
+
+    char *msg = rs_save(rs_scenario_file_name);
+
+    if (msg != NULL) {
+        GtkWidget *msg_dialog = gtk_message_dialog_new(
+                GTK_WINDOW(main_window),
+                GTK_DIALOG_DESTROY_WITH_PARENT,
+                GTK_MESSAGE_ERROR,
+                GTK_BUTTONS_CLOSE,
+                "Error saving scenario: %s", msg);
+
+        gtk_dialog_run(GTK_DIALOG(msg_dialog));
+        gtk_widget_destroy(msg_dialog);
+    }
+
+    sim_field_redraw();
+    update_sensitivity();
+
+    signal_leave();
+}
+
+static void cb_save_as_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
     signal_enter();
 
@@ -1255,8 +1323,13 @@ static void cb_save_menu_item_activate(GtkWidget *widget, gpointer *data)
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(save_dialog), path);
     }
 
+    char *filename = NULL;
     if (gtk_dialog_run(GTK_DIALOG(save_dialog)) == GTK_RESPONSE_ACCEPT) {
-        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(save_dialog));
+        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(save_dialog));
+    }
+    gtk_widget_destroy(save_dialog);
+
+    if (filename != NULL) {
         char *msg = rs_save(filename);
 
         free(filename);
@@ -1273,8 +1346,6 @@ static void cb_save_menu_item_activate(GtkWidget *widget, gpointer *data)
             gtk_widget_destroy(msg_dialog);
         }
     }
-
-    gtk_widget_destroy(save_dialog);
 
     sim_field_redraw();
     update_sensitivity();
@@ -1509,6 +1580,12 @@ static void cb_about_menu_item_activate(GtkWidget *widget, gpointer *data)
             "You should have received a copy of the GNU General Public License "
             "along with this program. If not, see <http://www.gnu.org/licenses/>.";
 
+    char path[256];
+    snprintf(path, sizeof(path), "%s/%s/%s", rs_app_dir, RES_DIR, MAIN_WIN_ICON);
+    GdkPixbuf *icon = gdk_pixbuf_new_from_file(path, NULL);
+
+    gtk_window_set_icon(GTK_WINDOW(about_dialog), icon);
+
     gtk_about_dialog_set_name(GTK_ABOUT_DIALOG(about_dialog), "RPL Simulator");
     gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(about_dialog), RS_VERSION);
     gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(about_dialog), "Copyright \xc2\xa9 2010 Calin Crisan <ccrisan@gmail.com>");
@@ -1516,6 +1593,7 @@ static void cb_about_menu_item_activate(GtkWidget *widget, gpointer *data)
     gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(about_dialog), description);
     gtk_about_dialog_set_license(GTK_ABOUT_DIALOG(about_dialog), license);
     gtk_about_dialog_set_wrap_license(GTK_ABOUT_DIALOG(about_dialog), TRUE);
+    gtk_about_dialog_set_logo(GTK_ABOUT_DIALOG(about_dialog), icon);
 
     gtk_dialog_run(GTK_DIALOG(about_dialog));
     gtk_widget_hide(about_dialog);
@@ -1798,13 +1876,21 @@ GtkWidget *create_menu_bar()
     GtkWidget *file_menu = gtk_menu_new();
 
 
+    new_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
+    gtk_signal_connect(GTK_OBJECT(new_menu_item), "activate", GTK_SIGNAL_FUNC(cb_new_menu_item_activate), NULL);
+    gtk_menu_append(file_menu, new_menu_item);
+
     open_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_OPEN, NULL);
     gtk_signal_connect(GTK_OBJECT(open_menu_item), "activate", GTK_SIGNAL_FUNC(cb_open_menu_item_activate), NULL);
     gtk_menu_append(file_menu, open_menu_item);
 
-    save_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE_AS, NULL);
+    save_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE, NULL);
     gtk_signal_connect(GTK_OBJECT(save_menu_item), "activate", GTK_SIGNAL_FUNC(cb_save_menu_item_activate), NULL);
     gtk_menu_append(file_menu, save_menu_item);
+
+    save_as_menu_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE_AS, NULL);
+    gtk_signal_connect(GTK_OBJECT(save_as_menu_item), "activate", GTK_SIGNAL_FUNC(cb_save_as_menu_item_activate), NULL);
+    gtk_menu_append(file_menu, save_as_menu_item);
 
     gtk_menu_append(file_menu, gtk_separator_menu_item_new());
 
@@ -2116,8 +2202,10 @@ static void update_sensitivity()
 
     gtk_widget_set_sensitive(params_nodes_measure_connect_dst_combo, node_selected);
 
+    gtk_widget_set_sensitive(new_menu_item, !sim_started);
     gtk_widget_set_sensitive(open_menu_item, !sim_started);
     gtk_widget_set_sensitive(save_menu_item, !sim_started);
+    gtk_widget_set_sensitive(save_as_menu_item, !sim_started);
 
     gtk_widget_set_sensitive(rem_node_toolbar_item, node_selected && !sim_started);
     gtk_widget_set_sensitive(rem_menu_item, node_selected &&  !sim_started);
@@ -2315,7 +2403,6 @@ static void gui_to_node(node_t *node)
     node->icmp_info->ping_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_ping_timeout_spin));
 
     /* rpl */
-    rpl_dodag_t *dodag = node->rpl_info->joined_dodag;
     rpl_root_info_t *root_info = node->rpl_info->root_info;
 
     node->rpl_info->storing = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_storing_check));
@@ -2326,15 +2413,7 @@ static void gui_to_node(node_t *node)
     root_info->dao_trigger = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_dao_trigger_check));
     root_info->dodag_pref = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_dag_pref_spin));
 
-    if (rpl_node_is_joined(node)) {
-        if (dodag->dodag_id != NULL) {
-            free(dodag->dodag_id);
-        }
-        dodag->dodag_id = strdup(gtk_entry_get_text(GTK_ENTRY(params_nodes_dag_id_entry)));
-        /* dodag->seq_num = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin));
-        dodag->rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_rank_spin)); */
-    }
-    else if (rpl_node_is_root(node)) {
+    if (rpl_node_is_root(node) || rpl_node_is_isolated(node)) {
         if (root_info->dodag_id != NULL) {
             free(root_info->dodag_id);
         }

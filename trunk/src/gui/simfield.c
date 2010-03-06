@@ -147,7 +147,12 @@ void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel
         }
     }
     else {
-        images = node_round_images[SIM_FIELD_NODE_COLOR_COUNT - 1];
+        if (node->rpl_info->root_info->grounded || node->rpl_info->root_info->configured_dodag_id != NULL) {
+            images = node_square_images[SIM_FIELD_NODE_COLOR_COUNT - 1];
+        }
+        else {
+            images = node_round_images[SIM_FIELD_NODE_COLOR_COUNT - 1];
+        }
     }
 
     cairo_surface_t *image = images[(int) round(tx_power * 10)];

@@ -14,8 +14,9 @@
 
 #define MAIN_WIN_TITLE                              "RPL Simulator [%s]"
 #define MAIN_WIN_TITLE_UNSAVED                      "unsaved scenario"
+#define MAIN_WIN_ICON                               "icon.png"
 
-#ifndef gtk_widget_set_visible
+#ifndef gtk_widget_set_visible /* gtk <=2.16 compatibility */
 #define gtk_widget_set_visible(widget, visible)     { if (visible) gtk_widget_show(widget); else gtk_widget_hide(widget); }
 #endif
 

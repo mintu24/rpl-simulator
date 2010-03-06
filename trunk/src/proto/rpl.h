@@ -50,6 +50,7 @@ typedef struct rpl_neighbor_t {
 typedef struct rpl_root_info_t {
 
     char *                  dodag_id;
+    char *                  configured_dodag_id;
     uint8                   dodag_pref;
     bool                    grounded;
     bool                    dao_supported;
@@ -209,6 +210,7 @@ rpl_dao_pdu_t *             rpl_dao_pdu_duplicate(rpl_dao_pdu_t *pdu);
 void                        rpl_dao_pdu_add_rr(rpl_dao_pdu_t *pdu, char *ip_address);
 
 uint8                       rpl_seq_num_get(char *dodag_id);
+void                        rpl_seq_num_reset();
 
 void                        rpl_node_init(node_t *node);
 void                        rpl_node_done(node_t *node);
