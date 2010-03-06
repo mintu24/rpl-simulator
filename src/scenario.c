@@ -898,9 +898,9 @@ setting_t *create_setting_tree()
         sprintf(text, "%d", node->rpl_info->root_info->dio_redundancy_constant);
         setting_set_value(setting, text);
 
-        if (node->rpl_info->root_info->dodag_id != NULL) {
-            setting = setting_create("dodag_id", rpl_setting);
-            setting_set_value(setting, node->rpl_info->root_info->dodag_id);
+        if (node->rpl_info->root_info->configured_dodag_id != NULL) {
+            setting = setting_create("configured_dodag_id", rpl_setting);
+            setting_set_value(setting, node->rpl_info->root_info->configured_dodag_id);
         }
 
         setting = setting_create("dodag_pref", rpl_setting);
@@ -1345,8 +1345,8 @@ bool apply_rpl_setting(char *path, rpl_node_info_t *rpl_node_info, char *name, c
     else if (strcmp(name, "dio_redundancy_constant") == 0) {
         rpl_node_info->root_info->dio_redundancy_constant = strtol(value, NULL, 10);
     }
-    else if (strcmp(name, "dodag_id") == 0) {
-        rpl_node_info->root_info->dodag_id = strdup(value);
+    else if (strcmp(name, "configured_dodag_id") == 0) {
+        rpl_node_info->root_info->configured_dodag_id = strdup(value);
     }
     else if (strcmp(name, "dodag_pref") == 0) {
         rpl_node_info->root_info->dodag_pref = strtol(value, NULL, 10);

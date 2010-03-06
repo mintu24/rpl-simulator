@@ -53,6 +53,9 @@ bool dialogs_init()
     triangular_image = (GtkWidget *) gtk_builder_get_object(gtk_builder, "triangular_image");
     random_image = (GtkWidget *) gtk_builder_get_object(gtk_builder, "random_image");
 
+    snprintf(path, sizeof(path), "%s/%s/%s", rs_app_dir, RES_DIR, MAIN_WIN_ICON);
+    gtk_window_set_icon_from_file(GTK_WINDOW(add_more_dialog), path, NULL);
+
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(node_number_spin), 20);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(rectangular_radio), TRUE);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(rectangular_horiz_dist_spin), 10);

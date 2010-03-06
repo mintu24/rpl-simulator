@@ -117,6 +117,11 @@ bool rs_system_create()
         return FALSE;
     }
 
+    if (!measure_init()) {
+        rs_error("failed to initialize measurements layer");
+        return FALSE;
+    }
+
     g_static_rec_mutex_init(&rs_system->events_mutex);
     g_static_rec_mutex_init(&rs_system->schedules_mutex);
     g_static_rec_mutex_init(&rs_system->nodes_mutex);
@@ -149,6 +154,11 @@ bool rs_system_destroy()
         bucket_destroy(temp_bucket);
     }
     rs_system->schedule_count = 0;
+
+    if (!measure_done()) {
+        rs_error("failed to destroy measurements layer");
+        return FALSE;
+    }
 
     if (!rpl_done()) {
         rs_error("failed to destroy RPL layer");
@@ -552,7 +562,7 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
     rs_assert(src_node != NULL);
 
     if (dst_node == NULL) { /* broadcast */
-        uint16 i;
+        uint16 i, sent = 0;
         for (i = 0; i < src_node->phy_info->neighbor_count; i++) {
             dst_node = src_node->phy_info->neighbor_list[i];
 
@@ -560,13 +570,19 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
                 continue;
             }
 
-            // todo this could cause memory leak if the last neighbor is skipped (e.g. not alive)
-            if (i < src_node->phy_info->neighbor_count - 1) {
+            if (sent > 0) {
                 rs_system_send(src_node, dst_node, phy_pdu_duplicate(message));
             }
             else {
                 rs_system_send(src_node, dst_node, message);
             }
+
+            sent++;
+        }
+
+        if (sent == 0) { /* no one received our message */
+            message->sdu = NULL;
+            phy_pdu_destroy(message);
         }
     }
     else {
@@ -623,6 +639,8 @@ void rs_system_start(bool start_paused)
         if (rs_system->sys_thread == NULL) {
             rs_error("g_thread_create() failed: %s", error->message);
         }
+
+        rpl_seq_num_reset();
 
         /* wait till started */
         while (!rs_system->started) {

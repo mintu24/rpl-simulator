@@ -147,6 +147,7 @@ rpl_root_info_t *rpl_root_info_create()
     rpl_root_info_t *root_info = malloc(sizeof(rpl_root_info_t));
 
     root_info->dodag_id = NULL;
+    root_info->configured_dodag_id = NULL;
     root_info->dodag_pref = RPL_DEFAULT_DAG_PREF;
     root_info->grounded = FALSE;
     root_info->dao_supported = rs_system->rpl_dao_supported;
@@ -169,6 +170,10 @@ void rpl_root_info_destroy(rpl_root_info_t *root_info)
 
     if (root_info->dodag_id != NULL) {
         free(root_info->dodag_id);
+    }
+
+    if (root_info->configured_dodag_id != NULL) {
+        free(root_info->configured_dodag_id);
     }
 
     free(root_info);
@@ -391,6 +396,24 @@ uint8 rpl_seq_num_get(char *dodag_id)
     }
 
     return 0;
+}
+
+void rpl_seq_num_reset()
+{
+    uint16 i;
+    for (i = 0; i < seq_num_mapping_count; i++) {
+        seq_num_mapping_t *mapping = seq_num_mapping_list[i];
+
+        if (mapping->dodag_id != NULL) {
+            free(mapping->dodag_id);
+        }
+
+        free(mapping);
+    }
+
+    free(seq_num_mapping_list);
+    seq_num_mapping_list = 0;
+    seq_num_mapping_count = 0;
 }
 
 void rpl_node_init(node_t *node)
@@ -967,7 +990,7 @@ bool rpl_node_receive_dao(node_t *node, node_t *src_node, rpl_dao_pdu_t *pdu)
 
 static bool event_handler_node_wake(node_t *node)
 {
-    if (node->rpl_info->root_info->grounded) { /* if preconfigured as grounded root */
+    if (node->rpl_info->root_info->grounded || node->rpl_info->root_info->configured_dodag_id != NULL) { /* if preconfigured as grounded root */
         start_as_root(node);
     }
     else { /* preconfigured as normal node */
@@ -1267,7 +1290,11 @@ static bool event_handler_forward_failure(node_t *node, node_t *incoming_node, i
 {
     measure_node_add_forward_failure(node);
 
-    // todo force reevaluation
+    if (rpl_node_is_joined(node)) {
+        choose_parents_and_siblings(node);
+    }
+
+    reset_trickle_timer(node);
 
     return TRUE;
 }
@@ -1276,7 +1303,11 @@ static bool event_handler_forward_inconsistency(node_t *node, node_t *incoming_n
 {
     measure_node_add_forward_inconsistency(node);
 
-    // todo force reevaluation
+    if (rpl_node_is_joined(node)) {
+        choose_parents_and_siblings(node);
+    }
+
+    reset_trickle_timer(node);
 
     return TRUE;
 }
@@ -1580,7 +1611,12 @@ static void start_as_root(node_t *node)
     }
 
     if (node->rpl_info->root_info->dodag_id == NULL) {
-        node->rpl_info->root_info->dodag_id = strdup(node->ip_info->address);
+        if (node->rpl_info->root_info->configured_dodag_id == NULL) {
+            node->rpl_info->root_info->dodag_id = strdup(node->ip_info->address);
+        }
+        else {
+            node->rpl_info->root_info->dodag_id = strdup(node->rpl_info->root_info->configured_dodag_id);
+        }
     }
 
     rs_debug(DEBUG_RPL, "node '%s': starting as root (dodag_id = '%s', grounded = %s, pref = %d)",

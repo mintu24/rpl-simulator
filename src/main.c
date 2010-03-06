@@ -24,16 +24,26 @@ char *              rs_scenario_file_name = NULL;
 
     /**** local function prototypes ****/
 
-static void         load_last_scenario();
-static void         save_last_scenario();
-
 static char *       get_next_name(char *name);
 static char *       get_next_mac_address(char *address);
 static char *       get_next_ip_address(char *address);
-static void         set_loggable_events();
 
 
     /**** exported functions ****/
+
+void rs_new()
+{
+    rs_rem_all_nodes();
+
+    if (rs_scenario_file_name != NULL) {
+        free(rs_scenario_file_name);
+        rs_scenario_file_name = NULL;
+    }
+
+    main_win_system_to_gui();
+    main_win_display_to_gui();
+    main_win_events_to_gui();
+}
 
 char *rs_open(char *filename)
 {
@@ -41,31 +51,38 @@ char *rs_open(char *filename)
 
     if (rs_scenario_file_name != NULL) {
         free(rs_scenario_file_name);
+        rs_scenario_file_name = NULL;
     }
 
-    rs_scenario_file_name = strdup(filename);
-
-    char temp[256];
-    snprintf(temp, sizeof(temp), "%s.log", filename);
-    event_set_log_file(temp);
+    char *msg = scenario_load(filename);
+    if (msg == NULL) {
+        rs_scenario_file_name = strdup(filename);
+    }
 
     main_win_system_to_gui();
     main_win_display_to_gui();
     main_win_events_to_gui();
 
-    return scenario_load(filename);
+    return msg;
 }
 
 char* rs_save(char *filename)
 {
-    if (rs_scenario_file_name != NULL) {
-        free(rs_scenario_file_name);
+    char *msg = scenario_save(filename);
+
+    if (msg == NULL) {
+        if (strcmp(rs_scenario_file_name, filename) != 0) {
+            if (rs_scenario_file_name != NULL) {
+                free(rs_scenario_file_name);
+            }
+
+            rs_scenario_file_name = strdup(filename);
+        }
     }
 
-    rs_scenario_file_name = strdup(filename);
     main_win_system_to_gui();
 
-    return scenario_save(filename);
+    return msg;
 }
 
 void rs_quit()
@@ -77,14 +94,27 @@ void rs_quit()
 
 void rs_start()
 {
-    rs_system_start(FALSE);
+    if (rs_scenario_file_name != NULL) { /* this overwrites the old log, if it exists */
+        char *ext = rindex(rs_scenario_file_name, '.');
+        char *path_no_ext;
+        if (ext != NULL) {
+            path_no_ext = strndup(rs_scenario_file_name, ext - rs_scenario_file_name);
+        }
+        else {
+            path_no_ext = strdup(rs_scenario_file_name);
+        }
 
-    if (rs_scenario_file_name != NULL) {
-        char temp[256];
-        snprintf(temp, sizeof(temp), "%s.log", rs_scenario_file_name);
-        event_set_log_file(temp);
+        char path[256];
+        snprintf(path, sizeof(path), "%s.log", path_no_ext);
+        event_set_log_file(path);
+
+        free(path_no_ext);
+    }
+    else {
+        event_set_log_file(NULL);
     }
 
+    rs_system_start(FALSE);
     main_win_update_sim_status();
 }
 
@@ -392,34 +422,6 @@ void rs_print(FILE *stream, char *sym, const char *file, int line, const char *f
 
     /**** local functions ****/
 
-static void load_last_scenario()
-{
-    char path[256];
-    snprintf(path, sizeof(path), "%s/%s/%s", rs_app_dir, SCENARIO_DIR, LAST_SCENARIO_FILENAME);
-
-    char *msg = scenario_load(path);
-
-    if (msg != NULL) {
-        rs_error("failed to load last scenario file: %s", msg);
-    }
-
-    main_win_system_to_gui();
-    main_win_display_to_gui();
-    main_win_events_to_gui();
-}
-
-static void save_last_scenario()
-{
-    char path[256];
-    snprintf(path, sizeof(path), "%s/%s/%s", rs_app_dir, SCENARIO_DIR, LAST_SCENARIO_FILENAME);
-
-    char *msg = scenario_save(path);
-
-    if (msg != NULL) {
-        rs_error("failed to save last scenario: %s", msg);
-    }
-}
-
 static char *get_next_name(char *name)
 {
     char *new_name = malloc(256);
@@ -515,52 +517,6 @@ static char *get_next_ip_address(char *address)
     }
 }
 
-static void set_loggable_events()
-{
-//    event_set_logging(rpl_event_node_wake, TRUE);
-//    event_set_logging(rpl_event_node_kill, TRUE);
-//    event_set_logging(rpl_event_neighbor_attach, TRUE);
-//    event_set_logging(rpl_event_neighbor_detach, TRUE);
-//    event_set_logging(rpl_event_dao_pdu_receive, TRUE);
-//    event_set_logging(rpl_event_dio_pdu_receive, TRUE);
-//    event_set_logging(rpl_event_dis_pdu_receive, TRUE);
-//    event_set_logging(rpl_event_dao_pdu_send, TRUE);
-//    event_set_logging(rpl_event_dio_pdu_send, TRUE);
-//    event_set_logging(rpl_event_dis_pdu_send, TRUE);
-//    event_set_logging(rpl_event_forward_inconsistency, TRUE);
-//    event_set_logging(rpl_event_forward_failure, TRUE);
-//    event_set_logging(rpl_event_trickle_i_timeout, TRUE);
-//    event_set_logging(rpl_event_trickle_t_timeout, TRUE);
-//    event_set_logging(rpl_event_seq_num_autoinc, TRUE);
-
-//    event_set_logging(icmp_event_pdu_send, TRUE);
-//    event_set_logging(icmp_event_pdu_receive, TRUE);
-//    event_set_logging(icmp_event_ping_send, TRUE);
-//    event_set_logging(icmp_event_ping_timeout, TRUE);
-
-//    event_set_logging(measure_event_pdu_send, TRUE);
-//    event_set_logging(measure_event_pdu_receive, TRUE);
-//    event_set_logging(measure_event_connect_hop_passed, TRUE);
-//    event_set_logging(measure_event_connect_hop_timeout, TRUE);
-//    event_set_logging(measure_event_connect_established, TRUE);
-//    event_set_logging(measure_event_connect_lost, TRUE);
-//
-//    event_set_logging(ip_event_pdu_send, TRUE);
-//    event_set_logging(ip_event_pdu_send_timeout_check, TRUE);
-//    event_set_logging(ip_event_pdu_receive, TRUE);
-//
-//    event_set_logging(mac_event_pdu_send, TRUE);
-//    event_set_logging(mac_event_pdu_send_timeout_check, TRUE);
-//    event_set_logging(mac_event_pdu_receive, TRUE);
-//
-//    event_set_logging(phy_event_pdu_send, TRUE);
-//    event_set_logging(phy_event_pdu_receive, TRUE);
-//    event_set_logging(phy_event_neighbor_attach, TRUE);
-//    event_set_logging(phy_event_neighbor_detach, TRUE);
-//
-//    event_set_logging(sys_event_pdu_receive, TRUE);
-}
-
 int main(int argc, char *argv[])
 {
 	rs_info("hello");
@@ -574,13 +530,6 @@ int main(int argc, char *argv[])
 	    return -1;
 	}
 
-	if (!measure_init()) {
-	    rs_error("failed to initialize measurements");
-	    return -1;
-	}
-
-	set_loggable_events();
-
     gtk_init(&argc, &argv);
 
     if (!main_win_init()) {
@@ -588,16 +537,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    load_last_scenario();
-
 	gtk_main();
-
-	save_last_scenario();
-
-	if (!measure_done()) {
-	    rs_error("failed to destroy measurements");
-	    return -1;
-	}
 
 	if (!rs_system_destroy()) {
 	    rs_error("failed to destroy the system");

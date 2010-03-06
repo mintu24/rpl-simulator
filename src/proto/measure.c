@@ -324,6 +324,10 @@ static bool event_handler_node_kill(node_t *node)
 {
     rs_system_cancel_event(node, measure_event_connect_hop_timeout, NULL, NULL, 0);
 
+    if (node->measure_info->connect_dst_reachable) { /* force a disconnect */
+        event_execute(measure_event_connect_lost, node, node->measure_info->connect_dst_node, node);
+    }
+
     return TRUE;
 }
 
