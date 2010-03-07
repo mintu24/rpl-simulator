@@ -1,6 +1,7 @@
 
 #include "event.h"
 #include "system.h"
+#include "gui/mainwin.h"
 
 #define EVENT_PARAM(node, data1, data2, arg)  ((arg >= 0 ? (arg > 0 ? (arg > 1 ? data2 : data1) : node) : NULL))
 
@@ -12,6 +13,7 @@ static uint16               event_count = 0;
 
 static uint8                level = 0; /* not thread safe !!! */
 
+static uint32               log_event_count = 0;
 static FILE *				log_file = NULL;
 
 
@@ -126,9 +128,10 @@ void event_set_log_file(char *filename)
 
         fclose(log_file);
         log_file = NULL;
+
     }
 
-    if (filename != NULL) {
+	if (filename != NULL) {
         rs_debug(DEBUG_EVENT, "opening event log '%s'", filename);
 
         log_file = fopen(filename, "w");
@@ -136,6 +139,9 @@ void event_set_log_file(char *filename)
             rs_error("failed to open event log '%s' for writing: ", filename, strerror(errno));
         }
     }
+
+	log_event_count = 0;
+	main_win_clear_log();
 }
 
 
@@ -194,6 +200,10 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
     else {
         fprintf(stderr, "%s : %s%s\n", str_time, indent, text);
     }
+
+    log_event_count++;
+
+    main_win_add_log_line(log_event_count, str_time, node_name, event->layer, event->name, str1, str2);
 
     free(str_time);
 }

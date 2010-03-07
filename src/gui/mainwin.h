@@ -58,14 +58,13 @@ void                main_win_events_to_gui();
 
 display_params_t *  main_win_get_display_params();
 
+void                main_win_add_log_line(uint32 no, char *str_time, char *node_name, char *layer, char *event_name, char *str1, char *str2);
+void                main_win_clear_log();
+
 void                main_win_update_sim_status();
 void                main_win_update_nodes_status();
 void                main_win_update_sim_time_status();
 void                main_win_update_xy_status(coord_t x, coord_t y);
-
-    /* events */
-void                main_win_event_after_node_wake(node_t *node);
-void                main_win_event_before_node_kill(node_t *node);
 
 
 #endif /* MAINWIN_H_ */
