@@ -1,3 +1,6 @@
+
+// todo source routing
+
 #include <ctype.h>
 
 #include "ip.h"
@@ -721,7 +724,17 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
             measure_pdu_t *measure_pdu = pdu->sdu;
             rs_assert(measure_pdu != NULL);
 
-            event_execute(measure_event_connect_hop_passed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
+            /* a workaround for confirming the connectivity when reaching a member of a virtual dodag */
+            if (rpl_node_is_root(node) &&
+                    rpl_node_is_root(measure_pdu->dst_node) &&
+                    strcmp(measure_pdu->dst_node->rpl_info->root_info->dodag_id, node->rpl_info->root_info->dodag_id) == 0) {
+
+                pdu->sdu = NULL;
+                return measure_node_receive(node, incoming_node, measure_pdu);
+            }
+            else {
+                event_execute(measure_event_connect_hop_passed, measure_pdu->measuring_node, measure_pdu->dst_node, node);
+            }
         }
 
         ip_node_forward(node, incoming_node, pdu);
@@ -765,21 +778,19 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
 
 static bool event_handler_neighbor_cache_timeout(node_t *node, ip_neighbor_t *neighbor)
 {
-    sim_time_t diff = rs_system->now - neighbor->last_packet_time;
-
-    if (diff >= rs_system->ip_neighbor_timeout) {
+    if (neighbor->node == NULL || !phy_node_has_neighbor(neighbor->node, node)) {
         event_execute(rpl_event_neighbor_detach, node, neighbor->node, NULL);
 
         if (!ip_node_rem_neighbor(node, neighbor)) {
             if (neighbor->node != NULL)
                 rs_error("node '%s': no longer has neighbor '%s'", node->phy_info->name, neighbor->node->phy_info->name);
 
-            return FALSE;
+            return FALSE; /* this should never happen */
         }
     }
     else {
         if (neighbor->node != NULL) {
-            rs_system_schedule_event(node, ip_event_neighbor_cache_timeout_check, neighbor, NULL, rs_system->ip_neighbor_timeout - diff);
+            rs_system_schedule_event(node, ip_event_neighbor_cache_timeout_check, neighbor, NULL, rs_system->ip_neighbor_timeout);
         }
     }
 

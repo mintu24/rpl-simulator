@@ -38,7 +38,7 @@
 #define DEFAULT_MEASURE_PDU_TIMEOUT             1000
 
 #define DEFAULT_RPL_AUTO_SN_INC_INT             10000 /* -1 disables */
-#define DEFAULT_RPL_STARTUP_SILENT              FALSE
+#define DEFAULT_RPL_STARTUP_PROBE_FOR_DODAGS    FALSE
 #define DEFAULT_RPL_POISON_COUNT                4
 
 #define DEFAULT_RPL_DAO_SUPPORTED               FALSE
@@ -148,7 +148,7 @@ typedef struct rs_system_t {
     sim_time_t                  measure_pdu_timeout;
 
     sim_time_t                  rpl_auto_sn_inc_interval;
-    bool                        rpl_start_silent;
+    bool                        rpl_startup_probe_for_dodags;
     uint8                       rpl_poison_count;
 
     bool                        rpl_dao_supported;

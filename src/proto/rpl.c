@@ -1,3 +1,6 @@
+
+// todo implement DAO message handling
+
 #include <math.h>
 
 #include "rpl.h"
@@ -994,11 +997,11 @@ static bool event_handler_node_wake(node_t *node)
         start_as_root(node);
     }
     else { /* preconfigured as normal node */
-        if (rs_system->rpl_start_silent) {
-            start_as_root(node);
+        if (rs_system->rpl_startup_probe_for_dodags) {
+            rpl_node_send_dis(node, NULL);
         }
         else {
-            rpl_node_send_dis(node, NULL);
+            start_as_root(node);
         }
     }
 

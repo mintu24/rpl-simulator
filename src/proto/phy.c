@@ -385,6 +385,8 @@ static bool event_handler_node_wake(node_t *node)
 {
     phy_node_update_neighbors(node);
 
+    node->phy_info->mobility_speed = 0;
+
     uint16 i; /* schedule all the mobility changes that were programmed */
     for (i = 0; i < node->phy_info->mobility_count; i++) {
         phy_mobility_t *mobility = node->phy_info->mobility_list[i];

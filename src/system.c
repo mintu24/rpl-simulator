@@ -67,7 +67,7 @@ bool rs_system_create()
     rs_system->measure_pdu_timeout = DEFAULT_MEASURE_PDU_TIMEOUT;
 
     rs_system->rpl_auto_sn_inc_interval = DEFAULT_RPL_AUTO_SN_INC_INT;
-    rs_system->rpl_start_silent = DEFAULT_RPL_STARTUP_SILENT;
+    rs_system->rpl_startup_probe_for_dodags = DEFAULT_RPL_STARTUP_PROBE_FOR_DODAGS;
     rs_system->rpl_poison_count = DEFAULT_RPL_POISON_COUNT;
 
     rs_system->rpl_dao_supported = DEFAULT_RPL_DAO_SUPPORTED;
@@ -586,7 +586,9 @@ bool rs_system_send(node_t *src_node, node_t* dst_node, phy_pdu_t *message)
         }
     }
     else {
-        rs_system_schedule_event(dst_node, sys_event_pdu_receive, src_node, message, rs_system->transmission_time);
+        if (phy_node_has_neighbor(src_node, dst_node)) {
+            rs_system_schedule_event(dst_node, sys_event_pdu_receive, src_node, message, rs_system->transmission_time);
+        }
     }
 
     return TRUE;
