@@ -1596,12 +1596,11 @@ static void cb_about_menu_item_activate(GtkWidget *widget, gpointer *data)
     GtkWidget *about_dialog = gtk_about_dialog_new();
 
     const gchar *authors[3] = {
-            "Ali Moshfegh <ali.moshfegh@gmail.com>",
             "Calin Crisan <ccrisan@gmail.com>",
             NULL
     };
 
-    const gchar *description = "A simple LLN/RPL Simulator using GTK+";
+    const gchar *description = "Version " RS_VERSION "\nA simple LLN/RPL Simulator using GTK+";
 
     const gchar *license =
             "This program is free software; you can redistribute it and/or modify "
@@ -1621,8 +1620,8 @@ static void cb_about_menu_item_activate(GtkWidget *widget, gpointer *data)
 
     gtk_window_set_icon(GTK_WINDOW(about_dialog), icon);
 
-    gtk_about_dialog_set_name(GTK_ABOUT_DIALOG(about_dialog), "RPL Simulator");
-    gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(about_dialog), RS_VERSION);
+    gtk_about_dialog_set_program_name(GTK_ABOUT_DIALOG(about_dialog), "RPL Simulator");
+    gtk_about_dialog_set_website(GTK_ABOUT_DIALOG(about_dialog), "http://code.google.com/p/rpl-simulator/");
     gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(about_dialog), "Copyright \xc2\xa9 2010 Calin Crisan <ccrisan@gmail.com>");
     gtk_about_dialog_set_authors(GTK_ABOUT_DIALOG(about_dialog), authors);
     gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(about_dialog), description);
