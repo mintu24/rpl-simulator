@@ -7,6 +7,8 @@
 
 #define                 AUTOINC_ADDRESS_PART        16
 
+#define                 SCENARIO_FILE_EXT           ".scenario"
+
 void                    rs_new();
 char *                  rs_open();
 char *                  rs_save();

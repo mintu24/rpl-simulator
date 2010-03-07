@@ -1,6 +1,3 @@
-
-// todo source routing
-
 #include <unistd.h>
 #include <math.h>
 #include <gtk/gtk.h>

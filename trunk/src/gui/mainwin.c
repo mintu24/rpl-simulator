@@ -1,7 +1,7 @@
-// todo add a "log events to console" option
 
 #include <gdk/gdk.h>
 #include <cairo.h>
+#include <libgen.h> /* for basename() */
 
 #include "mainwin.h"
 
@@ -440,7 +440,7 @@ void main_win_system_to_gui()
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin), rs_system->rpl_max_inc_rank);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check), rs_system->rpl_dao_supported);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check), rs_system->rpl_dao_trigger);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check), !rs_system->rpl_start_silent);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check), rs_system->rpl_startup_probe_for_dodags);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_prefer_floating_check), rs_system->rpl_prefer_floating);
 
     if (rs_system->rpl_auto_sn_inc_interval > 0) {
@@ -1252,6 +1252,11 @@ static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
             GTK_FILE_CHOOSER_ACTION_OPEN,
             GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
 
+    GtkFileFilter *filter = gtk_file_filter_new();
+    gtk_file_filter_add_pattern(filter, "*" SCENARIO_FILE_EXT);
+    gtk_file_filter_set_name(filter, "RS Scenarios");
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(open_dialog), filter);
+
     char path[256];
     snprintf(path, sizeof(path), "%s/%s", rs_app_dir, SCENARIO_DIR);
 
@@ -1261,6 +1266,7 @@ static void cb_open_menu_item_activate(GtkWidget *widget, gpointer *data)
     if (gtk_dialog_run(GTK_DIALOG(open_dialog)) == GTK_RESPONSE_ACCEPT) {
         filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(open_dialog));
     }
+
     gtk_widget_destroy(open_dialog);
 
     if (filename != NULL) {
@@ -1329,6 +1335,11 @@ static void cb_save_as_menu_item_activate(GtkWidget *widget, gpointer *data)
             GTK_FILE_CHOOSER_ACTION_SAVE,
             GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
 
+    GtkFileFilter *filter = gtk_file_filter_new();
+    gtk_file_filter_add_pattern(filter, "*" SCENARIO_FILE_EXT);
+    gtk_file_filter_set_name(filter, "RS Scenarios");
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(save_dialog), filter);
+
     if (rs_scenario_file_name != NULL) {
         gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(save_dialog), rs_scenario_file_name);
     }
@@ -1341,7 +1352,17 @@ static void cb_save_as_menu_item_activate(GtkWidget *widget, gpointer *data)
 
     char *filename = NULL;
     if (gtk_dialog_run(GTK_DIALOG(save_dialog)) == GTK_RESPONSE_ACCEPT) {
-        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(save_dialog));
+        char *temp_filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(save_dialog));
+        if ((strlen(temp_filename) < strlen(SCENARIO_FILE_EXT)) ||
+                (strcmp(temp_filename + strlen(temp_filename) - strlen(SCENARIO_FILE_EXT), SCENARIO_FILE_EXT) != 0)) {
+
+            filename = malloc(strlen(temp_filename) + strlen(SCENARIO_FILE_EXT) + 1);
+            sprintf(filename, "%s" SCENARIO_FILE_EXT, temp_filename);
+            free(temp_filename);
+        }
+        else {
+            filename = temp_filename;
+        }
     }
     gtk_widget_destroy(save_dialog);
 
@@ -2442,7 +2463,7 @@ static void gui_to_system()
     rs_system->rpl_max_inc_rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin));
     rs_system->rpl_dao_supported = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check));
     rs_system->rpl_dao_trigger = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check));
-    rs_system->rpl_start_silent = !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check));
+    rs_system->rpl_startup_probe_for_dodags = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_probe_check));
     rs_system->rpl_prefer_floating = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_prefer_floating_check));
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check))) {

@@ -528,8 +528,8 @@ setting_t *create_setting_tree()
     sprintf(text, "%s", rs_system->rpl_prefer_floating ? "true" : "false");
     setting_set_value(setting, text);
 
-    setting = setting_create("rpl_start_silent", system_setting);
-    sprintf(text, "%s", rs_system->rpl_start_silent ? "true" : "false");
+    setting = setting_create("rpl_startup_probe_for_dodags", system_setting);
+    sprintf(text, "%s", rs_system->rpl_startup_probe_for_dodags ? "true" : "false");
     setting_set_value(setting, text);
 
     setting_t *display_setting = setting_create("display", system_setting);
@@ -1003,8 +1003,8 @@ bool apply_system_setting(char *path, char *name, char *value)
     else if (strcmp(name, "rpl_prefer_floating") == 0) {
         rs_system->rpl_prefer_floating = (strcmp(value, "true"));
     }
-    else if (strcmp(name, "rpl_start_silent") == 0) {
-        rs_system->rpl_start_silent = (strcmp(value, "true"));
+    else if (strcmp(name, "rpl_startup_probe_for_dodags") == 0) {
+        rs_system->rpl_startup_probe_for_dodags = (strcmp(value, "true"));
     }
     else {
         sprintf(error_string, "unexpected setting '%s.%s'", path, name);
