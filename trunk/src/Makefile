@@ -20,7 +20,7 @@ $(EXE) : $(OBJS)
 
 main.o: main.c main.h base.h node.h system.h event.h proto/measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h gui/mainwin.h gui/dialogs.h
 
-event.o: event.c event.h base.h node.h system.h proto/measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
+event.o: event.c event.h base.h node.h system.h gui/mainwin.h proto/measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
 
 node.o: node.c node.h base.h system.h event.h proto/measure.h proto/phy.h proto/mac.h proto/ip.h proto/icmp.h proto/rpl.h
 

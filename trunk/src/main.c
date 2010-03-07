@@ -71,7 +71,7 @@ char* rs_save(char *filename)
     char *msg = scenario_save(filename);
 
     if (msg == NULL) {
-        if (strcmp(rs_scenario_file_name, filename) != 0) {
+        if (rs_scenario_file_name == NULL || strcmp(rs_scenario_file_name, filename) != 0) {
             if (rs_scenario_file_name != NULL) {
                 free(rs_scenario_file_name);
             }
@@ -92,7 +92,7 @@ void rs_quit()
     gtk_main_quit();
 }
 
-void rs_start()
+void rs_start(bool start_paused)
 {
     if (rs_scenario_file_name != NULL) { /* this overwrites the old log, if it exists */
         char *ext = rindex(rs_scenario_file_name, '.');
@@ -114,7 +114,7 @@ void rs_start()
         event_set_log_file(NULL);
     }
 
-    rs_system_start(FALSE);
+    rs_system_start(start_paused);
     main_win_update_sim_status();
 }
 
@@ -128,7 +128,7 @@ void rs_pause()
 void rs_step()
 {
     if (!rs_system->started) {
-        rs_system_start(TRUE);
+        rs_start(TRUE);
     }
     else {
         rs_system_step();
@@ -337,6 +337,7 @@ void rs_rem_all_nodes()
     }
     nodes_unlock();
 
+    main_win_set_selected_node(NULL);
     main_win_system_to_gui();
     main_win_update_nodes_status();
 
@@ -524,6 +525,7 @@ int main(int argc, char *argv[])
 	rs_app_dir = strdup(dirname(argv[0]));
 
 	g_thread_init(NULL);
+	gdk_threads_init();
 
 	if (!rs_system_create()) {
 	    rs_error("failed to initialize the system");

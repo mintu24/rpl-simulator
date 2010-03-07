@@ -1,4 +1,3 @@
-// todo reload combo lists when renaming a node
 // todo add a "log events to console" option
 
 #include <gdk/gdk.h>
@@ -207,6 +206,9 @@ static GtkWidget *              params_nodes_measure_converg_floating_progress;
 static GtkWidget *              main_win_first_hpaned;
 static GtkWidget *              main_win_second_hpaned;
 
+static GtkWidget *              log_tree_view;
+static GtkListStore *           log_store;
+
 static GtkWidget *              new_menu_item = NULL;
 static GtkWidget *              open_menu_item = NULL;
 static GtkWidget *              save_menu_item = NULL;
@@ -282,6 +284,7 @@ static void                     cb_main_window_delete();
 static GtkWidget *              create_params_widget();
 static GtkWidget *              create_menu_bar();
 static GtkWidget *              create_tool_bar();
+static GtkWidget *              create_log_console();
 static GtkWidget *              create_status_bar();
 static GtkWidget *              create_content_widget();
 
@@ -297,6 +300,7 @@ static void                     gui_to_events();
 
 static gboolean                 gui_update_wrapper(void *data);
 static gboolean                 status_bar_update_wrapper(void *data);
+static gboolean                 log_wrapper(void *data);
 
 static void                     update_rpl_root_configurations();
 
@@ -894,12 +898,32 @@ display_params_t *main_win_get_display_params()
     return &display_params;
 }
 
-void main_win_event_after_node_wake(node_t *node)
+void main_win_add_log_line(uint32 no, char *str_time, char *node_name, char *layer, char *event_name, char *str1, char *str2)
 {
-    sim_field_redraw();
+    struct {
+        uint32 no;
+        char *str_time;
+        char *node_name;
+        char *layer;
+        char *event_name;
+        char *str1;
+        char *str2;
+    } * params = malloc(6 * sizeof(char *) + sizeof(uint32));
 
-    if (main_window != NULL)
-        update_sensitivity();
+    params->no = no;
+    params->str_time = strdup(str_time);
+    params->node_name = strdup(node_name);
+    params->layer = strdup(layer);
+    params->event_name = strdup(event_name);
+    params->str1 = strdup(str1);
+    params->str2 = strdup(str2);
+
+    gdk_threads_add_idle(log_wrapper, params);
+}
+
+void main_win_clear_log()
+{
+    gdk_threads_add_idle(log_wrapper, NULL);
 }
 
 void main_win_update_sim_status()
@@ -963,14 +987,6 @@ void main_win_update_xy_status(coord_t x, coord_t y)
     data[1] = text;
 
     gdk_threads_add_idle(status_bar_update_wrapper, data);
-}
-
-void main_win_event_before_node_kill(node_t *node)
-{
-    sim_field_redraw();
-
-    if (main_window != NULL)
-        update_sensitivity();
 }
 
 
@@ -1369,7 +1385,7 @@ static void cb_start_menu_item_activate(GtkWidget *widget, gpointer *data)
 
     rs_debug(DEBUG_GUI, NULL);
 
-    rs_start();
+    rs_start(FALSE);
 
     sim_field_redraw();
     update_sensitivity();
@@ -1515,8 +1531,6 @@ static void cb_remove_all_menu_item_activate(GtkWidget *widget, gpointer *data)
     rs_debug(DEBUG_GUI, NULL);
 
     rs_rem_all_nodes();
-
-    main_win_set_selected_node(NULL);
 
     sim_field_redraw();
     update_sensitivity();
@@ -2064,6 +2078,118 @@ GtkWidget *create_tool_bar()
     return toolbar;
 }
 
+GtkWidget *create_log_console()
+{
+    GtkWidget *log_console = gtk_scrolled_window_new(NULL, NULL);
+    gtk_widget_set_size_request(log_console, -1, 150);
+    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(log_console), GTK_SHADOW_ETCHED_IN);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(log_console), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+    log_store = gtk_list_store_new(7, G_TYPE_INT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+
+    log_tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(log_store));
+    gtk_tree_view_set_headers_clickable(GTK_TREE_VIEW(log_tree_view), TRUE);
+    gtk_container_add(GTK_CONTAINER(log_console), log_tree_view);
+
+    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(log_tree_view),
+            -1,
+            "No",
+            renderer,
+            "text", 0,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(log_tree_view),
+            -1,
+            "Time",
+            renderer,
+            "text", 1,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(log_tree_view),
+            -1,
+            "Node",
+            renderer,
+            "text", 2,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(log_tree_view),
+            -1,
+            "Layer",
+            renderer,
+            "text", 3,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(log_tree_view),
+            -1,
+            "Event",
+            renderer,
+            "text", 4,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(log_tree_view),
+            -1,
+            "Data1",
+            renderer,
+            "text", 5,
+            NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(
+            GTK_TREE_VIEW(log_tree_view),
+            -1,
+            "Data2",
+            renderer,
+            "text", 6,
+            NULL);
+
+    GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(log_tree_view), 0);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_resizable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 0);
+
+    column = gtk_tree_view_get_column(GTK_TREE_VIEW(log_tree_view), 1);
+    gtk_tree_view_column_set_resizable(column, TRUE);
+
+    column = gtk_tree_view_get_column(GTK_TREE_VIEW(log_tree_view), 2);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_resizable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 2);
+
+    column = gtk_tree_view_get_column(GTK_TREE_VIEW(log_tree_view), 3);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_resizable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 3);
+
+    column = gtk_tree_view_get_column(GTK_TREE_VIEW(log_tree_view), 4);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_resizable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 4);
+
+    column = gtk_tree_view_get_column(GTK_TREE_VIEW(log_tree_view), 5);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_resizable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 5);
+
+    column = gtk_tree_view_get_column(GTK_TREE_VIEW(log_tree_view), 6);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_resizable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 6);
+
+    return log_console;
+}
+
 GtkWidget *create_status_bar()
 {
     GtkWidget *hbox = gtk_hbox_new(FALSE, 2);
@@ -2108,13 +2234,24 @@ GtkWidget *create_content_widget()
 
     gtk_paned_pack1(GTK_PANED(main_win_first_hpaned), params_widget, FALSE, TRUE);
 
+    GtkWidget *center_paned = gtk_vpaned_new();
+
     GtkWidget *sim_field = sim_field_create();
     if (sim_field == NULL) {
         rs_error("failed to create simulation field");
         return NULL;
     }
 
-    gtk_paned_pack1(GTK_PANED(main_win_second_hpaned), sim_field, TRUE, TRUE);
+    GtkWidget *log_console = create_log_console();
+    if (log_console == NULL) {
+        rs_error("failed to create log console");
+        return NULL;
+    }
+
+    gtk_paned_pack1(GTK_PANED(center_paned), sim_field, TRUE, TRUE);
+    gtk_paned_pack2(GTK_PANED(center_paned), log_console, FALSE, FALSE);
+
+    gtk_paned_pack1(GTK_PANED(main_win_second_hpaned), center_paned, TRUE, TRUE);
 
     legend_widget = legend_create();
     if (legend_widget == NULL) {
@@ -2363,10 +2500,19 @@ static void gui_to_node(node_t *node)
         nodes_unlock();
 
         if (!exists) {
+            bool name_changed = FALSE;
+            if (strcmp(gtk_entry_get_text(GTK_ENTRY(params_nodes_name_entry)), node->phy_info->name) != 0) {
+                name_changed = TRUE;
+            }
+
             phy_node_set_name(node, gtk_entry_get_text(GTK_ENTRY(params_nodes_name_entry)));
+
+            if (name_changed) {
+                main_win_system_to_gui();
+            }
         }
         else {
-            gtk_entry_set_text(GTK_ENTRY(params_nodes_name_entry), node->phy_info->name);
+            //gtk_entry_set_text(GTK_ENTRY(params_nodes_name_entry), node->phy_info->name);
         }
     }
 
@@ -2542,6 +2688,51 @@ static gboolean status_bar_update_wrapper(void *data)
 
     free(text);
     free(data);
+
+    return FALSE;
+}
+
+static gboolean log_wrapper(void *data)
+{
+    if (data == NULL) {
+        gtk_list_store_clear(log_store);
+    }
+    else {
+        struct {
+            uint32 no;
+            char *str_time;
+            char *node_name;
+            char *layer;
+            char *event_name;
+            char *str1;
+            char *str2;
+        } * params = data;
+
+        GtkTreeIter iter;
+        gtk_list_store_insert_with_values(log_store, &iter, -1,
+                0, params->no,
+                1, params->str_time,
+                2, params->node_name,
+                3, params->layer,
+                4, params->event_name,
+                5, params->str1,
+                6, params->str2,
+                -1);
+
+        GtkTreePath* path = gtk_tree_model_get_path(GTK_TREE_MODEL(log_store), &iter);
+        gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(log_tree_view), path, NULL, FALSE, 0, 0);
+        gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(log_tree_view)), &iter);
+
+        gtk_tree_path_free(path);
+
+        free(params->str_time);
+        free(params->node_name);
+        free(params->layer);
+        free(params->event_name);
+        free(params->str1);
+        free(params->str2);
+        free(params);
+    }
 
     return FALSE;
 }
