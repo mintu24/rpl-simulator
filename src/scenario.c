@@ -516,6 +516,14 @@ setting_t *create_setting_tree()
     sprintf(text, "%d", rs_system->rpl_dio_redundancy_constant);
     setting_set_value(setting, text);
 
+    setting = setting_create("rpl_dao_root_delay", system_setting);
+    sprintf(text, "%d", rs_system->rpl_dao_root_delay);
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_dao_remove_timeout", system_setting);
+    sprintf(text, "%d", rs_system->rpl_dao_remove_timeout);
+    setting_set_value(setting, text);
+
     setting = setting_create("rpl_max_inc_rank", system_setting);
     sprintf(text, "%d", rs_system->rpl_max_inc_rank);
     setting_set_value(setting, text);
@@ -726,6 +734,14 @@ setting_t *create_setting_tree()
 
     setting = setting_create("rpl_event_trickle_i_timeout_logging", events_setting);
     sprintf(text, "%s", event_get_logging(rpl_event_trickle_i_timeout) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_dao_send_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_dao_send) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("rpl_event_dao_timeout_check_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(rpl_event_dao_timeout_check) ? "true" : "false");
     setting_set_value(setting, text);
 
     setting = setting_create("rpl_event_seq_num_autoinc_logging", events_setting);
@@ -980,10 +996,10 @@ bool apply_system_setting(char *path, char *name, char *value)
         rs_system->rpl_auto_sn_inc_interval = strtol(value, NULL, 10);
     }
     else if (strcmp(name, "rpl_dao_supported") == 0) {
-        rs_system->rpl_dao_supported = (strcmp(value, "true"));
+        rs_system->rpl_dao_supported = (strcmp(value, "true") == 0);
     }
     else if (strcmp(name, "rpl_dao_trigger") == 0) {
-        rs_system->rpl_dao_trigger = (strcmp(value, "true"));
+        rs_system->rpl_dao_trigger = (strcmp(value, "true") == 0);
     }
     else if (strcmp(name, "rpl_dio_interval_doublings") == 0) {
         rs_system->rpl_dio_interval_doublings = strtol(value, NULL, 10);
@@ -994,6 +1010,12 @@ bool apply_system_setting(char *path, char *name, char *value)
     else if (strcmp(name, "rpl_dio_redundancy_constant") == 0) {
         rs_system->rpl_dio_redundancy_constant = strtol(value, NULL, 10);
     }
+    else if (strcmp(name, "rpl_dao_root_delay") == 0) {
+        rs_system->rpl_dao_root_delay = strtol(value, NULL, 10);
+    }
+    else if (strcmp(name, "rpl_dao_remove_timeout") == 0) {
+        rs_system->rpl_dao_remove_timeout = strtol(value, NULL, 10);
+    }
     else if (strcmp(name, "rpl_max_inc_rank") == 0) {
         rs_system->rpl_max_inc_rank = strtol(value, NULL, 10);
     }
@@ -1001,10 +1023,10 @@ bool apply_system_setting(char *path, char *name, char *value)
         rs_system->rpl_poison_count = strtol(value, NULL, 10);
     }
     else if (strcmp(name, "rpl_prefer_floating") == 0) {
-        rs_system->rpl_prefer_floating = (strcmp(value, "true"));
+        rs_system->rpl_prefer_floating = (strcmp(value, "true") == 0);
     }
     else if (strcmp(name, "rpl_startup_probe_for_dodags") == 0) {
-        rs_system->rpl_startup_probe_for_dodags = (strcmp(value, "true"));
+        rs_system->rpl_startup_probe_for_dodags = (strcmp(value, "true") == 0);
     }
     else {
         sprintf(error_string, "unexpected setting '%s.%s'", path, name);
@@ -1169,6 +1191,12 @@ bool apply_events_setting(char *path, char *name, char *value)
     }
     else if (strcmp(name, "rpl_event_trickle_i_timeout_logging") == 0) {
         event_set_logging(rpl_event_trickle_i_timeout, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_dao_send_logging") == 0) {
+        event_set_logging(rpl_event_dao_send, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "rpl_event_dao_timeout_check_logging") == 0) {
+        event_set_logging(rpl_event_dao_timeout_check, (strcmp(value, "true") == 0));
     }
     else if (strcmp(name, "rpl_event_seq_num_autoinc_logging") == 0) {
         event_set_logging(rpl_event_seq_num_autoinc, (strcmp(value, "true") == 0));

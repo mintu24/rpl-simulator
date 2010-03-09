@@ -56,6 +56,8 @@ static GtkWidget *              params_system_ip_neighbor_timeout_spin = NULL;
 static GtkWidget *              params_rpl_trickle_min_spin = NULL;
 static GtkWidget *              params_rpl_trickle_doublings_spin = NULL;
 static GtkWidget *              params_rpl_trickle_redundancy_spin = NULL;
+static GtkWidget *              params_rpl_dao_root_delay_spin = NULL;
+static GtkWidget *              params_rpl_dao_remove_timeout_spin = NULL;
 static GtkWidget *              params_rpl_max_rank_inc_spin = NULL;
 static GtkWidget *              params_rpl_dao_supported_check = NULL;
 static GtkWidget *              params_rpl_dao_trigger_check = NULL;
@@ -116,6 +118,8 @@ static GtkWidget *              params_events_rpl_forward_failure_check = NULL;
 static GtkWidget *              params_events_rpl_forward_inconsistency_check = NULL;
 static GtkWidget *              params_events_rpl_trickle_t_timeout_check = NULL;
 static GtkWidget *              params_events_rpl_trickle_i_timeout_check = NULL;
+static GtkWidget *              params_events_rpl_dao_send_check = NULL;
+static GtkWidget *              params_events_rpl_dao_timeout_check_check = NULL;
 static GtkWidget *              params_events_rpl_seq_num_autoinc_check = NULL;
 static GtkWidget *              params_events_measure_node_wake_check = NULL;
 static GtkWidget *              params_events_measure_node_kill_check = NULL;
@@ -437,6 +441,8 @@ void main_win_system_to_gui()
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_min_spin), rs_system->rpl_dio_interval_min);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_doublings_spin), rs_system->rpl_dio_interval_doublings);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_trickle_redundancy_spin), rs_system->rpl_dio_redundancy_constant);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_dao_root_delay_spin), rs_system->rpl_dao_root_delay);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_dao_remove_timeout_spin), rs_system->rpl_dao_remove_timeout);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin), rs_system->rpl_max_inc_rank);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check), rs_system->rpl_dao_supported);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check), rs_system->rpl_dao_trigger);
@@ -878,6 +884,8 @@ void main_win_events_to_gui()
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_forward_inconsistency_check), event_get_logging(rpl_event_forward_inconsistency));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_trickle_t_timeout_check), event_get_logging(rpl_event_trickle_t_timeout));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_trickle_i_timeout_check), event_get_logging(rpl_event_trickle_i_timeout));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_dao_send_check), event_get_logging(rpl_event_dao_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_dao_timeout_check_check), event_get_logging(rpl_event_dao_timeout_check));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_seq_num_autoinc_check), event_get_logging(rpl_event_seq_num_autoinc));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_node_wake_check), event_get_logging(measure_event_node_wake));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_measure_node_kill_check), event_get_logging(measure_event_node_kill));
@@ -1163,7 +1171,8 @@ void cb_params_nodes_route_rem_button_clicked(GtkButton *button, gpointer data)
     rs_assert(index >= 0 && index < selected_node->ip_info->route_count);
 
     ip_route_t *route = selected_node->ip_info->route_list[index];
-    ip_node_rem_routes(selected_node, route->dst, route->prefix_len, route->next_hop, 0);
+    rs_system_cancel_event(selected_node, rpl_event_dao_timeout_check, route, NULL, 0);
+    ip_node_rem_route(selected_node, route);
 
     events_unlock();
     signal_leave();
@@ -1682,6 +1691,8 @@ GtkWidget *create_params_widget()
     params_rpl_trickle_min_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_min_spin");
     params_rpl_trickle_doublings_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_doublings_spin");
     params_rpl_trickle_redundancy_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_trickle_redundancy_spin");
+    params_rpl_dao_root_delay_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_root_delay_spin");
+    params_rpl_dao_remove_timeout_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_remove_timeout_spin");
     params_rpl_max_rank_inc_spin = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_max_rank_inc_spin");
     params_rpl_dao_supported_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_supported_check");
     params_rpl_dao_trigger_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_rpl_dao_trigger_check");
@@ -1742,6 +1753,8 @@ GtkWidget *create_params_widget()
     params_events_rpl_forward_inconsistency_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_forward_inconsistency_check");
     params_events_rpl_trickle_t_timeout_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_trickle_t_timeout_check");
     params_events_rpl_trickle_i_timeout_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_trickle_i_timeout_check");
+    params_events_rpl_dao_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_dao_send_check");
+    params_events_rpl_dao_timeout_check_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_dao_timeout_check_check");
     params_events_rpl_seq_num_autoinc_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_seq_num_autoinc_check");
     params_events_measure_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_node_wake_check");
     params_events_measure_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_measure_node_kill_check");
@@ -1894,6 +1907,18 @@ GtkWidget *create_params_widget()
             renderer,
             "text", 2,
             NULL);
+
+    GtkTreeViewColumn *column = gtk_tree_view_get_column(GTK_TREE_VIEW(params_nodes_route_tree_view), 0);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 0);
+
+    column = gtk_tree_view_get_column(GTK_TREE_VIEW(params_nodes_route_tree_view), 1);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 1);
+
+    column = gtk_tree_view_get_column(GTK_TREE_VIEW(params_nodes_route_tree_view), 2);
+    gtk_tree_view_column_set_clickable(column, TRUE);
+    gtk_tree_view_column_set_sort_column_id(column, 2);
 
     renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(params_nodes_measure_connect_dst_combo), renderer, FALSE);
@@ -2459,6 +2484,8 @@ static void gui_to_system()
     rs_system->rpl_dio_interval_min = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_min_spin));
     rs_system->rpl_dio_interval_doublings = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_doublings_spin));
     rs_system->rpl_dio_redundancy_constant = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_trickle_redundancy_spin));
+    rs_system->rpl_dao_root_delay = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_dao_root_delay_spin));
+    rs_system->rpl_dao_remove_timeout = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_dao_remove_timeout_spin));
     rs_system->rpl_max_inc_rank = gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_rpl_max_rank_inc_spin));
     rs_system->rpl_dao_supported = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_supported_check));
     rs_system->rpl_dao_trigger = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_dao_trigger_check));
@@ -2670,6 +2697,8 @@ static void gui_to_events()
     event_set_logging(rpl_event_forward_inconsistency, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_forward_inconsistency_check)));
     event_set_logging(rpl_event_trickle_t_timeout, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_trickle_t_timeout_check)));
     event_set_logging(rpl_event_trickle_i_timeout, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_trickle_i_timeout_check)));
+    event_set_logging(rpl_event_dao_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_dao_send_check)));
+    event_set_logging(rpl_event_dao_timeout_check, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_dao_timeout_check_check)));
     event_set_logging(rpl_event_seq_num_autoinc, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_seq_num_autoinc_check)));
     event_set_logging(measure_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_node_wake_check)));
     event_set_logging(measure_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_measure_node_kill_check)));

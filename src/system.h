@@ -41,12 +41,15 @@
 #define DEFAULT_RPL_STARTUP_PROBE_FOR_DODAGS    FALSE
 #define DEFAULT_RPL_POISON_COUNT                4
 
-#define DEFAULT_RPL_DAO_SUPPORTED               FALSE
+#define DEFAULT_RPL_DAO_SUPPORTED               TRUE
 #define DEFAULT_RPL_DAO_TRIGGER                 FALSE
 
-#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      3 /* 3 times */
-#define DEFAULT_RPL_DIO_INTERVAL_MIN            7 /* 2^7 = 128ms */
+#define DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS      3
+#define DEFAULT_RPL_DIO_INTERVAL_MIN            7
 #define DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
+
+#define DEFAULT_RPL_DAO_ROOT_DELAY              1000
+#define DEFAULT_RPL_DAO_REMOVE_TIMEOUT          1100
 
 #define DEFAULT_RPL_MAX_RANK_INC                4
 
@@ -156,6 +159,8 @@ typedef struct rs_system_t {
     uint8                       rpl_dio_interval_doublings;
     uint8                       rpl_dio_interval_min;
     uint8                       rpl_dio_redundancy_constant;
+    sim_time_t                  rpl_dao_root_delay;
+    sim_time_t                  rpl_dao_remove_timeout;
     uint8                       rpl_max_inc_rank;
 
     bool                        rpl_prefer_floating;
