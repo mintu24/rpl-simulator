@@ -236,6 +236,9 @@ void ip_node_done(node_t *node)
                 if (route->dst_bit_expanded != NULL) {
                     free(route->dst_bit_expanded);
                 }
+                if (route->further_info != NULL) {
+                    free(route->further_info);
+                }
 
                 free(route);
 
@@ -261,7 +264,7 @@ void ip_node_set_address(node_t *node, const char *address)
     node->ip_info->address = strdup(address);
 }
 
-void ip_node_add_route(node_t *node, char *dst, uint8 prefix_len, node_t *next_hop, uint8 type, void *further_info)
+ip_route_t *ip_node_add_route(node_t *node, char *dst, uint8 prefix_len, node_t *next_hop, uint8 type, void *further_info)
 {
     rs_assert(node != NULL);
     rs_assert(dst != NULL);
@@ -279,9 +282,45 @@ void ip_node_add_route(node_t *node, char *dst, uint8 prefix_len, node_t *next_h
     route->dst_bit_expanded = route_expand_to_bits(dst, prefix_len);
     route->type = type;
     route->further_info = further_info;
+    route->update_time = rs_system->now;
 
     node->ip_info->route_list = realloc(node->ip_info->route_list, (node->ip_info->route_count + 1) * sizeof(ip_route_t *));
     node->ip_info->route_list[node->ip_info->route_count++] = route;
+
+    return route;
+}
+
+void ip_node_rem_route(node_t *node, ip_route_t *route)
+{
+    rs_assert(node != NULL);
+
+    int32 i;
+    for (i = node->ip_info->route_count - 1; i >= 0; i--) { /* going backwards to increase performance a little bit */
+        if (route == node->ip_info->route_list[i]) {
+            rs_debug(DEBUG_IP, "node '%s': removing route '%s/%d' via '%s'",
+                    node->phy_info->name, route->dst, route->prefix_len, route->next_hop->phy_info->name);
+
+            free(route->dst);
+            if (route->further_info != NULL) {
+                free(route->further_info);
+            }
+            free(route);
+
+            uint16 j;
+            for (j = i; j < node->ip_info->route_count - 1; j++) {
+                node->ip_info->route_list[j] = node->ip_info->route_list[j + 1];
+            }
+
+            node->ip_info->route_count--;
+
+            break;
+        }
+    }
+
+    node->ip_info->route_list = realloc(node->ip_info->route_list, node->ip_info->route_count * sizeof(ip_route_t *));
+    if (node->ip_info->route_count == 0) {
+        node->ip_info->route_list = NULL;
+    }
 }
 
 void ip_node_rem_routes(node_t *node, char *dst, int8 prefix_len, node_t *next_hop, int8 type)
@@ -312,6 +351,9 @@ void ip_node_rem_routes(node_t *node, char *dst, int8 prefix_len, node_t *next_h
                 node->phy_info->name, route->dst, route->prefix_len, route->next_hop->phy_info->name);
 
         free(route->dst);
+        if (route->further_info != NULL) {
+            free(route->further_info);
+        }
         free(route);
 
         uint16 j;
@@ -326,6 +368,40 @@ void ip_node_rem_routes(node_t *node, char *dst, int8 prefix_len, node_t *next_h
     if (node->ip_info->route_count == 0) {
         node->ip_info->route_list = NULL;
     }
+}
+
+ip_route_t **ip_node_get_routes(node_t *node, uint16 *route_count, char *dst, int8 prefix_len, node_t *next_hop, int8 type)
+{
+    rs_assert(node != NULL);
+
+    ip_route_t **route_list = NULL;
+    *route_count = 0;
+
+    uint16 i;
+    for (i = 0; i < node->ip_info->route_count; i++) {
+        ip_route_t *route = node->ip_info->route_list[i];
+
+        if (dst != NULL && (strcmp(route->dst, dst) != 0)) {
+            continue;
+        }
+
+        if (prefix_len >= 0 && (route->prefix_len != prefix_len)) {
+            continue;
+        }
+
+        if (next_hop != NULL && (route->next_hop != next_hop)) {
+            continue;
+        }
+
+        if (type >= 0 && (route->type != type)) {
+            continue;
+        }
+
+        route_list = realloc(route_list, ((*route_count) + 1) * sizeof(ip_route_t *));
+        route_list[(*route_count)++] = route;
+    }
+
+    return route_list;
 }
 
 ip_route_t *ip_node_get_next_hop_route(node_t *node, char *dst_address)

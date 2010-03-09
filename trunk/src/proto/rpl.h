@@ -181,6 +181,9 @@ extern uint16               rpl_event_forward_inconsistency;
 
 extern uint16               rpl_event_trickle_t_timeout;
 extern uint16               rpl_event_trickle_i_timeout;
+extern uint16               rpl_event_dao_send;
+extern uint16               rpl_event_dao_timeout_check;
+
 extern uint16               rpl_event_seq_num_autoinc;
 
 

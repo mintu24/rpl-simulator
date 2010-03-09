@@ -1,6 +1,4 @@
 
-// todo implement DAO message handling
-
 #include <math.h>
 
 #include "rpl.h"
@@ -37,6 +35,9 @@ uint16                      rpl_event_forward_inconsistency;
 
 uint16                      rpl_event_trickle_t_timeout;
 uint16                      rpl_event_trickle_i_timeout;
+uint16                      rpl_event_dao_send;
+uint16                      rpl_event_dao_timeout_check;
+
 uint16                      rpl_event_seq_num_autoinc;
 
 static seq_num_mapping_t ** seq_num_mapping_list = NULL;
@@ -63,6 +64,9 @@ static bool                 event_handler_forward_inconsistency(node_t *node, no
 
 static bool                 event_handler_trickle_t_timeout(node_t *node);
 static bool                 event_handler_trickle_i_timeout(node_t *node);
+static bool                 event_handler_dao_send(node_t *node);
+static bool                 event_handler_dao_timeout_check(node_t *node, ip_route_t *route);
+
 static bool                 event_handler_seq_num_autoinc();
 
 static seq_num_mapping_t *  seq_num_mapping_get(char *dodag_id);
@@ -87,6 +91,7 @@ static rpl_dio_pdu_t *      create_joined_dio_message(node_t *node, bool include
 static void                 update_neighbor_dio_message(rpl_neighbor_t *neighbor, rpl_dio_pdu_t *dio_pdu);
 
 static uint16               compute_candidate_rank(node_t *node, rpl_neighbor_t *neighbor);
+static sim_time_t           compute_dao_delay(node_t *node);
 
 static void                 event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
@@ -113,6 +118,9 @@ bool rpl_init()
 
     rpl_event_trickle_t_timeout = event_register("trickle_t_timeout", "rpl", (event_handler_t) event_handler_trickle_t_timeout, NULL);
     rpl_event_trickle_i_timeout = event_register("trickle_i_timeout", "rpl", (event_handler_t) event_handler_trickle_i_timeout, NULL);
+    rpl_event_dao_send = event_register("dao_send", "rpl", (event_handler_t) event_handler_dao_send, NULL);
+    rpl_event_dao_timeout_check = event_register("dao_timeout_check", "rpl", (event_handler_t) event_handler_dao_timeout_check, NULL);
+
     rpl_event_seq_num_autoinc = event_register("seq_num_autoinc", "rpl", (event_handler_t) event_handler_seq_num_autoinc, NULL);
 
     return TRUE;
@@ -838,7 +846,10 @@ bool rpl_node_process_incoming_flow_label(node_t *node, node_t *incoming_node, i
                 node->phy_info->name, incoming_node != NULL ? incoming_node->phy_info->name : "<<unknown>>");
 
         ip_route_t *route = ip_node_get_next_hop_route(node, ip_pdu->dst_address);
-        ip_node_rem_routes(node, route->dst, route->prefix_len, route->next_hop, route->type);
+        if (route->type == IP_ROUTE_TYPE_RPL_DAO) {
+            rs_system_cancel_event(node, rpl_event_dao_timeout_check, route, NULL, 0);
+        }
+        ip_node_rem_route(node, route);
 
         /* retry to send the packet, now using a possibly different route */
         ip_node_forward(node, incoming_node, ip_pdu);
@@ -1020,6 +1031,8 @@ static bool event_handler_node_kill(node_t *node)
         rpl_dodag_destroy(node->rpl_info->joined_dodag);
         node->rpl_info->joined_dodag = NULL;
     }
+
+    rs_system_cancel_event(node, rpl_event_dao_timeout_check, NULL, NULL, 0);
 
     ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DIO);
     ip_node_rem_routes(node, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DAO);
@@ -1203,6 +1216,27 @@ static bool event_handler_dao_pdu_receive(node_t *node, node_t *incoming_node, r
 {
     measure_node_add_rpl_dao_message(node, FALSE);
 
+    /* check if the route already exists */
+    uint16 i, route_count;
+    ip_route_t **route_list = ip_node_get_routes(node, &route_count, pdu->dest, pdu->prefix_len, incoming_node, IP_ROUTE_TYPE_RPL_DAO);
+
+    /* mark routes as updated, if they exist */
+    for (i = 0; i < route_count; i++) {
+        ip_route_t *route = route_list[i];
+        route->update_time = rs_system->now;
+    }
+
+    if (route_list != NULL) {
+        free(route_list);
+    }
+
+    if (route_count == 0) { /* the route doesn't exist */
+        ip_route_t *route = ip_node_add_route(node, pdu->dest, pdu->prefix_len, incoming_node, IP_ROUTE_TYPE_RPL_DAO, NULL);
+
+        /* schedule a timeout to remove this route */
+        rs_system_schedule_event(node, rpl_event_dao_timeout_check, route, NULL, rs_system->rpl_dao_remove_timeout);
+    }
+
     return TRUE;
 }
 
@@ -1255,7 +1289,20 @@ static bool event_handler_neighbor_detach(node_t *node, node_t *neighbor_node)
     else {
         rs_debug(DEBUG_RPL, "node '%s': removing neighbor '%s'", node->phy_info->name, neighbor_node->phy_info->name);
 
-        ip_node_rem_routes(node, NULL, -1, neighbor_node, -1);
+        /* cancel all DAO timers for routes via this neighbor */
+        /* remove all routes via this neighbor */
+        uint16 i, route_count;
+        ip_route_t **route_list = ip_node_get_routes(node, &route_count, NULL, -1, neighbor_node, -1);
+        for (i = 0; i < route_count; i++) {
+            ip_route_t *route = route_list[i];
+
+            if (route->type == IP_ROUTE_TYPE_RPL_DAO) {
+                rs_system_cancel_event(node, rpl_event_dao_timeout_check, route, NULL, 0);
+            }
+
+            ip_node_rem_route(node, route);
+        }
+
 
         neighbor = rpl_node_find_neighbor_by_node(node, neighbor_node);
         if (neighbor == NULL) {
@@ -1395,6 +1442,60 @@ static bool event_handler_trickle_i_timeout(node_t *node)
 
     node->rpl_info->last_trickle_t_schedule_time = rs_system->now + t;;
     node->rpl_info->last_trickle_i_schedule_time = rs_system->now + node->rpl_info->trickle_i;
+
+    return TRUE;
+}
+
+static bool event_handler_dao_send(node_t *node)
+{
+    if (!rpl_node_is_joined(node) || !node->rpl_info->joined_dodag->dao_supported) {
+        rs_debug(DEBUG_RPL, "node '%s': canceled DAO mechanism", node->phy_info->name);
+
+        return TRUE;
+    }
+
+    /* for every DAO unicast route send a DAO message to the preferred parent */
+    uint16 i, route_count;
+    ip_route_t **route_list = ip_node_get_routes(node, &route_count, NULL, -1, NULL, IP_ROUTE_TYPE_RPL_DAO);
+
+    for (i = 0; i < route_count; i++) {
+        ip_route_t *route = route_list[i];
+        rpl_dao_pdu_t *dao_pdu = rpl_dao_pdu_create();
+
+        dao_pdu->dest = strdup(route->dst);
+        dao_pdu->prefix_len = route->prefix_len;
+        /* the other dao_pdu fields are ignored for now */
+
+        rpl_node_send_dao(node, node->rpl_info->joined_dodag->pref_parent->node->ip_info->address, dao_pdu);
+    }
+
+    if (route_list != NULL) {
+        free(route_list);
+    }
+
+    /* send a DAO message for ourselves */
+    rpl_dao_pdu_t *dao_pdu = rpl_dao_pdu_create();
+
+    dao_pdu->dest = strdup(node->ip_info->address);
+    dao_pdu->prefix_len = strlen(node->ip_info->address) * 4;
+
+    rpl_node_send_dao(node, node->rpl_info->joined_dodag->pref_parent->node->ip_info->address, dao_pdu);
+
+    /* reschedule the "Delay DAO timer" */
+    rs_system_schedule_event(node, rpl_event_dao_send, NULL, NULL, compute_dao_delay(node));
+
+    return TRUE;
+}
+
+static bool event_handler_dao_timeout_check(node_t *node, ip_route_t *route)
+{
+    if (route->update_time > rs_system->now - rs_system->rpl_dao_remove_timeout) { /* the route has been updated */
+        rs_system_schedule_event(node, rpl_event_dao_timeout_check, route, NULL,
+                rs_system->rpl_dao_remove_timeout - (rs_system->now - route->update_time));
+    }
+    else { /* the route hasn't been updated during the remove interval */
+        ip_node_rem_route(node, route);
+    }
 
     return TRUE;
 }
@@ -1650,6 +1751,11 @@ static void join_dodag_iteration(node_t *node, rpl_dio_pdu_t *dio_pdu)
 
     node->rpl_info->joined_dodag = rpl_dodag_create(dio_pdu);
 
+    rs_system_cancel_event(node, rpl_event_dao_send, NULL, NULL, 0);
+    if (node->rpl_info->joined_dodag->dao_supported) {
+        rs_system_schedule_event(node, rpl_event_dao_send, NULL, NULL, 0);
+    }
+
     seq_num_mapping_cleanup();
 
     reset_trickle_timer(node);
@@ -1677,6 +1783,11 @@ static void update_dodag_config(node_t *node, rpl_dio_pdu_t *dio_pdu)
             dodag->dio_redundancy_constant,
             dodag->max_rank_inc,
             dodag->min_hop_rank_inc);
+
+    rs_system_cancel_event(node, rpl_event_dao_send, NULL, NULL, 0);
+    if (node->rpl_info->joined_dodag->dao_supported) {
+        rs_system_schedule_event(node, rpl_event_dao_send, NULL, NULL, 0);
+    }
 
     reset_trickle_timer(node);
 }
@@ -2163,6 +2274,25 @@ static uint16 compute_candidate_rank(node_t *node, rpl_neighbor_t *neighbor)
     }
 }
 
+static sim_time_t compute_dao_delay(node_t *node)
+{
+    if (rpl_node_is_joined(node)) {
+        sim_time_t min_time = rs_system->rpl_dao_root_delay / 100;
+        sim_time_t max_time = rs_system->rpl_dao_root_delay;
+
+        uint16 min_rank = RPL_RANK_ROOT;
+        uint16 max_rank = RPL_RANK_INFINITY;
+
+        uint16 rank = node->rpl_info->joined_dodag->rank;
+        sim_time_t delay = max_time + min_time - ((rank - min_rank) * (max_time - min_time) / (max_rank - min_rank) + min_time);
+
+        return delay;
+    }
+    else {
+        return rs_system->rpl_dao_root_delay;
+    }
+}
+
 static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len)
 {
     str1[0] = '\0';
@@ -2221,5 +2351,11 @@ static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1,
 
         snprintf(str1, len, "incoming_node = '%s'", node != NULL ? node->phy_info->name : "<<unknown>>");
         snprintf(str2, len, "ip_pdu = {src = '%s', dst = '%s'}", ip_pdu->src_address, ip_pdu->dst_address);
+    }
+    else if (event_id == rpl_event_dao_timeout_check) {
+        ip_route_t *route = data1;
+
+        snprintf(str1, len, "route = '%s/%d' via '%s'", route->dst, route->prefix_len,
+                route->next_hop != NULL ? route->next_hop->phy_info->name : "<<unknown>>");
     }
 }

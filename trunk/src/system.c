@@ -75,6 +75,8 @@ bool rs_system_create()
     rs_system->rpl_dio_interval_doublings = DEFAULT_RPL_DIO_INTERVAL_DOUBLINGS;
     rs_system->rpl_dio_interval_min = DEFAULT_RPL_DIO_INTERVAL_MIN;
     rs_system->rpl_dio_redundancy_constant = DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT;
+    rs_system->rpl_dao_root_delay = DEFAULT_RPL_DAO_ROOT_DELAY;
+    rs_system->rpl_dao_remove_timeout = DEFAULT_RPL_DAO_REMOVE_TIMEOUT;
     rs_system->rpl_max_inc_rank = DEFAULT_RPL_MAX_RANK_INC;
 
     rs_system->rpl_prefer_floating = DEFAULT_RPL_PREFER_FLOATING;

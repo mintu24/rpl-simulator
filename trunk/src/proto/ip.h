@@ -49,6 +49,8 @@ typedef struct ip_route_t {
     uint8                   type;
     void *                  further_info;
 
+    sim_time_t              update_time;
+
         /* destination expressed as a bit-array, a performance workaround */
     uint8 *                 dst_bit_expanded;
 
@@ -111,8 +113,10 @@ void                        ip_node_done(node_t *node);
 
 void                        ip_node_set_address(node_t *node, const char *address);
 
-void                        ip_node_add_route(node_t *node, char *dst, uint8 prefix_len, node_t *next_hop, uint8 type, void *further_info);
+ip_route_t *                ip_node_add_route(node_t *node, char *dst, uint8 prefix_len, node_t *next_hop, uint8 type, void *further_info);
+void                        ip_node_rem_route(node_t *node, ip_route_t *route);
 void                        ip_node_rem_routes(node_t *node, char *dst, int8 prefix_len, node_t *next_hop, int8 type);
+ip_route_t **               ip_node_get_routes(node_t *node, uint16 *route_count, char *dst, int8 prefix_len, node_t *next_hop, int8 type);
 ip_route_t *                ip_node_get_next_hop_route(node_t *node, char *dst_address);
 
 ip_neighbor_t *             ip_node_add_neighbor(node_t *node, node_t *neighbor_node);
