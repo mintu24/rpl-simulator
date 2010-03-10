@@ -459,7 +459,59 @@ link: </property>
   </object>
   <object class="GtkWindow" id="window1">
     <child>
-      <placeholder/>
+      <object class="GtkVBox" id="vbox27">
+        <property name="visible">True</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkHBox" id="hbox5">
+            <property name="visible">True</property>
+            <child>
+              <object class="GtkCheckButton" id="checkbutton1">
+                <property name="label" translatable="yes">Log to console</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">False</property>
+                <property name="draw_indicator">True</property>
+              </object>
+              <packing>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="label118">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Events to keep: </property>
+              </object>
+              <packing>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSpinButton" id="spinbutton1">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="invisible_char">&#x25CF;</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkTreeView" id="treeview1">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+          </object>
+          <packing>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
     </child>
   </object>
   <object class="GtkAdjustment" id="params_system_transmission_time_adjustment">
@@ -4050,7 +4102,7 @@ link: </property>
                           <object class="GtkTable" id="table22">
                             <property name="visible">True</property>
                             <property name="border_width">5</property>
-                            <property name="n_rows">6</property>
+                            <property name="n_rows">7</property>
                             <property name="n_columns">2</property>
                             <property name="column_spacing">2</property>
                             <property name="row_spacing">2</property>
@@ -4176,8 +4228,8 @@ link: </property>
                               <packing>
                                 <property name="left_attach">1</property>
                                 <property name="right_attach">2</property>
-                                <property name="top_attach">5</property>
-                                <property name="bottom_attach">6</property>
+                                <property name="top_attach">6</property>
+                                <property name="bottom_attach">7</property>
                               </packing>
                             </child>
                             <child>
@@ -4187,6 +4239,30 @@ link: </property>
                                 <property name="label" translatable="yes">Ping (success/total): </property>
                               </object>
                               <packing>
+                                <property name="top_attach">6</property>
+                                <property name="bottom_attach">7</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="label117">
+                                <property name="visible">True</property>
+                                <property name="xalign">1</property>
+                                <property name="label" translatable="yes">Queued IP packets: </property>
+                              </object>
+                              <packing>
+                                <property name="top_attach">5</property>
+                                <property name="bottom_attach">6</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="params_nodes_measure_stat_queued_ip_packets_label">
+                                <property name="visible">True</property>
+                                <property name="ypad">3</property>
+                                <property name="label" translatable="yes">label</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">1</property>
+                                <property name="right_attach">2</property>
                                 <property name="top_attach">5</property>
                                 <property name="bottom_attach">6</property>
                               </packing>
