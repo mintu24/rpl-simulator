@@ -313,6 +313,10 @@ static gboolean cb_sim_field_drawing_area_button_press(GtkDrawingArea *widget, G
     main_win_set_selected_node(hover_node);
 
     if (hover_node != NULL) {
+        if (hover_node->phy_info->mobility_speed != 0) { /* don't allow manual moving for mobile nodes */
+            return TRUE;
+        }
+
         moving_node = hover_node;
 
         gint pixel_width, pixel_height;

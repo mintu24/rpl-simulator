@@ -123,6 +123,8 @@ ip_pdu_t *ip_pdu_create(char *src_address, char *dst_address)
     pdu->next_header = -1;
     pdu->sdu = NULL;
 
+    pdu->queued = FALSE;
+
     return pdu;
 }
 
@@ -187,6 +189,8 @@ ip_pdu_t *ip_pdu_duplicate(ip_pdu_t *pdu)
             rs_error("invalid ip next header '0x%04X'", pdu->next_header);
             new_pdu->sdu = NULL;
     }
+
+    new_pdu->queued = pdu->queued;
 
     return new_pdu;
 }
@@ -617,7 +621,10 @@ static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t
             rs_debug(DEBUG_IP, "node '%s': IP layer is busy (%d), retrying later", node->phy_info->name, node->ip_info->enqueued_count);
             rs_system_schedule_event(node, ip_event_pdu_send, incoming_node, pdu, rs_system->ip_pdu_timeout);
 
-            node->ip_info->enqueued_count++;
+            if (!pdu->queued) { /* "add" the packet to "queue" only once */
+                node->ip_info->enqueued_count++;
+                pdu->queued = TRUE;
+            }
 
             return TRUE;
         }
@@ -635,6 +642,8 @@ static bool event_handler_pdu_send(node_t *node, node_t *incoming_node, ip_pdu_t
         }
     }
     else { /* IP layer idle */
+        pdu->queued = FALSE;
+
         if (strlen(pdu->dst_address) == 0) { /* broadcast */
             if (mac_node_send(node, NULL, MAC_TYPE_IP, pdu)) {
                 rs_system_schedule_event(node, ip_event_pdu_send_timeout_check, NULL, pdu, rs_system->ip_pdu_timeout);

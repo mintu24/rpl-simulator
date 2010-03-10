@@ -191,6 +191,7 @@ static GtkWidget *              params_nodes_measure_stat_forward_failures_label
 static GtkWidget *              params_nodes_measure_stat_rpl_dis_messages_label;
 static GtkWidget *              params_nodes_measure_stat_rpl_dio_messages_label;
 static GtkWidget *              params_nodes_measure_stat_rpl_dao_messages_label;
+static GtkWidget *              params_nodes_measure_stat_queued_ip_packets_label;
 static GtkWidget *              params_nodes_measure_stat_ping_progress;
 
 static GtkWidget *              params_nodes_measure_converg_connected_progress;
@@ -212,6 +213,8 @@ static GtkWidget *              main_win_second_hpaned;
 
 static GtkWidget *              log_tree_view;
 static GtkListStore *           log_store;
+static GtkWidget *              log_to_console_check;
+static GtkWidget *              log_events_to_keep_spin;
 
 static GtkWidget *              new_menu_item = NULL;
 static GtkWidget *              open_menu_item = NULL;
@@ -264,6 +267,7 @@ void                            cb_params_nodes_route_dst_combo_changed(GtkCombo
 void                            cb_params_nodes_root_button_clicked(GtkButton *button, gpointer data);
 void                            cb_params_nodes_isolate_button_clicked(GtkButton *button, gpointer data);
 
+static void                     cb_log_to_console_check_toggle(GtkWidget *widget, gpointer *data);
 static void                     cb_new_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void                     cb_open_menu_item_activate(GtkWidget *widget, gpointer *data);
 static void                     cb_save_menu_item_activate(GtkWidget *widget, gpointer *data);
@@ -762,6 +766,9 @@ void main_win_node_to_gui(node_t *node, uint32 what)
             snprintf(temp, sizeof(temp), "%d/%d", node->measure_info->rpl_s_dao_message_count, node->measure_info->rpl_r_dao_message_count);
             gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_rpl_dao_messages_label), temp);
 
+            snprintf(temp, sizeof(temp), "%d", node->ip_info->enqueued_count);
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_queued_ip_packets_label), temp);
+
             float percent;
             if (node->measure_info->ping_successful_count > 0) {
                 percent = (float) node->measure_info->ping_successful_count / (node->measure_info->ping_successful_count + node->measure_info->ping_timeout_count);
@@ -1234,6 +1241,18 @@ void cb_params_nodes_ping_timeout_spin_changed(GtkSpinButton *spin, gpointer dat
     signal_leave();
 }
 
+static void cb_log_to_console_check_toggle(GtkWidget *widget, gpointer *data)
+{
+    signal_enter();
+
+    if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(log_to_console_check))) {
+        gtk_list_store_clear(log_store);
+    }
+
+    update_sensitivity();
+
+    signal_leave();
+}
 
 static void cb_new_menu_item_activate(GtkWidget *widget, gpointer *data)
 {
@@ -1826,6 +1845,7 @@ GtkWidget *create_params_widget()
     params_nodes_measure_stat_rpl_dis_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dis_messages_label");
     params_nodes_measure_stat_rpl_dio_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dio_messages_label");
     params_nodes_measure_stat_rpl_dao_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dao_messages_label");
+    params_nodes_measure_stat_queued_ip_packets_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_queued_ip_packets_label");
     params_nodes_measure_stat_ping_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_ping_progress");
 
     params_nodes_measure_converg_connected_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_converg_connected_progress");
@@ -2125,16 +2145,32 @@ GtkWidget *create_tool_bar()
 
 GtkWidget *create_log_console()
 {
-    GtkWidget *log_console = gtk_scrolled_window_new(NULL, NULL);
-    gtk_widget_set_size_request(log_console, -1, 150);
-    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(log_console), GTK_SHADOW_ETCHED_IN);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(log_console), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    GtkWidget *log_console = gtk_vbox_new(FALSE, 2);
+
+    GtkWidget *hbox = gtk_hbox_new(FALSE, 2);
+    gtk_box_pack_start(GTK_BOX(log_console), hbox, FALSE, TRUE, 0);
+
+    log_to_console_check = gtk_check_button_new_with_label("Log to console");
+    gtk_signal_connect(GTK_OBJECT(log_to_console_check), "toggled", G_CALLBACK(cb_log_to_console_check_toggle), NULL);
+    gtk_box_pack_start(GTK_BOX(hbox), log_to_console_check, TRUE, TRUE, 0);
+
+    gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new("Events to keep: "), TRUE, TRUE, 0);
+
+    GtkAdjustment *adjustment = (GtkAdjustment *) gtk_adjustment_new(1000, 1, 100000, 100, 1000, 0);
+    log_events_to_keep_spin = gtk_spin_button_new(adjustment, 0, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), log_events_to_keep_spin, TRUE, TRUE, 0);
+
+    GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+    gtk_widget_set_size_request(scrolled_window, -1, 150);
+    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scrolled_window), GTK_SHADOW_ETCHED_IN);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_box_pack_start(GTK_BOX(log_console), scrolled_window, TRUE, TRUE, 0);
 
     log_store = gtk_list_store_new(7, G_TYPE_INT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
 
     log_tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(log_store));
     gtk_tree_view_set_headers_clickable(GTK_TREE_VIEW(log_tree_view), TRUE);
-    gtk_container_add(GTK_CONTAINER(log_console), log_tree_view);
+    gtk_container_add(GTK_CONTAINER(scrolled_window), log_tree_view);
 
     GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
     gtk_tree_view_insert_column_with_attributes(
@@ -2328,6 +2364,7 @@ static void update_sensitivity()
     bool real_time_sim = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_system_real_time_sim_check));
     bool mains_powered = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_nodes_mains_powered_check));
     bool sn_autoinc = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_rpl_autoinc_sn_check));
+    bool log_to_console = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(log_to_console_check));
     bool node_selected = selected_node != NULL;
     bool has_nodes = rs_system->node_count > 0;
     bool node_alive = node_selected && selected_node->alive;
@@ -2383,6 +2420,8 @@ static void update_sensitivity()
     gtk_widget_set_sensitive(params_nodes_isolate_button, node_selected);
 
     gtk_widget_set_sensitive(params_nodes_measure_connect_dst_combo, node_selected);
+
+    gtk_widget_set_sensitive(log_events_to_keep_spin, log_to_console);
 
     gtk_widget_set_sensitive(new_menu_item, !sim_started);
     gtk_widget_set_sensitive(open_menu_item, !sim_started);
@@ -2757,22 +2796,32 @@ static gboolean log_wrapper(void *data)
             char *str2;
         } * params = data;
 
-        GtkTreeIter iter;
-        gtk_list_store_insert_with_values(log_store, &iter, -1,
-                0, params->no,
-                1, params->str_time,
-                2, params->node_name,
-                3, params->layer,
-                4, params->event_name,
-                5, params->str1,
-                6, params->str2,
-                -1);
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(log_to_console_check))) {
+            GtkTreeIter iter;
+            gtk_list_store_insert_with_values(log_store, &iter, -1,
+                    0, params->no,
+                    1, params->str_time,
+                    2, params->node_name,
+                    3, params->layer,
+                    4, params->event_name,
+                    5, params->str1,
+                    6, params->str2,
+                    -1);
 
-        GtkTreePath* path = gtk_tree_model_get_path(GTK_TREE_MODEL(log_store), &iter);
-        gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(log_tree_view), path, NULL, FALSE, 0, 0);
-        gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(log_tree_view)), &iter);
+            GtkTreePath* path = gtk_tree_model_get_path(GTK_TREE_MODEL(log_store), &iter);
+            gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(log_tree_view), path, NULL, FALSE, 0, 0);
+            gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(log_tree_view)), &iter);
 
-        gtk_tree_path_free(path);
+            gtk_tree_path_free(path);
+
+            while (gtk_tree_model_iter_n_children(GTK_TREE_MODEL(log_store), NULL) >
+                    gtk_spin_button_get_value(GTK_SPIN_BUTTON(log_events_to_keep_spin))) {
+
+                GtkTreeIter iter;
+                gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(log_store), &iter, NULL, 0);
+                gtk_list_store_remove(log_store, &iter);
+            }
+        }
 
         free(params->str_time);
         free(params->node_name);

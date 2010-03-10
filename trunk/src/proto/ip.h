@@ -84,6 +84,8 @@ typedef struct ip_pdu_t {
     uint16                  next_header;
     void *                  sdu;
 
+    bool                    queued; /* workaround for IP queue/buffer management */
+
 } ip_pdu_t;
 
 
