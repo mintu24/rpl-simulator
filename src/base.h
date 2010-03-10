@@ -15,7 +15,7 @@
 
     /**** configuration ****/
 
-#define RS_VERSION                  "r66"
+#define RS_VERSION                  "r67"
 
 
     /**** general types ****/
@@ -46,8 +46,14 @@
 #define sim_time_t                  int32
 
 
+    /**** others ****/
+
 #define RES_DIR                     "../resources"
 #define SCENARIO_DIR                "../scenarios"
+// #define USE_DOCUMENT_COLORS_AND_SIZES /* define this to use a white background and other colors accordingly, in the sim field */
+
+
+    /**** debug stuff ****/
 
 #define DEBUG_MAIN                  (1 << 0)
 #define DEBUG_EVENT                 (1 << 1)

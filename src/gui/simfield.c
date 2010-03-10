@@ -503,6 +503,10 @@ static gboolean draw_sim_field(void *data)
                     percent_t link_quality = rs_system_get_link_quality(node, parent);
                     uint32 q_factor = (link_quality <= 0.5 ? (uint32) (0x200 * link_quality) << 24 : 0xFF000000);
 
+                    if (!SIM_FIELD_REPRESENT_LINK_QUALITY) {
+                        q_factor = 0xFF000000;
+                    }
+
                     if (parent->alive) {
                         color = (SIM_FIELD_PARENT_ARROW_COLOR & 0x00FFFFFF) + q_factor;
                     }
@@ -527,6 +531,10 @@ static gboolean draw_sim_field(void *data)
                 uint32 color;
                 percent_t link_quality = rs_system_get_link_quality(node, parent);
                 uint32 q_factor = (link_quality <= 0.5 ? (uint32) (0x200 * link_quality) << 24 : 0xFF000000);
+
+                if (!SIM_FIELD_REPRESENT_LINK_QUALITY) {
+                    q_factor = 0xFF000000;
+                }
 
                 if (parent->alive) {
                     color = (SIM_FIELD_PREF_PARENT_ARROW_COLOR & 0x00FFFFFF) + q_factor;
@@ -553,6 +561,10 @@ static gboolean draw_sim_field(void *data)
                     uint32 color;
                     percent_t link_quality = rs_system_get_link_quality(node, sibling);
                     uint32 q_factor = (link_quality <= 0.5 ? (uint32) (0x200 * link_quality) << 24 : 0xFF000000);
+
+                    if (!SIM_FIELD_REPRESENT_LINK_QUALITY) {
+                        q_factor = 0xFF000000;
+                    }
 
                     if (sibling->alive) {
                         color = (SIM_FIELD_SIBLING_ARROW_COLOR & 0x00FFFFFF) + q_factor;
