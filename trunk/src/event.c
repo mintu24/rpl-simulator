@@ -59,12 +59,6 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
 
     event_t *event = &event_list[event_id];
 
-    if (event->handler == NULL) { /* no handler, nothing to execute */
-        events_unlock();
-
-        return TRUE;
-    }
-
     if (node != NULL) {
         rs_debug(DEBUG_EVENT, "node '%s': executing event '%s.%s' @%d ms", node->phy_info->name, event->layer, event->name, rs_system->now);
     }
@@ -80,8 +74,10 @@ bool event_execute(uint16 event_id, node_t *node, void *data1, void *data2)
 
     bool all_ok = TRUE;
 
-    if (!event->handler(node, data1, data2)) {
-        all_ok = FALSE;
+    if (event->handler != NULL) {
+        if (!event->handler(node, data1, data2)) {
+            all_ok = FALSE;
+        }
     }
 
     if (event->loggable) {
@@ -151,12 +147,13 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
 {
     event_t *event = &event_list[event_id];
 
-    char text[256];
+    char text[4 * 256];
 
     char *str_time = rs_system_sim_time_to_string(rs_system->now, TRUE);
 
-    char str1[256]; str1[0] = '\0';
-    char str2[256]; str2[0] = '\0';
+    char str1[4 * 256]; str1[0] = '\0';
+    char str2[4 * 256]; str2[0] = '\0';
+    char stats[4 * 256]; stats[0] = '\0';
 
     char *node_name;
     if (node != NULL) {
@@ -171,26 +168,53 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
         node_name = "system";
     }
 
-    char indent[256]; indent[0] = '\0';
+    char indent[4 * 256]; indent[0] = '\0';
     uint16 i;
     for (i = 0; i < level; i++) {
         strcat(indent, "    ");
     }
 
     if (event->str_func != NULL) {
-        event->str_func(event_id, data1, data2, str1, str2, 256);
+        event->str_func(event_id, data1, data2, str1, str2, 4 * 256);
+    }
+
+    if (node != NULL) {
+        snprintf(stats, 4 * 256, "stats = {%d %d %d %d %d %d %d %d %d %d %d %d}",
+                node->measure_info->forward_inconsistency_count,
+                node->measure_info->forward_failure_count,
+                node->measure_info->rpl_r_dis_message_count,
+                node->measure_info->rpl_r_dio_message_count,
+                node->measure_info->rpl_r_dao_message_count,
+                node->measure_info->rpl_s_dis_message_count,
+                node->measure_info->rpl_s_dio_message_count,
+                node->measure_info->rpl_s_dao_message_count,
+                node->measure_info->ping_successful_count,
+                node->measure_info->ping_timeout_count,
+                node->measure_info->gen_ip_packet_count,
+                node->measure_info->fwd_ip_packet_count
+                );
     }
 
     if (strlen(str1) > 0) {
         if (strlen(str2) > 0) {
-            snprintf(text, 256, "%s.%s.%s(%s, %s)", node_name, event->layer, event->name, str1, str2);
+            if (strlen(stats) > 0) {
+                snprintf(text, 4 * 256, "%s.%s.%s(%s, %s, %s)", node_name, event->layer, event->name, str1, str2, stats);
+            }
+            else {
+                snprintf(text, 4 * 256, "%s.%s.%s(%s, %s)", node_name, event->layer, event->name, str1, str2);
+            }
         }
         else {
-            snprintf(text, 256, "%s.%s.%s(%s)", node_name, event->layer, event->name, str1);
+            if (strlen(stats)) {
+                snprintf(text, 4 * 256, "%s.%s.%s(%s, %s)", node_name, event->layer, event->name, str1, stats);
+            }
+            else {
+                snprintf(text, 4 * 256, "%s.%s.%s(%s)", node_name, event->layer, event->name, str1);
+            }
         }
     }
     else {
-        snprintf(text, 256, "%s.%s.%s()", node_name, event->layer, event->name);
+        snprintf(text, 4 * 256, "%s.%s.%s()", node_name, event->layer, event->name);
     }
 
     if (log_file != NULL) {

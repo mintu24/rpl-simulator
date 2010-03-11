@@ -121,6 +121,8 @@ void measure_node_init(node_t *node)
     node->measure_info->rpl_s_dao_message_count = 0;
     node->measure_info->ping_successful_count = 0;
     node->measure_info->ping_timeout_count = 0;
+    node->measure_info->gen_ip_packet_count = 0;
+    node->measure_info->fwd_ip_packet_count = 0;
 }
 
 void measure_node_done(node_t *node)
@@ -204,7 +206,6 @@ void measure_node_add_rpl_dao_message(node_t *node, bool sent)
         node->measure_info->rpl_r_dao_message_count++;
 }
 
-
 void measure_node_add_ping(node_t *node, bool successful)
 {
     rs_assert(node != NULL);
@@ -214,6 +215,16 @@ void measure_node_add_ping(node_t *node, bool successful)
     else
         node->measure_info->ping_timeout_count++;
 
+}
+
+void measure_node_add_ip_packet(node_t *node, bool generated)
+{
+    rs_assert(node != NULL);
+
+    if (generated)
+        node->measure_info->gen_ip_packet_count++;
+    else
+        node->measure_info->fwd_ip_packet_count++;
 }
 
 void measure_node_reset(node_t *node)
@@ -237,6 +248,8 @@ void measure_node_reset(node_t *node)
     node->measure_info->rpl_s_dao_message_count = 0;
     node->measure_info->ping_successful_count = 0;
     node->measure_info->ping_timeout_count = 0;
+    node->measure_info->gen_ip_packet_count = 0;
+    node->measure_info->fwd_ip_packet_count = 0;
 }
 
 void measure_connect_update()

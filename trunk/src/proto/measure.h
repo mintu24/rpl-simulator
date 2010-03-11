@@ -38,6 +38,8 @@ typedef struct measure_node_info_t {
     uint32                  rpl_s_dao_message_count;
     uint32                  ping_successful_count;
     uint32                  ping_timeout_count;
+    uint32                  gen_ip_packet_count;
+    uint32                  fwd_ip_packet_count;
 
 } measure_node_info_t;
 
@@ -52,7 +54,7 @@ typedef struct measure_pdu_t {
 } measure_pdu_t;
 
 
-    /* convergence measurement info  */
+    /* convergence measurement info */
 typedef struct measure_converg_t {
 
     uint16                  total_node_count;
@@ -96,6 +98,7 @@ void                        measure_node_add_rpl_dis_message(node_t *node, bool 
 void                        measure_node_add_rpl_dio_message(node_t *node, bool sent);
 void                        measure_node_add_rpl_dao_message(node_t *node, bool sent);
 void                        measure_node_add_ping(node_t *node, bool successful);
+void                        measure_node_add_ip_packet(node_t *node, bool generated);
 void                        measure_node_reset(node_t *node);
 
 void                        measure_connect_update();

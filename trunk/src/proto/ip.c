@@ -557,6 +557,8 @@ bool ip_node_send(node_t *node, char *dst_ip_address, uint16 next_header, void *
         return FALSE;
     }
 
+    measure_node_add_ip_packet(node, TRUE);
+
     return TRUE;
 }
 
@@ -571,6 +573,8 @@ bool ip_node_forward(node_t *node, node_t *incoming_node, ip_pdu_t *pdu) {
 
         return FALSE;
     }
+
+    measure_node_add_ip_packet(node, FALSE);
 
     return TRUE;
 }

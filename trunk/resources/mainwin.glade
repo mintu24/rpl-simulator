@@ -1095,8 +1095,8 @@ link: </property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkCheckButton" id="params_events_icmp_ping_send_check">
-                                        <property name="label" translatable="yes">Ping Send</property>
+                                      <object class="GtkCheckButton" id="params_events_icmp_ping_request_check">
+                                        <property name="label" translatable="yes">Ping Request</property>
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">False</property>
@@ -1105,6 +1105,18 @@ link: </property>
                                       </object>
                                       <packing>
                                         <property name="position">4</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkCheckButton" id="params_events_icmp_ping_reply_check">
+                                        <property name="label" translatable="yes">Ping Reply</property>
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="receives_default">False</property>
+                                        <property name="draw_indicator">True</property>
+                                      </object>
+                                      <packing>
+                                        <property name="position">5</property>
                                       </packing>
                                     </child>
                                     <child>
@@ -1117,7 +1129,7 @@ link: </property>
                                         <signal name="toggled" handler="cb_gui_events_updated"/>
                                       </object>
                                       <packing>
-                                        <property name="position">5</property>
+                                        <property name="position">6</property>
                                       </packing>
                                     </child>
                                   </object>
@@ -4050,7 +4062,7 @@ link: </property>
                           <object class="GtkTable" id="table22">
                             <property name="visible">True</property>
                             <property name="border_width">5</property>
-                            <property name="n_rows">7</property>
+                            <property name="n_rows">9</property>
                             <property name="n_columns">2</property>
                             <property name="column_spacing">2</property>
                             <property name="row_spacing">2</property>
@@ -4198,8 +4210,8 @@ link: </property>
                                 <property name="label" translatable="yes">Queued IP packets: </property>
                               </object>
                               <packing>
-                                <property name="top_attach">5</property>
-                                <property name="bottom_attach">6</property>
+                                <property name="top_attach">8</property>
+                                <property name="bottom_attach">9</property>
                               </packing>
                             </child>
                             <child>
@@ -4211,8 +4223,57 @@ link: </property>
                               <packing>
                                 <property name="left_attach">1</property>
                                 <property name="right_attach">2</property>
+                                <property name="top_attach">8</property>
+                                <property name="bottom_attach">9</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="label118">
+                                <property name="visible">True</property>
+                                <property name="xalign">1</property>
+                                <property name="label" translatable="yes">Parents/Siblings: </property>
+                              </object>
+                              <packing>
                                 <property name="top_attach">5</property>
                                 <property name="bottom_attach">6</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="params_nodes_measure_stat_rpl_parents_siblings_label">
+                                <property name="visible">True</property>
+                                <property name="ypad">3</property>
+                                <property name="label" translatable="yes">label</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">1</property>
+                                <property name="right_attach">2</property>
+                                <property name="top_attach">5</property>
+                                <property name="bottom_attach">6</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="label119">
+                                <property name="visible">True</property>
+                                <property name="xalign">1</property>
+                                <property name="yalign">0.49000000953674316</property>
+                                <property name="label" translatable="yes">IP packets (gen/fwd): </property>
+                              </object>
+                              <packing>
+                                <property name="top_attach">7</property>
+                                <property name="bottom_attach">8</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="params_nodes_measure_stat_ip_packets_label">
+                                <property name="visible">True</property>
+                                <property name="ypad">3</property>
+                                <property name="label" translatable="yes">label</property>
+                              </object>
+                              <packing>
+                                <property name="left_attach">1</property>
+                                <property name="right_attach">2</property>
+                                <property name="top_attach">7</property>
+                                <property name="bottom_attach">8</property>
                               </packing>
                             </child>
                           </object>
