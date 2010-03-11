@@ -21,6 +21,7 @@ typedef struct icmp_node_info_t {
     char *                  ping_ip_address;
     sim_time_t              ping_interval;
     sim_time_t              ping_timeout;
+    bool                    ping_busy;
 
 } icmp_node_info_t;
 
@@ -40,7 +41,8 @@ extern uint16               icmp_event_node_kill;
 extern uint16               icmp_event_pdu_send;
 extern uint16               icmp_event_pdu_receive;
 
-extern uint16               icmp_event_ping_send;
+extern uint16               icmp_event_ping_request;
+extern uint16               icmp_event_ping_reply;
 extern uint16               icmp_event_ping_timeout;
 
 

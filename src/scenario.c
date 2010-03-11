@@ -672,8 +672,12 @@ setting_t *create_setting_tree()
     sprintf(text, "%s", event_get_logging(icmp_event_pdu_receive) ? "true" : "false");
     setting_set_value(setting, text);
 
-    setting = setting_create("icmp_event_ping_send_logging", events_setting);
-    sprintf(text, "%s", event_get_logging(icmp_event_ping_send) ? "true" : "false");
+    setting = setting_create("icmp_event_ping_request_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(icmp_event_ping_request) ? "true" : "false");
+    setting_set_value(setting, text);
+
+    setting = setting_create("icmp_event_ping_reply_logging", events_setting);
+    sprintf(text, "%s", event_get_logging(icmp_event_ping_reply) ? "true" : "false");
     setting_set_value(setting, text);
 
     setting = setting_create("icmp_event_ping_timeout_logging", events_setting);
@@ -1144,8 +1148,11 @@ bool apply_events_setting(char *path, char *name, char *value)
     else if (strcmp(name, "icmp_event_pdu_receive_logging") == 0) {
         event_set_logging(icmp_event_pdu_receive, (strcmp(value, "true") == 0));
     }
-    else if (strcmp(name, "icmp_event_ping_send_logging") == 0) {
-        event_set_logging(icmp_event_ping_send, (strcmp(value, "true") == 0));
+    else if (strcmp(name, "icmp_event_ping_request_logging") == 0) {
+        event_set_logging(icmp_event_ping_request, (strcmp(value, "true") == 0));
+    }
+    else if (strcmp(name, "icmp_event_ping_reply_logging") == 0) {
+        event_set_logging(icmp_event_ping_reply, (strcmp(value, "true") == 0));
     }
     else if (strcmp(name, "icmp_event_ping_timeout_logging") == 0) {
         event_set_logging(icmp_event_ping_timeout, (strcmp(value, "true") == 0));

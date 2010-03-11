@@ -37,7 +37,7 @@
 
 #define DEFAULT_MEASURE_PDU_TIMEOUT             1000
 
-#define DEFAULT_RPL_AUTO_SN_INC_INT             10000 /* -1 disables */
+#define DEFAULT_RPL_AUTO_SN_INC_INT             -1 /* -1 disables */
 #define DEFAULT_RPL_STARTUP_PROBE_FOR_DODAGS    FALSE
 #define DEFAULT_RPL_POISON_COUNT                4
 

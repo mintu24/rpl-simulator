@@ -102,7 +102,8 @@ static GtkWidget *              params_events_icmp_node_wake_check = NULL;
 static GtkWidget *              params_events_icmp_node_kill_check = NULL;
 static GtkWidget *              params_events_icmp_pdu_send_check = NULL;
 static GtkWidget *              params_events_icmp_pdu_receive_check = NULL;
-static GtkWidget *              params_events_icmp_ping_send_check = NULL;
+static GtkWidget *              params_events_icmp_ping_request_check = NULL;
+static GtkWidget *              params_events_icmp_ping_reply_check = NULL;
 static GtkWidget *              params_events_icmp_ping_timeout_check = NULL;
 static GtkWidget *              params_events_rpl_node_wake_check = NULL;
 static GtkWidget *              params_events_rpl_node_kill_check = NULL;
@@ -191,8 +192,10 @@ static GtkWidget *              params_nodes_measure_stat_forward_failures_label
 static GtkWidget *              params_nodes_measure_stat_rpl_dis_messages_label;
 static GtkWidget *              params_nodes_measure_stat_rpl_dio_messages_label;
 static GtkWidget *              params_nodes_measure_stat_rpl_dao_messages_label;
-static GtkWidget *              params_nodes_measure_stat_queued_ip_packets_label;
+static GtkWidget *              params_nodes_measure_stat_rpl_parents_siblings_label;
 static GtkWidget *              params_nodes_measure_stat_ping_progress;
+static GtkWidget *              params_nodes_measure_stat_ip_packets_label;
+static GtkWidget *              params_nodes_measure_stat_queued_ip_packets_label;
 
 static GtkWidget *              params_nodes_measure_converg_connected_progress;
 static GtkWidget *              params_nodes_measure_converg_stable_progress;
@@ -766,6 +769,18 @@ void main_win_node_to_gui(node_t *node, uint32 what)
             snprintf(temp, sizeof(temp), "%d/%d", node->measure_info->rpl_s_dao_message_count, node->measure_info->rpl_r_dao_message_count);
             gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_rpl_dao_messages_label), temp);
 
+            if (rpl_node_is_joined(node)) {
+                snprintf(temp, sizeof(temp), "%d/%d", node->rpl_info->joined_dodag->parent_count, node->rpl_info->joined_dodag->sibling_count);
+                gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_rpl_parents_siblings_label), temp);
+            }
+            else {
+                snprintf(temp, sizeof(temp), "%d/%d", 0, 0);
+                gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_rpl_parents_siblings_label), temp);
+            }
+
+            snprintf(temp, sizeof(temp), "%d/%d", node->measure_info->gen_ip_packet_count, node->measure_info->fwd_ip_packet_count);
+            gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_ip_packets_label), temp);
+
             snprintf(temp, sizeof(temp), "%d", node->ip_info->enqueued_count);
             gtk_label_set_text(GTK_LABEL(params_nodes_measure_stat_queued_ip_packets_label), temp);
 
@@ -875,7 +890,8 @@ void main_win_events_to_gui()
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_node_kill_check), event_get_logging(icmp_event_node_kill));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_pdu_send_check), event_get_logging(icmp_event_pdu_send));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_pdu_receive_check), event_get_logging(icmp_event_pdu_receive));
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_send_check), event_get_logging(icmp_event_ping_send));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_request_check), event_get_logging(icmp_event_ping_request));
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_reply_check), event_get_logging(icmp_event_ping_reply));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_timeout_check), event_get_logging(icmp_event_ping_timeout));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_node_wake_check), event_get_logging(rpl_event_node_wake));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(params_events_rpl_node_kill_check), event_get_logging(rpl_event_node_kill));
@@ -1207,7 +1223,12 @@ void cb_params_nodes_root_button_clicked(GtkButton *button, gpointer data)
     if (root_info->configured_dodag_id != NULL) {
         free(root_info->configured_dodag_id);
     }
-    root_info->configured_dodag_id = strdup(root_info->dodag_id);
+    if (root_info->configured_dodag_id == NULL) {
+        root_info->dodag_id = strdup(selected_node->ip_info->address);
+    }
+    else {
+        root_info->dodag_id = strdup(root_info->configured_dodag_id);
+    }
 
     rpl_node_start_as_root(selected_node);
 
@@ -1756,7 +1777,8 @@ GtkWidget *create_params_widget()
     params_events_icmp_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_node_kill_check");
     params_events_icmp_pdu_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_pdu_send_check");
     params_events_icmp_pdu_receive_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_pdu_receive_check");
-    params_events_icmp_ping_send_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_ping_send_check");
+    params_events_icmp_ping_request_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_ping_request_check");
+    params_events_icmp_ping_reply_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_ping_reply_check");
     params_events_icmp_ping_timeout_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_icmp_ping_timeout_check");
     params_events_rpl_node_wake_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_node_wake_check");
     params_events_rpl_node_kill_check = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_events_rpl_node_kill_check");
@@ -1845,8 +1867,10 @@ GtkWidget *create_params_widget()
     params_nodes_measure_stat_rpl_dis_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dis_messages_label");
     params_nodes_measure_stat_rpl_dio_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dio_messages_label");
     params_nodes_measure_stat_rpl_dao_messages_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_dao_messages_label");
-    params_nodes_measure_stat_queued_ip_packets_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_queued_ip_packets_label");
+    params_nodes_measure_stat_rpl_parents_siblings_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_rpl_parents_siblings_label");
     params_nodes_measure_stat_ping_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_ping_progress");
+    params_nodes_measure_stat_ip_packets_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_ip_packets_label");
+    params_nodes_measure_stat_queued_ip_packets_label = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_stat_queued_ip_packets_label");
 
     params_nodes_measure_converg_connected_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_converg_connected_progress");
     params_nodes_measure_converg_stable_progress = (GtkWidget *) gtk_builder_get_object(gtk_builder, "params_nodes_measure_converg_stable_progress");
@@ -2146,6 +2170,7 @@ GtkWidget *create_tool_bar()
 GtkWidget *create_log_console()
 {
     GtkWidget *log_console = gtk_vbox_new(FALSE, 2);
+    gtk_widget_set_size_request(log_console, -1, 100);
 
     GtkWidget *hbox = gtk_hbox_new(FALSE, 2);
     gtk_box_pack_start(GTK_BOX(log_console), hbox, FALSE, TRUE, 0);
@@ -2156,7 +2181,7 @@ GtkWidget *create_log_console()
 
     gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new("Events to keep: "), TRUE, TRUE, 0);
 
-    GtkAdjustment *adjustment = (GtkAdjustment *) gtk_adjustment_new(1000, 1, 100000, 100, 1000, 0);
+    GtkAdjustment *adjustment = (GtkAdjustment *) gtk_adjustment_new(100, 1, 100000, 100, 1000, 0);
     log_events_to_keep_spin = gtk_spin_button_new(adjustment, 0, 0);
     gtk_box_pack_start(GTK_BOX(hbox), log_events_to_keep_spin, TRUE, TRUE, 0);
 
@@ -2671,7 +2696,7 @@ static void gui_to_node(node_t *node)
     if (node->alive && rs_system->started) {
         if (should_start_ping) {
             rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0);
-            rs_system_schedule_event(node, icmp_event_ping_send, NULL, NULL, node->icmp_info->ping_interval);
+            rs_system_schedule_event(node, icmp_event_ping_request, NULL, NULL, node->icmp_info->ping_interval);
         }
         if (should_start_connect_measure) {
             measure_node_reset(node);
@@ -2720,7 +2745,8 @@ static void gui_to_events()
     event_set_logging(icmp_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_node_kill_check)));
     event_set_logging(icmp_event_pdu_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_pdu_send_check)));
     event_set_logging(icmp_event_pdu_receive, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_pdu_receive_check)));
-    event_set_logging(icmp_event_ping_send, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_send_check)));
+    event_set_logging(icmp_event_ping_request, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_request_check)));
+    event_set_logging(icmp_event_ping_reply, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_reply_check)));
     event_set_logging(icmp_event_ping_timeout, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_icmp_ping_timeout_check)));
     event_set_logging(rpl_event_node_wake, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_node_wake_check)));
     event_set_logging(rpl_event_node_kill, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(params_events_rpl_node_kill_check)));
