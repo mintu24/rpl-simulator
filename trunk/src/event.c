@@ -192,7 +192,7 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
                 rpl_node_is_joined(node) ? node->rpl_info->joined_dodag->sibling_count : 0
                 );
 
-        snprintf(stats, 4 * 256, "stats = {%d %d %d %d %d %d %d %d %d %d %d %d}",
+        snprintf(stats, 4 * 256, "stats = {%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d}",
                 node->measure_info->forward_inconsistency_count,
                 node->measure_info->forward_failure_count,
                 node->measure_info->rpl_r_dis_message_count,
@@ -204,7 +204,10 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
                 node->measure_info->ping_successful_count,
                 node->measure_info->ping_timeout_count,
                 node->measure_info->gen_ip_packet_count,
-                node->measure_info->fwd_ip_packet_count
+                node->measure_info->fwd_ip_packet_count,
+                measure_converg_get()->stable_node_count,
+                measure_converg_get()->floating_node_count,
+                measure_converg_get()->total_node_count
                 );
     }
 
@@ -227,7 +230,12 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
         }
     }
     else {
-        snprintf(text, 4 * 256, "%s.%s.%s()", node_name, event->layer, event->name);
+        if (strlen(stats)) {
+            snprintf(text, 4 * 256, "%s.%s.%s(%s, %s)", node_name, event->layer, event->name, info, stats);
+        }
+        else {
+            snprintf(text, 4 * 256, "%s.%s.%s()", node_name, event->layer, event->name);
+        }
     }
 
     if (log_file != NULL) {

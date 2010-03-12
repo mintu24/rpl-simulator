@@ -15,7 +15,7 @@
 
     /**** configuration ****/
 
-#define RS_VERSION                  "r69"
+#define RS_VERSION                  "r70"
 
 
     /**** general types ****/

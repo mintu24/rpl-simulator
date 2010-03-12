@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 import sys
 import os
@@ -55,7 +56,7 @@ def compose_graph1(rank_delay_list, rank_width):
         if rank_dict.has_key(rank):
             rank_dict[rank].append(delay)
         else:
-            rank_dict[rank] = []
+            rank_dict[rank] = [delay]
 
     for rank in rank_dict:
         delay_list = rank_dict[rank]
@@ -82,18 +83,25 @@ def compose_graph2(rank_delay_list, rank_width):
         else:
             rank_dict[rank] = [delay]
 
-    for rank in rank_dict:
-        delay_list = rank_dict[rank]
+    
+    for rank in xrange(1, max(rank_dict) + 1):
+        if rank_dict.has_key(rank):
+            delay_list = rank_dict[rank]
+            
+            y = float(sum(delay_list)) / len(delay_list)
+            
+            x = rank * rank_width
+            point_list.append((x, y))
+            
+            x = (rank + 1) * rank_width
+            point_list.append((x, y))
         
-        y = float(sum(delay_list)) / len(delay_list)
-        
-        x = rank * rank_width
-        point_list.append((x, y))
-        
-        x = (rank + 1) * rank_width
-        point_list.append((x, y))
-        
-        point_list.append((-1, -1))
+        else:
+            #x = rank * rank_width
+            #y = 0
+            
+            #point_list.append((x, y))
+            point_list.append((-1, -1))
             
     return point_list
 
@@ -114,11 +122,11 @@ def compose_plot_command(temp_file_name1, temp_file_name2):
     
     #gnuplot_subcmd_list.append("set yrange[0:%d]" % (dat_info_list[len(dat_info_list) - 1][0] + 2))
     gnuplot_subcmd_list.append("set title 'Delay vs. Rank'")
-    gnuplot_subcmd_list.append("set grid xtics")
+    #gnuplot_subcmd_list.append("set grid xtics 1000")
     gnuplot_subcmd_list.append("set xlabel 'Rank'")
-    gnuplot_subcmd_list.append("set ylabel 'Delay [us]'")
+    gnuplot_subcmd_list.append("set ylabel 'Delay [ms]'")
     
-    gnuplot_subcmd_list.append("plot '%s' with points, '%s' with lines " % (temp_file_name1, temp_file_name2))
+    gnuplot_subcmd_list.append("plot '%s' with points, '%s' with lines lt 3 lw 1" % (temp_file_name1, temp_file_name2))
     
     gnuplot_subcmds = ""
     for subcmd in gnuplot_subcmd_list:

@@ -92,7 +92,7 @@ def compose_plot_command(dat_info_list):
     
     gnuplot_subcmd_list.append("set yrange[0:%d]" % (dat_info_list[len(dat_info_list) - 1][0] + 2))
     gnuplot_subcmd_list.append("set title 'Connectivity'")
-    gnuplot_subcmd_list.append("set xlabel 'time [us]'")
+    gnuplot_subcmd_list.append("set xlabel 'time [ms]'")
     gnuplot_subcmd_list.append("set ylabel 'connected'")
     
     subsub = ""

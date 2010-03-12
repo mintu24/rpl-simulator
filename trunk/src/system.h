@@ -48,8 +48,8 @@
 #define DEFAULT_RPL_DIO_INTERVAL_MIN            7
 #define DEFAULT_RPL_DIO_REDUNDANCY_CONSTANT     0xFF /* mechanism disabled */
 
-#define DEFAULT_RPL_DAO_ROOT_DELAY              1000
-#define DEFAULT_RPL_DAO_REMOVE_TIMEOUT          1100
+#define DEFAULT_RPL_DAO_ROOT_DELAY              2000
+#define DEFAULT_RPL_DAO_REMOVE_TIMEOUT          2500
 
 #define DEFAULT_RPL_MAX_RANK_INC                4
 

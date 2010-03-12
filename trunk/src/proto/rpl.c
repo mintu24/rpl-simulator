@@ -781,6 +781,11 @@ void rpl_node_isolate(node_t *node)
         node->rpl_info->root_info->dodag_id = NULL;
     }
 
+    if (node->rpl_info->root_info->configured_dodag_id != NULL) {
+        free(node->rpl_info->root_info->configured_dodag_id);
+        node->rpl_info->root_info->configured_dodag_id = NULL;
+    }
+
     rs_system_cancel_event(node, rpl_event_trickle_i_timeout, NULL, NULL, 0);
     rs_system_cancel_event(node, rpl_event_trickle_t_timeout, NULL, NULL, 0);
 }
@@ -1015,6 +1020,8 @@ static bool event_handler_node_wake(node_t *node)
         }
     }
 
+    measure_converg_update();
+
     return TRUE;
 }
 
@@ -1038,6 +1045,8 @@ static bool event_handler_node_kill(node_t *node)
     /* the IP layer should trigger the removal of all our neighbors */
 
     node->rpl_info->last_dio_send_time = -1;
+
+    measure_converg_update();
 
     return TRUE;
 }
@@ -1441,6 +1450,8 @@ static bool event_handler_trickle_i_timeout(node_t *node)
 
     node->rpl_info->last_trickle_t_schedule_time = rs_system->now + t;;
     node->rpl_info->last_trickle_i_schedule_time = rs_system->now + node->rpl_info->trickle_i;
+
+    measure_converg_update();
 
     return TRUE;
 }
