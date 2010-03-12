@@ -8,10 +8,10 @@ import os.path
 def parse_time(time_str):
     parts = time_str.split(':')
     if (len(parts) == 3): # hours
-        return int((int(parts[0]) * 3600000 + int(parts[1]) * 60000 + float(parts[2])) * 1000)
+        return int(int(parts[0]) * 3600000 + int(parts[1]) * 60000 + float(parts[2]) * 1000)
 
     elif (len(parts) == 2): # minutes
-        return int((int(parts[0]) * 60000 + float(parts[1])) * 1000)
+        return int(int(parts[0]) * 60000 + float(parts[1]) * 1000)
 
     elif (len(parts) == 1): # seconds or/and milliseconds
         return int((float(parts[0])) * 1000)

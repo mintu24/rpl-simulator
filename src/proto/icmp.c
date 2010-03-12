@@ -24,8 +24,9 @@ static bool             event_handler_node_kill(node_t *node);
 static bool             event_handler_pdu_send(node_t *node, char *dst_ip_address, icmp_pdu_t *pdu);
 static bool             event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pdu_t *pdu); /* yes, it's ip_pdu_t, since icmp and ip work closely together */
 
-static bool             event_handler_ping_request(node_t *node);
-static bool             event_handler_ping_timeout(node_t *node, char *dst_ip_address);
+static bool             event_handler_ping_request(node_t *node, char *dst_ip_address, uint32 seq_num);
+static bool             event_handler_ping_reply(node_t *node, char *dst_ip_address, uint32 seq_num);
+static bool             event_handler_ping_timeout(node_t *node, char *dst_ip_address, uint32 seq_num);
 
 static void             event_arg_str(uint16 event_id, void *data1, void *data2, char *str1, char *str2, uint16 len);
 
@@ -41,7 +42,7 @@ bool icmp_init()
     icmp_event_pdu_receive = event_register("pdu_receive", "icmp", (event_handler_t) event_handler_pdu_receive, event_arg_str);
 
     icmp_event_ping_request = event_register("ping_request", "icmp", (event_handler_t) event_handler_ping_request, event_arg_str);
-    icmp_event_ping_reply = event_register("ping_reply", "icmp", NULL, event_arg_str);
+    icmp_event_ping_reply = event_register("ping_reply", "icmp", (event_handler_t) event_handler_ping_reply, event_arg_str);
     icmp_event_ping_timeout = event_register("ping_timeout", "icmp", (event_handler_t) event_handler_ping_timeout, event_arg_str);
 
     return TRUE;
@@ -123,6 +124,12 @@ icmp_pdu_t *icmp_pdu_duplicate(icmp_pdu_t *pdu)
             }
 
             break;
+
+            case ICMP_TYPE_ECHO_REPLY:
+            case ICMP_TYPE_ECHO_REQUEST:
+                new_pdu->sdu = pdu->sdu;
+
+                break;
     }
 
     return new_pdu;
@@ -145,7 +152,8 @@ void icmp_node_init(node_t *node)
     node->icmp_info->ping_ip_address = NULL;
     node->icmp_info->ping_interval = ICMP_DEFAULT_PING_INTERVAL;
     node->icmp_info->ping_timeout = ICMP_DEFAULT_PING_TIMEOUT;
-    node->icmp_info->ping_busy = FALSE;
+    node->icmp_info->ping_request_time = -1;
+    node->icmp_info->ping_seq_num = 0;
 }
 
 void icmp_node_done(node_t *node)
@@ -197,7 +205,8 @@ static bool event_handler_node_wake(node_t *node)
 {
     if (node->icmp_info->ping_ip_address != NULL) {
         rs_system_schedule_event(node, icmp_event_ping_request,
-                node->ip_info->address, node->icmp_info->ping_ip_address, node->icmp_info->ping_interval);
+                node->icmp_info->ping_ip_address, (void *) node->icmp_info->ping_seq_num++,
+                node->icmp_info->ping_interval);
     }
 
     return TRUE;
@@ -208,7 +217,8 @@ static bool event_handler_node_kill(node_t *node)
     rs_system_cancel_event(node, icmp_event_ping_request, NULL, NULL, 0);
     rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0);
 
-    node->icmp_info->ping_busy = FALSE;
+    node->icmp_info->ping_request_time = -1;
+    node->icmp_info->ping_seq_num = 0;
 
     return TRUE;
 }
@@ -229,21 +239,24 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
 
         case ICMP_TYPE_ECHO_REQUEST: {
             rs_debug(DEBUG_ICMP, "node '%s': received a ping request from '%s'", node->phy_info->name, ip_pdu->src_address);
-            rs_debug(DEBUG_ICMP, "node '%s': sending a ping reply to '%s'", node->phy_info->name, ip_pdu->src_address);
 
-            event_execute(icmp_event_ping_reply, node, node->ip_info->address, ip_pdu->src_address);
-
-            icmp_node_send(node, ip_pdu->src_address, ICMP_TYPE_ECHO_REPLY, 0, NULL);
+            event_execute(icmp_event_ping_reply, node, ip_pdu->src_address, pdu->sdu);
 
             break;
         }
 
         case ICMP_TYPE_ECHO_REPLY: {
-            if (node->icmp_info->ping_busy) {
+            if (node->icmp_info->ping_request_time != -1) {
                 rs_debug(DEBUG_ICMP, "node '%s': received a ping reply from '%s'", node->phy_info->name, ip_pdu->src_address);
                 measure_node_add_ping(node, TRUE);
-                rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0);
-                node->icmp_info->ping_busy = FALSE;
+                rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, pdu->sdu, 0);
+
+                if (node->icmp_info->ping_ip_address != NULL) {
+                    rs_system_schedule_event(node, icmp_event_ping_request,
+                            node->icmp_info->ping_ip_address, (void *) node->icmp_info->ping_seq_num++, node->icmp_info->ping_interval);
+                }
+
+                node->icmp_info->ping_request_time = -1;
             }
 
             break;
@@ -298,43 +311,43 @@ static bool event_handler_pdu_receive(node_t *node, node_t *incoming_node, ip_pd
     return all_ok;
 }
 
-static bool event_handler_ping_request(node_t *node)
+static bool event_handler_ping_request(node_t *node, char *dst_ip_address, uint32 seq_num)
 {
-    if (node->icmp_info->ping_ip_address == NULL) {
-        return TRUE;
-    }
+    rs_debug(DEBUG_ICMP, "node '%s': sending a ping request to '%s'", node->phy_info->name, node->icmp_info->ping_ip_address);
 
-    if (!node->icmp_info->ping_busy) {
-        rs_debug(DEBUG_ICMP, "node '%s': sending a ping request to '%s'", node->phy_info->name, node->icmp_info->ping_ip_address);
-        icmp_node_send(node, node->icmp_info->ping_ip_address, ICMP_TYPE_ECHO_REQUEST, 0, NULL);
+    icmp_node_send(node, dst_ip_address, ICMP_TYPE_ECHO_REQUEST, 0, (void *) seq_num);
 
-        rs_system_schedule_event(node, icmp_event_ping_timeout,
-                node->ip_info->address, node->icmp_info->ping_ip_address, node->icmp_info->ping_timeout);
+    rs_system_schedule_event(node, icmp_event_ping_timeout,
+            dst_ip_address, (void *) seq_num, node->icmp_info->ping_timeout);
 
-        node->icmp_info->ping_busy = TRUE;
-    }
-
-    rs_system_schedule_event(node, icmp_event_ping_request,
-            node->ip_info->address, node->icmp_info->ping_ip_address, node->icmp_info->ping_interval);
+    node->icmp_info->ping_request_time = rs_system->now;
 
     return TRUE;
 }
 
-static bool event_handler_ping_timeout(node_t *node, char *dst_ip_address)
+static bool event_handler_ping_reply(node_t *node, char *dst_ip_address, uint32 seq_num)
 {
-    if (node->icmp_info->ping_ip_address == NULL) {
-        return TRUE;
-    }
+    icmp_node_send(node, dst_ip_address, ICMP_TYPE_ECHO_REPLY, 0, (void *) seq_num);
 
-    if (!node->icmp_info->ping_busy) {
-        return TRUE;
+    return TRUE;
+}
+
+static bool event_handler_ping_timeout(node_t *node, char *dst_ip_address, uint32 seq_num)
+{
+    if (!node->icmp_info->ping_request_time == -1) {
+        return TRUE; /* this should never happen */
     }
 
     rs_debug(DEBUG_ICMP, "node '%s': ping request to '%s' timeout", node->phy_info->name, dst_ip_address);
 
     measure_node_add_ping(node, FALSE);
 
-    node->icmp_info->ping_busy = FALSE;
+    if (node->icmp_info->ping_ip_address != NULL) {
+        rs_system_schedule_event(node, icmp_event_ping_request,
+                node->icmp_info->ping_ip_address, (void *) node->icmp_info->ping_seq_num++, node->icmp_info->ping_interval);
+    }
+
+    node->icmp_info->ping_request_time = -1;
 
     return TRUE;
 }
@@ -358,24 +371,24 @@ static void event_arg_str(uint16 event_id, void *data1, void *data2, char *str1,
         snprintf(str2, len, "ip_pdu = {src = '%s', dst = '%s'}", pdu->src_address, pdu->dst_address);
     }
     else if (event_id == icmp_event_ping_request) {
-        char *src_ip_address = data1;
-        char *dst_ip_address = data2;
+        char *dst_ip_address = data1;
+        uint32 seq_num = (uint32) data2;
 
-        snprintf(str1, len, "src = '%s'", src_ip_address != NULL ? src_ip_address : "<<unknown>>");
-        snprintf(str2, len, "dst = '%s'", dst_ip_address != NULL ? dst_ip_address : "<<broadcast>>");
+        snprintf(str1, len, "dst = '%s'", dst_ip_address != NULL ? dst_ip_address : "<<broadcast>>");
+        snprintf(str2, len, "seq_num = %d", seq_num);
     }
     else if (event_id == icmp_event_ping_reply) {
-        char *src_ip_address = data1;
-        char *dst_ip_address = data2;
+        char *dst_ip_address = data1;
+        uint32 seq_num = (uint32) data2;
 
-        snprintf(str1, len, "src = '%s'", src_ip_address != NULL ? src_ip_address : "<<unknown>>");
-        snprintf(str2, len, "dst = '%s'", dst_ip_address != NULL ? dst_ip_address : "<<broadcast>>");
+        snprintf(str1, len, "dst = '%s'", dst_ip_address != NULL ? dst_ip_address : "<<broadcast>>");
+        snprintf(str2, len, "seq_num = %d", seq_num);
     }
     else if (event_id == icmp_event_ping_timeout) {
-        char *src_ip_address = data1;
-        char *dst_ip_address = data2;
+        char *dst_ip_address = data1;
+        uint32 seq_num = (uint32) data2;
 
-        snprintf(str1, len, "src = '%s'", src_ip_address != NULL ? src_ip_address : "<<unknown>>");
-        snprintf(str2, len, "dst = '%s'", dst_ip_address != NULL ? dst_ip_address : "<<broadcast>>");
+        snprintf(str1, len, "dst = '%s'", dst_ip_address != NULL ? dst_ip_address : "<<broadcast>>");
+        snprintf(str2, len, "seq_num = %d", seq_num);
     }
 }

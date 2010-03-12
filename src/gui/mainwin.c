@@ -2696,7 +2696,9 @@ static void gui_to_node(node_t *node)
     if (node->alive && rs_system->started) {
         if (should_start_ping) {
             rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0);
-            rs_system_schedule_event(node, icmp_event_ping_request, NULL, NULL, node->icmp_info->ping_interval);
+            rs_system_schedule_event(node, icmp_event_ping_request,
+                    node->icmp_info->ping_ip_address, (void *) node->icmp_info->ping_seq_num++,
+                    node->icmp_info->ping_interval);
         }
         if (should_start_connect_measure) {
             measure_node_reset(node);

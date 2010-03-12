@@ -153,6 +153,7 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
 
     char str1[4 * 256]; str1[0] = '\0';
     char str2[4 * 256]; str2[0] = '\0';
+    char info[4 * 256]; info[0] = '\0';
     char stats[4 * 256]; stats[0] = '\0';
 
     char *node_name;
@@ -179,6 +180,18 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
     }
 
     if (node != NULL) {
+        snprintf(info, 4 * 256, "info = {'%s' %.02f %.02f '%s' '%s' %d %d %d %d}",
+                node->phy_info->name,
+                node->phy_info->cx,
+                node->phy_info->cy,
+                node->mac_info->address,
+                node->ip_info->address,
+                node->ip_info->enqueued_count,
+                rpl_node_is_joined(node) ? node->rpl_info->joined_dodag->rank : rpl_node_is_root(node) ? RPL_RANK_ROOT : RPL_RANK_INFINITY,
+                rpl_node_is_joined(node) ? node->rpl_info->joined_dodag->parent_count : 0,
+                rpl_node_is_joined(node) ? node->rpl_info->joined_dodag->sibling_count : 0
+                );
+
         snprintf(stats, 4 * 256, "stats = {%d %d %d %d %d %d %d %d %d %d %d %d}",
                 node->measure_info->forward_inconsistency_count,
                 node->measure_info->forward_failure_count,
@@ -198,7 +211,7 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
     if (strlen(str1) > 0) {
         if (strlen(str2) > 0) {
             if (strlen(stats) > 0) {
-                snprintf(text, 4 * 256, "%s.%s.%s(%s, %s, %s)", node_name, event->layer, event->name, str1, str2, stats);
+                snprintf(text, 4 * 256, "%s.%s.%s(%s, %s, %s, %s)", node_name, event->layer, event->name, info, stats, str1, str2);
             }
             else {
                 snprintf(text, 4 * 256, "%s.%s.%s(%s, %s)", node_name, event->layer, event->name, str1, str2);
@@ -206,7 +219,7 @@ void event_log(uint16 event_id, node_t *node, void *data1, void *data2)
         }
         else {
             if (strlen(stats)) {
-                snprintf(text, 4 * 256, "%s.%s.%s(%s, %s)", node_name, event->layer, event->name, str1, stats);
+                snprintf(text, 4 * 256, "%s.%s.%s(%s, %s, %s)", node_name, event->layer, event->name, info, stats, str1);
             }
             else {
                 snprintf(text, 4 * 256, "%s.%s.%s(%s)", node_name, event->layer, event->name, str1);
