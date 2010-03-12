@@ -9,7 +9,7 @@
 #define IP_NEXT_HEADER_ICMP         0x0058
 
 #define ICMP_DEFAULT_PING_INTERVAL  1000 /* one per second */
-#define ICMP_DEFAULT_PING_TIMEOUT   1000 /* a second should be enough */
+#define ICMP_DEFAULT_PING_TIMEOUT   900
 
 #define ICMP_TYPE_ECHO_REQUEST      128
 #define ICMP_TYPE_ECHO_REPLY        129
@@ -21,7 +21,8 @@ typedef struct icmp_node_info_t {
     char *                  ping_ip_address;
     sim_time_t              ping_interval;
     sim_time_t              ping_timeout;
-    bool                    ping_busy;
+    sim_time_t              ping_request_time;
+    uint32                  ping_seq_num;
 
 } icmp_node_info_t;
 

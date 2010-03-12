@@ -1114,6 +1114,7 @@ link: </property>
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">False</property>
                                         <property name="draw_indicator">True</property>
+                                        <signal name="toggled" handler="cb_gui_events_updated"/>
                                       </object>
                                       <packing>
                                         <property name="position">5</property>
