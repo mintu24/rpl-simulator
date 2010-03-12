@@ -206,7 +206,7 @@ static bool event_handler_node_wake(node_t *node)
     if (node->icmp_info->ping_ip_address != NULL) {
         rs_system_schedule_event(node, icmp_event_ping_request,
                 node->icmp_info->ping_ip_address, (void *) node->icmp_info->ping_seq_num++,
-                node->icmp_info->ping_interval);
+                rs_system_random() % node->icmp_info->ping_interval);
     }
 
     return TRUE;

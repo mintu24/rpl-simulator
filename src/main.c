@@ -91,24 +91,26 @@ void rs_quit()
 
 void rs_start(bool start_paused)
 {
-    if (rs_scenario_file_name != NULL) { /* this overwrites the old log, if it exists */
-        char *ext = rindex(rs_scenario_file_name, '.');
-        char *path_no_ext;
-        if (ext != NULL) {
-            path_no_ext = strndup(rs_scenario_file_name, ext - rs_scenario_file_name);
+    if (!rs_system->paused) {
+        if (rs_scenario_file_name != NULL) { /* this overwrites the old log, if it exists */
+            char *ext = rindex(rs_scenario_file_name, '.');
+            char *path_no_ext;
+            if (ext != NULL) {
+                path_no_ext = strndup(rs_scenario_file_name, ext - rs_scenario_file_name);
+            }
+            else {
+                path_no_ext = strdup(rs_scenario_file_name);
+            }
+
+            char path[256];
+            snprintf(path, sizeof(path), "%s.log", path_no_ext);
+            event_set_log_file(path);
+
+            free(path_no_ext);
         }
         else {
-            path_no_ext = strdup(rs_scenario_file_name);
+            event_set_log_file(NULL);
         }
-
-        char path[256];
-        snprintf(path, sizeof(path), "%s.log", path_no_ext);
-        event_set_log_file(path);
-
-        free(path_no_ext);
-    }
-    else {
-        event_set_log_file(NULL);
     }
 
     rs_system_start(start_paused);

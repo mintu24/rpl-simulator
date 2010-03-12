@@ -702,7 +702,10 @@ void main_win_node_to_gui(node_t *node, uint32 what)
             gtk_entry_set_text(GTK_ENTRY(params_nodes_rank_entry), temp);
         }
         else { /* isolated */
-            gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), "");
+            if (root_info->configured_dodag_id != NULL)
+                gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), root_info->configured_dodag_id);
+            else
+                gtk_entry_set_text(GTK_ENTRY(params_nodes_dag_id_entry), "");
 
             gtk_entry_set_text(GTK_ENTRY(params_nodes_seq_num_entry), "0");
 
@@ -1231,6 +1234,7 @@ void cb_params_nodes_root_button_clicked(GtkButton *button, gpointer data)
     }
 
     rpl_node_start_as_root(selected_node);
+    sim_field_redraw();
 
     signal_leave();
 
@@ -1245,6 +1249,7 @@ void cb_params_nodes_isolate_button_clicked(GtkButton *button, gpointer data)
     rs_debug(DEBUG_GUI, NULL);
 
     rpl_node_isolate(selected_node);
+    sim_field_redraw();
 
     signal_leave();
 
@@ -2675,9 +2680,13 @@ static void gui_to_node(node_t *node)
             free(root_info->dodag_id);
         }
         root_info->dodag_id = strdup(gtk_entry_get_text(GTK_ENTRY(params_nodes_dag_id_entry)));
-        /* rpl_seq_num_set(node->rpl_info->root_info->dodag_id, gtk_spin_button_get_value(GTK_SPIN_BUTTON(params_nodes_seq_num_spin))); */
-    }
-    else {
+
+        if (node->rpl_info->root_info->grounded) {
+            if (root_info->configured_dodag_id != NULL) {
+                free(root_info->configured_dodag_id);
+            }
+            root_info->configured_dodag_id = strdup(gtk_entry_get_text(GTK_ENTRY(params_nodes_dag_id_entry)));
+        }
     }
 
     /* measure */
@@ -2696,9 +2705,10 @@ static void gui_to_node(node_t *node)
     if (node->alive && rs_system->started) {
         if (should_start_ping) {
             rs_system_cancel_event(node, icmp_event_ping_timeout, NULL, NULL, 0);
+            rs_system_cancel_event(node, icmp_event_ping_request, NULL, NULL, 0);
             rs_system_schedule_event(node, icmp_event_ping_request,
                     node->icmp_info->ping_ip_address, (void *) node->icmp_info->ping_seq_num++,
-                    node->icmp_info->ping_interval);
+                    rs_system_random() % node->icmp_info->ping_interval);
         }
         if (should_start_connect_measure) {
             measure_node_reset(node);
