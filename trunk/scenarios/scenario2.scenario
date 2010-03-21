@@ -1,0 +1,735 @@
+system = {
+    auto_wake_nodes = true;
+    deterministic_random = true;
+    simulation_second = 500;
+    width = 100.00;
+    height = 100.00;
+    no_link_dist_thresh = 27.00;
+    no_link_quality_thresh = 0.20;
+    transmission_time = 20;
+    mac_pdu_timeout = 40;
+    ip_pdu_timeout = 60;
+    ip_queue_size = 100;
+    ip_neighbor_timeout = 2000;
+    measure_pdu_timeout = 1000;
+    rpl_auto_sn_inc_interval = -1;
+    rpl_dao_supported = true;
+    rpl_dao_trigger = false;
+    rpl_dio_interval_doublings = 3;
+    rpl_dio_interval_min = 7;
+    rpl_dio_redundancy_constant = 255;
+    rpl_dao_root_delay = 1000;
+    rpl_dao_remove_timeout = 1100;
+    rpl_max_inc_rank = 4;
+    rpl_poison_count = 4;
+    rpl_prefer_floating = false;
+    rpl_startup_probe_for_dodags = false;
+    display = {
+        show_node_names = true;
+        show_node_addresses = true;
+        show_node_tx_power = true;
+        show_node_ranks = true;
+        show_preferred_parent_arrows = true;
+        show_parent_arrows = true;
+        show_sibling_arrows = true;
+    }
+    events = {
+        sys_event_node_wake_logging = false;
+        sys_event_node_kill_logging = false;
+        sys_event_pdu_receive_logging = false;
+        phy_event_node_wake_logging = false;
+        phy_event_node_kill_logging = false;
+        phy_event_pdu_send_logging = false;
+        phy_event_pdu_receive_logging = false;
+        phy_event_neighbor_attach_logging = false;
+        phy_event_neighbor_detach_logging = false;
+        phy_event_change_mobility_logging = false;
+        mac_event_node_wake_logging = false;
+        mac_event_node_kill_logging = false;
+        mac_event_pdu_send_logging = false;
+        mac_event_pdu_send_timeout_check_logging = false;
+        mac_event_pdu_receive_logging = false;
+        ip_event_node_wake_logging = false;
+        ip_event_node_kill_logging = false;
+        ip_event_pdu_send_logging = false;
+        ip_event_pdu_send_timeout_check_logging = false;
+        ip_event_pdu_receive_logging = false;
+        ip_event_neighbor_cache_timeout_check_logging = false;
+        icmp_event_node_wake_logging = false;
+        icmp_event_node_kill_logging = false;
+        icmp_event_pdu_send_logging = false;
+        icmp_event_pdu_receive_logging = false;
+        icmp_event_ping_request_logging = false;
+        icmp_event_ping_reply_logging = false;
+        icmp_event_ping_timeout_logging = false;
+        rpl_event_node_wake_logging = false;
+        rpl_event_node_kill_logging = false;
+        rpl_event_dis_pdu_send_logging = false;
+        rpl_event_dis_pdu_receive_logging = false;
+        rpl_event_dio_pdu_send_logging = false;
+        rpl_event_dio_pdu_receive_logging = false;
+        rpl_event_dao_pdu_send_logging = false;
+        rpl_event_dao_pdu_receive_logging = false;
+        rpl_event_neighbor_attach_logging = false;
+        rpl_event_neighbor_detach_logging = false;
+        rpl_event_forward_failure_logging = false;
+        rpl_event_forward_inconsistency_logging = false;
+        rpl_event_trickle_t_timeout_logging = false;
+        rpl_event_trickle_i_timeout_logging = false;
+        rpl_event_dao_send_logging = false;
+        rpl_event_dao_timeout_check_logging = false;
+        rpl_event_seq_num_autoinc_logging = false;
+        measure_event_node_wake_logging = false;
+        measure_event_node_kill_logging = false;
+        measure_event_pdu_send_logging = false;
+        measure_event_pdu_receive_logging = false;
+        measure_event_connect_update_logging = false;
+        measure_event_connect_hop_passed_logging = false;
+        measure_event_connect_hop_failed_logging = false;
+        measure_event_connect_hop_timeout_logging = false;
+        measure_event_connect_established_logging = true;
+        measure_event_connect_lost_logging = true;
+    }
+    node = {
+        phy = {
+            name = A;
+            cx = 73.10;
+            cy = 10.32;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0001;
+        }
+        ip = {
+            address = AA01;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = B;
+            cx = 73.30;
+            cy = 20.58;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0002;
+        }
+        ip = {
+            address = AA02;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = C;
+            cx = 73.60;
+            cy = 30.43;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0003;
+        }
+        ip = {
+            address = AA03;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = D;
+            cx = 73.80;
+            cy = 41.76;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0004;
+        }
+        ip = {
+            address = AA04;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = E;
+            cx = 74.10;
+            cy = 53.50;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0005;
+        }
+        ip = {
+            address = AA05;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = F;
+            cx = 74.00;
+            cy = 64.84;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0006;
+        }
+        ip = {
+            address = AA06;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = G;
+            cx = 74.20;
+            cy = 75.24;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0007;
+        }
+        ip = {
+            address = AA07;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = H;
+            cx = 74.30;
+            cy = 86.17;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0008;
+        }
+        ip = {
+            address = AA08;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = I;
+            cx = 28.40;
+            cy = 86.44;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0009;
+        }
+        ip = {
+            address = AA09;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = BR1;
+            cx = 83.20;
+            cy = 22.06;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 000A;
+        }
+        ip = {
+            address = AA0A;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            configured_dodag_id = 0000;
+            dodag_pref = 0;
+            grounded = true;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = MN;
+            cx = 65.55;
+            cy = 43.56;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mobility = {
+            trigger_time = 0;
+            duration = 0;
+            dest_x = 63.90;
+            dest_y = 92.24;
+        }
+        mobility = {
+            trigger_time = 0;
+            duration = 10000;
+            dest_x = 66.60;
+            dest_y = 12.62;
+        }
+        mobility = {
+            trigger_time = 10000;
+            duration = 10000;
+            dest_x = 66.62;
+            dest_y = 92.57;
+        }
+        mobility = {
+            trigger_time = 20000;
+            duration = 10000;
+            dest_x = 35.47;
+            dest_y = 11.02;
+        }
+        mobility = {
+            trigger_time = 30000;
+            duration = 10000;
+            dest_x = 35.27;
+            dest_y = 86.87;
+        }
+        mac = {
+            address = 000B;
+        }
+        ip = {
+            address = AA0B;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+            connect_dst_node = BR1;
+        }
+    }
+    node = {
+        phy = {
+            name = K;
+            cx = 28.70;
+            cy = 65.65;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 000C;
+        }
+        ip = {
+            address = AA0C;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = J;
+            cx = 28.70;
+            cy = 75.24;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 000D;
+        }
+        ip = {
+            address = AA0D;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = L;
+            cx = 28.60;
+            cy = 53.10;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 000E;
+        }
+        ip = {
+            address = AA0E;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = M;
+            cx = 28.50;
+            cy = 43.52;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 000F;
+        }
+        ip = {
+            address = AA0F;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = N;
+            cx = 28.40;
+            cy = 32.32;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0010;
+        }
+        ip = {
+            address = AA10;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = O;
+            cx = 28.70;
+            cy = 20.99;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0011;
+        }
+        ip = {
+            address = AA11;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = P;
+            cx = 28.70;
+            cy = 11.27;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0012;
+        }
+        ip = {
+            address = AA12;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            dodag_pref = 0;
+            grounded = false;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+    node = {
+        phy = {
+            name = BR2;
+            cx = 20.30;
+            cy = 76.18;
+            battery_level = 0.50;
+            tx_power = 0.50;
+            mains_powered = false;
+        }
+        mac = {
+            address = 0013;
+        }
+        ip = {
+            address = AA13;
+        }
+        icmp = {
+        }
+        rpl = {
+            storing = true;
+            dao_supported = true;
+            dao_trigger = false;
+            dio_interval_doublings = 3;
+            dio_interval_min = 7;
+            dio_redundancy_constant = 255;
+            configured_dodag_id = 0000;
+            dodag_pref = 0;
+            grounded = true;
+            max_rank_inc = 4;
+            min_hop_rank_inc = 1;
+        }
+        measure = {
+        }
+    }
+}
+
