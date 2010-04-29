@@ -888,6 +888,10 @@ static void *system_core(void *data)
                 if (schedule->node != NULL) {
                     if (schedule->node->alive || schedule->event_id == sys_event_node_kill) {
                         event_execute(schedule->event_id, schedule->node, schedule->data1, schedule->data2);
+						if((schedule->event_id == rpl_event_neighbor_attach) ||
+						   (schedule->event_id == rpl_event_neighbor_detach) ||
+						   (schedule->event_id == rpl_event_new_pref_parent)
+						) rs_system->step = FALSE;
                     }
                     else {
                         event_t event = event_find_by_id(schedule->event_id);
@@ -908,9 +912,11 @@ static void *system_core(void *data)
 
         schedules_unlock();
 
+/*
         if (rs_system->paused) {
-            rs_system->step = FALSE;
+        		rs_system->step = FALSE;
         }
+*/
     }
 
     rs_system->paused = FALSE;

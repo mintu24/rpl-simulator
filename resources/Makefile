@@ -1,4 +1,3 @@
-
 NODES = $(subst .svg,.png,$(wildcard node-*-*-*.svg))
 PATTERNS = $(subst .svg,.png,$(wildcard *-pattern.svg))
 RSVG = rsvg -f png

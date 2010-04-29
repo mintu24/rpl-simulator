@@ -36,6 +36,7 @@ static GdkGC *              sim_field_gc = NULL;
 static char *               node_colors[SIM_FIELD_NODE_COLOR_COUNT] = {"blue", "green", "red", "magenta", "brown", "gray"};
 static cairo_surface_t *    node_round_images[SIM_FIELD_NODE_COLOR_COUNT][SIM_FIELD_TX_POWER_STEP_COUNT];
 static cairo_surface_t *    node_square_images[SIM_FIELD_NODE_COLOR_COUNT][SIM_FIELD_TX_POWER_STEP_COUNT];
+static cairo_surface_t *    node_triangle_images[SIM_FIELD_NODE_COLOR_COUNT][SIM_FIELD_TX_POWER_STEP_COUNT];
 
 static GtkWidget *          sim_field_drawing_area = NULL;
 static GtkWidget *          sim_field_vruler = NULL;
@@ -101,6 +102,24 @@ GtkWidget *sim_field_create()
             }
 
             node_square_images[color_index][power_step] = image;
+
+
+            /* triangle images */
+            if((color_index < 1)){
+				snprintf(filename, sizeof(filename),
+						"%s/%s/node-triangle-%s-%d.png",
+						rs_app_dir,
+						RES_DIR,
+						node_colors[color_index],
+						power_step * (100 / (SIM_FIELD_TX_POWER_STEP_COUNT - 1)));
+				image = cairo_image_surface_create_from_png(filename);
+				if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
+					rs_error("failed to load png image '%s': %s", filename, cairo_status_to_string(cairo_surface_status(image)));
+					return NULL;
+				}
+
+				node_triangle_images[color_index][power_step] = image;
+            }
         }
     }
 
@@ -159,20 +178,25 @@ void sim_field_draw_node(node_t *node, cairo_t *cr, double pixel_x, double pixel
 
     if (node->alive) {
         if (rpl_node_is_root(node)) {
-            images = node_square_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
+        	if(node->rpl_info->root_info->grounded){
+        		images = node_square_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
+        	}else{
+        		images = node_triangle_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
+        	}
         }
         else {
             images = node_round_images[sequence_number % (SIM_FIELD_NODE_COLOR_COUNT - 1)];
         }
     }
     else {
-        if (node->rpl_info->root_info->grounded || node->rpl_info->root_info->configured_dodag_id != NULL) {
+    	if (node->rpl_info->root_info->grounded || node->rpl_info->root_info->configured_dodag_id != NULL) {
             images = node_square_images[SIM_FIELD_NODE_COLOR_COUNT - 1];
         }
         else {
             images = node_round_images[SIM_FIELD_NODE_COLOR_COUNT - 1];
         }
     }
+
 
     cairo_surface_t *image = images[(int) round(tx_power * 10)];
     int image_width = cairo_image_surface_get_width(image);

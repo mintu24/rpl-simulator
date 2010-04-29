@@ -24,6 +24,7 @@
 #include "../system.h"
 
 
+
     /* used to coordinate the sequence numbers when multiple roots share the same DODAG id */
 typedef struct seq_num_mapping_t {
 
@@ -48,6 +49,7 @@ uint16                      rpl_event_dao_pdu_receive;
 
 uint16                      rpl_event_neighbor_attach;
 uint16                      rpl_event_neighbor_detach;
+uint16				        rpl_event_new_pref_parent;
 
 uint16                      rpl_event_forward_failure;
 uint16                      rpl_event_forward_inconsistency;
@@ -77,6 +79,7 @@ static bool                 event_handler_dao_pdu_receive(node_t *node, node_t *
 
 static bool                 event_handler_neighbor_attach(node_t *node, node_t *neighbor_node);
 static bool                 event_handler_neighbor_detach(node_t *node, node_t *neighbor_node);
+static bool                 event_handler_new_pref_parent(node_t *node, node_t *pref_parent);
 
 static bool                 event_handler_forward_failure(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu);
 static bool                 event_handler_forward_inconsistency(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu);
@@ -131,6 +134,7 @@ bool rpl_init()
 
     rpl_event_neighbor_attach = event_register("neighbor_attach", "rpl", (event_handler_t) event_handler_neighbor_attach, event_arg_str);
     rpl_event_neighbor_detach = event_register("neighbor_detach", "rpl", (event_handler_t) event_handler_neighbor_detach, event_arg_str);
+    rpl_event_new_pref_parent = event_register("new_pref_parent", "rpl", (event_handler_t) event_handler_new_pref_parent, event_arg_str);
 
     rpl_event_forward_failure = event_register("forward_failure", "rpl", (event_handler_t) event_handler_forward_failure, event_arg_str);
     rpl_event_forward_inconsistency = event_register("forward_inconsistency", "rpl", (event_handler_t) event_handler_forward_inconsistency, event_arg_str);
@@ -1127,6 +1131,7 @@ static bool event_handler_dio_pdu_receive(node_t *node, node_t *incoming_node, r
     }
 
     if (dio_pdu_changed(neighbor, pdu)) {
+
         /* ignore messages from members of our DODAG which are neither parents nor siblings and emit a greater rank than us */
         if (rpl_node_is_joined(node)) {
             if (strcmp(node->rpl_info->joined_dodag->dodag_id, pdu->dodag_id) == 0 &&
@@ -1135,14 +1140,13 @@ static bool event_handler_dio_pdu_receive(node_t *node, node_t *incoming_node, r
                     !rpl_node_has_sibling(node, incoming_node)) {
 
                 neighbor->last_dio_message = NULL; /* make sure we "forgot" the last message for this neighbor */
-
                 return TRUE;
             }
         }
         else if (rpl_node_is_root(node)) {
             if (strcmp(node->rpl_info->root_info->dodag_id, pdu->dodag_id) == 0) {
-                neighbor->last_dio_message = NULL; /* make sure we "forgot" the last message for this */
 
+                neighbor->last_dio_message = NULL; /* make sure we "forgot" the last message for this */
                 return TRUE;
             }
         }
@@ -1150,9 +1154,25 @@ static bool event_handler_dio_pdu_receive(node_t *node, node_t *incoming_node, r
         rs_debug(DEBUG_RPL, "node '%s': received a new/modified message from node '%s' with dodag_id = '%s'",
                 node->phy_info->name, incoming_node->phy_info->name, pdu->dodag_id);
 
+
+
         bool dodag_config_changed = dio_pdu_dodag_config_changed(neighbor, pdu);
 
         update_neighbor_dio_message(neighbor, pdu);
+
+        /*
+         * If we get poison from the preferred parent, we propagate the poisoning mechanism
+		 */
+        if (rpl_node_is_joined(node)) {
+        	if ((node->rpl_info->joined_dodag->pref_parent == neighbor) && (neighbor->last_dio_message->rank == RPL_RANK_INFINITY)){
+        		rs_debug(DEBUG_RPL, "node '%s' : was member of dodag id '%s' but preferred parent started poisonning",
+        				node->phy_info->name, node->rpl_info->joined_dodag->dodag_id);
+				start_dio_poisoning(node);
+				return TRUE;
+        	}
+        }
+        /* end of poisoning procedure */
+
 
         bool same;
         rpl_dio_pdu_t *preferred_dodag_pdu = get_preferred_dodag_dio_pdu(node, &same);
@@ -1362,6 +1382,10 @@ static bool event_handler_neighbor_detach(node_t *node, node_t *neighbor_node)
     measure_converg_update();
 
     return TRUE;
+}
+
+static bool event_handler_new_pref_parent(node_t *node, node_t *pref_parent){
+	return TRUE;
 }
 
 static bool event_handler_forward_failure(node_t *node, node_t *incoming_node, ip_pdu_t *ip_pdu)
@@ -1822,6 +1846,65 @@ static void update_dodag_config(node_t *node, rpl_dio_pdu_t *dio_pdu)
     reset_trickle_timer(node);
 }
 
+/*
+ *
+ * Measure connectivity with pref parent and root
+ *
+ */
+
+bool check_node(node_t* node, node_t** path_list, int list_count){
+	int i;
+	for(i = 0; i < list_count; i++) if(node == path_list[i]) return TRUE;
+	return FALSE;
+}
+
+int is_connected_rec(node_t* node, node_t** path_list, int list_count){
+	if( rpl_node_is_root(node) )
+		if(node->rpl_info->root_info->grounded)
+			return 1;
+		else
+			return 0;
+	else // check for loop
+		if(check_node(node,path_list, list_count)){
+			printf("loop detected :");
+			int i;
+			for(i = 0; i < list_count; i++) printf(" %s ", path_list[i]->phy_info->name);
+			printf("%s\n", node->phy_info->name);
+			free(path_list);
+			return 0;
+		}
+	else
+		if( rpl_node_is_joined(node) ){
+			path_list = realloc(path_list, (list_count + 1) * sizeof(node_t*));
+			path_list[list_count] = node;
+			return is_connected_rec(node->rpl_info->joined_dodag->pref_parent->node, path_list, list_count+1);
+		}
+		else
+			return 0;
+}
+
+int is_connected(node_t* node){
+	if( rpl_node_is_root(node) )
+			if(node->rpl_info->root_info->grounded)
+				return 1;
+			else
+				return 0;
+	else
+		if( rpl_node_is_joined(node) ){
+			node_t** path_list = malloc(sizeof(node_t*));
+			path_list[0] = node;
+			return is_connected_rec(node->rpl_info->joined_dodag->pref_parent->node, path_list, 1);
+		}
+		else
+			return 0;
+}
+/*
+ *
+ * End Measure
+ *
+ */
+
+
 static void choose_parents_and_siblings(node_t *node)
 {
     rs_assert(node != NULL);
@@ -1933,7 +2016,13 @@ static void choose_parents_and_siblings(node_t *node)
         dodag->lowest_rank = best_rank;
     }
 
+
+    node_t* old_pref_parent = ((dodag->pref_parent==NULL)?(NULL):(dodag->pref_parent->node));
     dodag->pref_parent = node->rpl_info->neighbor_list[best_rank_index];
+    if(dodag->pref_parent->node != old_pref_parent){
+    	rs_system_schedule_event(node, rpl_event_new_pref_parent, NULL, NULL, 0);
+    	printf("%d %s %s %i %i\n", rs_system->now, node->phy_info->name, dodag->pref_parent->node->mac_info->address, dodag->rank, is_connected(node));
+    }
     ip_node_add_route(node, "0", 0, dodag->pref_parent->node, IP_ROUTE_TYPE_RPL_DIO, NULL);
 
     for (i = 0; i < node->rpl_info->neighbor_count; i++) {
@@ -1944,7 +2033,6 @@ static void choose_parents_and_siblings(node_t *node)
                 rpl_dio_pdu_destroy(neighbor->last_dio_message);
                 neighbor->last_dio_message = NULL;
             }
-
             continue;
         }
 
@@ -2026,7 +2114,8 @@ static rpl_dio_pdu_t *get_preferred_dodag_dio_pdu(node_t *node, bool *same)
         }
 
         if (neighbor->last_dio_message->rank >= RPL_RANK_INFINITY) { /* ignore neighbors that started poisoning */
-            continue;
+            //TODO : no !
+        	continue;
         }
 
         if (rpl_node_is_joined(node) &&
