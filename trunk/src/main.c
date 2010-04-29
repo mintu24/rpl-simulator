@@ -23,6 +23,7 @@
 #include <gtk/gtk.h>
 #include <ctype.h>
 #include <libgen.h> /* for dirname() */
+#include <sys/resource.h> /* for rlimit */
 
 #include "main.h"
 #include "system.h"
@@ -537,8 +538,19 @@ static char *get_next_ip_address(char *address)
     }
 }
 
+
+void makecoreifcrash(){
+	struct rlimit rlim;
+	if(!getrlimit(RLIMIT_CORE, &rlim) && rlim.rlim_cur != RLIM_INFINITY){
+		rlim.rlim_cur = RLIM_INFINITY;
+		rlim.rlim_max = RLIM_INFINITY;
+		setrlimit(RLIMIT_CORE, &rlim);
+	}
+}
+
 int main(int argc, char *argv[])
 {
+	makecoreifcrash();
 	rs_info("hello");
 
 	rs_app_dir = strdup(dirname(argv[0]));

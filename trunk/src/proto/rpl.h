@@ -56,7 +56,7 @@
 #define rpl_node_is_poisoning(node)             ((node)->rpl_info->joined_dodag != NULL && (node)->rpl_info->joined_dodag->rank == RPL_RANK_INFINITY)
 
 
-    /* data structure that holds remote RPL node information, for avoiding a node_t * reference */
+/* data structure that holds remote RPL node information, for avoiding a node_t * reference */
 typedef struct rpl_neighbor_t {
 
     node_t *                node;
@@ -194,6 +194,7 @@ extern uint16               rpl_event_dao_pdu_receive;
 
 extern uint16               rpl_event_neighbor_attach;
 extern uint16               rpl_event_neighbor_detach;
+extern uint16               rpl_event_new_pref_parent;
 
 extern uint16               rpl_event_forward_failure;
 extern uint16               rpl_event_forward_inconsistency;

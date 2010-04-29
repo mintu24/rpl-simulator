@@ -559,8 +559,9 @@ setting_t *create_setting_tree()
     sprintf(text, "%s", rs_system->rpl_startup_probe_for_dodags ? "true" : "false");
     setting_set_value(setting, text);
 
-    setting_t *display_setting = setting_create("display", system_setting);
+    //setting_t *display_setting = setting_create("display", system_setting);
 
+/*
     setting = setting_create("show_node_names", display_setting);
     sprintf(text, "%s", main_win_get_display_params()->show_node_names ? "true" : "false");
     setting_set_value(setting, text);
@@ -588,6 +589,7 @@ setting_t *create_setting_tree()
     setting = setting_create("show_sibling_arrows", display_setting);
     sprintf(text, "%s", main_win_get_display_params()->show_sibling_arrows ? "true" : "false");
     setting_set_value(setting, text);
+*/
 
     setting_t *events_setting = setting_create("events", system_setting);
 
